@@ -1,15 +1,16 @@
-from auth import AuthHmacMetos, publicKey, privateKey, apiURI
-import requests
-import json
+from API_call import api_call 
 
 def get_station_info(stationId):
     endpoint = f'/station/{stationId}'
     method = 'GET'
-    auth = AuthHmacMetos(endpoint, publicKey, privateKey, method)
-    response = requests.get(apiURI+endpoint, headers={'Accept': 'application/json'}, auth=auth)
-    json_object = response.json()
-    json_formatted = json.dumps(json_object, indent=2)
-    print(json_formatted)
-    return json_object
+    return api_call(method, endpoint)
 
-get_station_info('031143C2')
+def get_all_station_sensors(stationId):
+    endpoint = f'/station/{stationId}/sensors'
+    method = 'GET'
+    return api_call(method, endpoint)
+
+def get_station_data_in_timestamp(stationId, dataGroup, startDate, endDate):
+    endpoint = f'/data/{stationId}/{dataGroup}/from/{startDate}/to/{endDate}'
+    method = 'GET'
+    return api_call(method,endpoint)
