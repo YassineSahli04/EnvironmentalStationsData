@@ -1,9 +1,8 @@
 import { useRef, useEffect } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import "./App.css";
 
-function App() {
+export default function MapBox() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -26,5 +25,3 @@ function App() {
 
   return <div id="map-container" ref={mapContainerRef} />;
 }
-
-export default App;
