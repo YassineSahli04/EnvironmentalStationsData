@@ -1,9 +1,12 @@
 import MapBox from "../Components/MapBox";
 
-export default function Home() {
+type HomeProps = {
+  isSideBarCollapsed: boolean;
+};
+
+export default function Home({ isSideBarCollapsed }) {
   return (
     <>
-      <h1>Hello</h1>
       <MapBox />
     </>
   );

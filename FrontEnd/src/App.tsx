@@ -1,30 +1,32 @@
-import { useRef, useEffect } from "react";
-import mapboxgl from "mapbox-gl";
+import { useState } from "react";
+import { CssBaseline, ThemeProvider } from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
-import "./App.css";
+import { Routes, Route } from "react-router-dom";
+import Sidebar from "./Components/Global/Sidebar";
+import Topbar from "./Components/Global/Topbar";
+import Home from "./Pages/Home";
+import { ColorModeContext, useMode } from "./theme";
 
 function App() {
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const [theme, colorMode] = useMode();
+  const [isSideBarCollapsed, setIsSideBarCollapsed] = useState(false);
 
-  useEffect(() => {
-    mapboxgl.accessToken =
-      "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWh6dzdwcnEwdHlpMmpwdG5kZ3AyYzk4In0.vsvUv8pZJGyqR81b17vNKg";
-
-    if (!mapContainerRef.current) return;
-
-    mapRef.current = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      center: [-74.0242, 40.6941],
-      zoom: 10.12,
-    });
-
-    return () => {
-      mapRef.current?.remove();
-    };
-  }, []);
-
-  return <div id="map-container" ref={mapContainerRef} />;
+  return (
+    <ColorModeContext.Provider value={colorMode}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <div className="app">
+          <Sidebar isCollapsed={isSideBarCollapsed} setIsCollapsed={setIsSideBarCollapsed} />
+          <main className="content">
+            <Topbar />
+            <Routes>
+              <Route path="/" element={<Home isSideBarCollapsed={isSideBarCollapsed} />} />
+            </Routes>
+          </main>
+        </div>
+      </ThemeProvider>
+    </ColorModeContext.Provider>
+  );
 }
 
 export default App;

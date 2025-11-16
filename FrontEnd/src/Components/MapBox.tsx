@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import "./SCSS/MapBox.scss";
 
 export default function MapBox() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -8,7 +9,7 @@ export default function MapBox() {
 
   useEffect(() => {
     mapboxgl.accessToken =
-      "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWh6dzdwcnEwdHlpMmpwdG5kZ3AyYzk4In0.vsvUv8pZJGyqR81b17vNKg";
+      "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWkwZHhlamMwaWgxMmxweWloOWJ3YmdtIn0.dJtTsXAcQy2eErlpsMoUWA";
 
     if (!mapContainerRef.current) return;
 
@@ -22,6 +23,18 @@ export default function MapBox() {
       mapRef.current?.remove();
     };
   }, []);
+
+  // useEffect(() => {
+  //   if (!mapRef.current || !mapContainerRef.current) return;
+
+  //   const observer = new ResizeObserver(() => {
+  //     mapRef.current?.resize();
+  //   });
+
+  //   observer.observe(mapContainerRef.current);
+
+  //   return () => observer.disconnect();
+  // }, []);
 
   return <div id="map-container" ref={mapContainerRef} />;
 }
