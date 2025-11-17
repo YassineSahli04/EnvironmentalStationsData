@@ -19,7 +19,7 @@ export default function MapBox() {
       config: {
         basemap: {
           theme: "standard",
-          lightPreset: "night",
+          lightPreset: "day",
         },
       },
       center: [9.25477, 34.26822],
@@ -74,87 +74,106 @@ export default function MapBox() {
         },
       });
 
-      // // When a click event occurs on a cluster,
-      // // getClusterExpansionZoom grabs the zoomlevel where the cluster expands
-      // // Then the viewport zooms in to show the expanded cluster
-      // // Displaying the underlying individual points and/or smaller clusters
-      // mapRef.current.addInteraction("click-clusters", {
-      //   type: "click",
-      //   target: { layerId: "clusters" },
-      //   handler: (e) => {
-      //     if (!mapRef.current) return;
-      //     const features = mapRef.current.queryRenderedFeatures(e.point, {
-      //       layers: ["clusters"],
-      //     });
-      //     if (features.length === 0 || !features[0].properties) return;
-      //     const clusterId = features[0].properties.cluster_id;
-      //     mapRef.current
-      //       .getSource("earthquakes")
-      //       .getClusterExpansionZoom(clusterId, (err, zoom) => {
-      //         if (err) return;
+      // When a click event occurs on a cluster,
+      // getClusterExpansionZoom grabs the zoomlevel where the cluster expands
+      // Then the viewport zooms in to show the expanded cluster
+      // Displaying the underlying individual points and/or smaller clusters
+      mapRef.current.addInteraction("click-clusters", {
+        type: "click",
+        target: { layerId: "clusters" },
+        handler: (e) => {
+          if (!mapRef.current) return;
+          const features = mapRef.current.queryRenderedFeatures(e.point, {
+            layers: ["clusters"],
+          });
+          if (features.length === 0 || !features[0].properties) return;
+          const clusterId = features[0].properties.cluster_id;
+          mapRef.current
+            .getSource("earthquakes")
+            .getClusterExpansionZoom(clusterId, (err, zoom) => {
+              if (err) return;
 
-      //         mapRef.current.easeTo({
-      //           center: features[0].geometry.coordinates,
-      //           zoom: zoom,
-      //         });
-      //       });
-      //   },
-      // });
+              mapRef.current.easeTo({
+                center: features[0].geometry.coordinates,
+                zoom: zoom,
+              });
+            });
+        },
+      });
 
-      // // When a click event occurs on a feature in
-      // // the unclustered-point layer, open a popup at
-      // // the location of the feature, with
-      // // description HTML from its properties.
-      // mapRef.current.addInteraction("click-unclustered", {
-      //   type: "click",
-      //   target: { layerId: "unclustered-point" },
-      //   handler: (e) => {
-      //     const coordinates = e.feature.geometry.coordinates.slice();
-      //     const mag = e.feature.properties.mag;
-      //     const tsunami = e.feature.properties.tsunami === 1 ? "yes" : "no";
+      // When a click event occurs on a feature in
+      // the unclustered-point layer, open a popup at
+      // the location of the feature, with
+      // description HTML from its properties.
+      mapRef.current.addInteraction("click-unclustered", {
+        type: "click",
+        target: { layerId: "unclustered-point" },
+        handler: (e) => {
+          const coordinates = e.feature.geometry.coordinates.slice();
 
-      //     new mapboxgl.Popup()
-      //       .setLngLat(coordinates)
-      //       .setHTML(`magnitude: ${mag}<br>Was there a tsunami?: ${tsunami}`)
-      //       .addTo(mapRef.current);
-      //   },
-      // });
+          const popup = new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(
+              `
+              <div class="station-popup" style="cursor: pointer;">
+                <h3 style="color: #2238ffff; margin: 0; ">${e.feature.properties.name}</h3>
+                <p style="color: #000000ff; margin: 4px 0 0 0;">
+                  <strong style="color:#000000ff;">ID:</strong> ${e.feature.properties.id}<br />
+                  <strong style="color:#000000ff;">Lon:</strong> ${e.feature.geometry.coordinates[0].toFixed(
+                    4
+                  )}, <strong style="color:#000000ff;">Lat:</strong> ${e.feature.geometry.coordinates[1].toFixed(4)}
+                </p>
+              </div>
+            `
+            )
+            .addTo(mapRef.current);
 
-      // // Change the cursor to a pointer when the mouse is over a cluster of POIs.
-      // mapRef.current.addInteraction("clustered-mouseenter", {
-      //   type: "mouseenter",
-      //   target: { layerId: "clusters" },
-      //   handler: () => {
-      //     mapRef.current.getCanvas().style.cursor = "pointer";
-      //   },
-      // });
+          const popupElement = popup
+            .getElement()
+            ?.querySelector(".station-popup") as HTMLDivElement | null;
+          if (popupElement) {
+            popupElement.addEventListener("click", () => {
+              console.log(`Station ID: ${e.feature.properties.name}`);
+            });
+          }
+        },
+      });
 
-      // // Change the cursor back to a pointer when it stops hovering over a cluster of POIs.
-      // mapRef.current.addInteraction("clustered-mouseleave", {
-      //   type: "mouseleave",
-      //   target: { layerId: "clusters" },
-      //   handler: () => {
-      //     mapRef.current.getCanvas().style.cursor = "";
-      //   },
-      // });
+      // Change the cursor to a pointer when the mouse is over a cluster of POIs.
+      mapRef.current.addInteraction("clustered-mouseenter", {
+        type: "mouseenter",
+        target: { layerId: "clusters" },
+        handler: () => {
+          mapRef.current.getCanvas().style.cursor = "pointer";
+        },
+      });
 
-      // // Change the cursor to a pointer when the mouse is over an individual POI.
-      // mapRef.current.addInteraction("unclustered-mouseenter", {
-      //   type: "mouseenter",
-      //   target: { layerId: "unclustered-point" },
-      //   handler: () => {
-      //     mapRef.current.getCanvas().style.cursor = "pointer";
-      //   },
-      // });
+      // Change the cursor back to a pointer when it stops hovering over a cluster of POIs.
+      mapRef.current.addInteraction("clustered-mouseleave", {
+        type: "mouseleave",
+        target: { layerId: "clusters" },
+        handler: () => {
+          mapRef.current.getCanvas().style.cursor = "";
+        },
+      });
 
-      // // Change the cursor back to a pointer when it stops hovering over an individual POI.
-      // mapRef.current.addInteraction("unclustered-mouseleave", {
-      //   type: "mouseleave",
-      //   target: { layerId: "unclustered-point" },
-      //   handler: () => {
-      //     mapRef.current.getCanvas().style.cursor = "";
-      //   },
-      // });
+      // Change the cursor to a pointer when the mouse is over an individual POI.
+      mapRef.current.addInteraction("unclustered-mouseenter", {
+        type: "mouseenter",
+        target: { layerId: "unclustered-point" },
+        handler: () => {
+          mapRef.current.getCanvas().style.cursor = "pointer";
+        },
+      });
+
+      // Change the cursor back to a pointer when it stops hovering over an individual POI.
+      mapRef.current.addInteraction("unclustered-mouseleave", {
+        type: "mouseleave",
+        target: { layerId: "unclustered-point" },
+        handler: () => {
+          mapRef.current.getCanvas().style.cursor = "";
+        },
+      });
     });
 
     return () => mapRef.current.remove();
