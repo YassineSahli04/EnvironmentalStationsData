@@ -1,4 +1,4 @@
-from auth import AuthHmacMetos, publicKey, privateKey, apiURI
+from .auth import AuthHmacMetos, publicKey, privateKey, apiURI
 import requests
 import json
 

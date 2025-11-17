@@ -1,9 +1,13 @@
-from API_call import api_call 
+from .API_call import api_call 
+from .GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 
-def get_station_info(stationId):
+def get_station_info(stationId, isGeoJsonFeature=False):
     endpoint = f'/station/{stationId}'
     method = 'GET'
-    return api_call(method, endpoint)
+    jsonObject = api_call(method, endpoint)
+    if isGeoJsonFeature:
+        return GeoJsonStationInfoFeature(jsonObject)    
+    return jsonObject
 
 def get_all_station_sensors(stationId):
     endpoint = f'/station/{stationId}/sensors'

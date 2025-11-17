@@ -18,19 +18,19 @@ export default function MapBox() {
       style: "mapbox://styles/mapbox/standard",
       config: {
         basemap: {
-          theme: "monochrome",
+          theme: "standard",
           lightPreset: "night",
         },
       },
-      center: [-103.5917, 40.6699],
-      zoom: 3,
+      center: [9.25477, 34.26822],
+      zoom: 1.5,
     });
     mapRef.current.on("load", () => {
       if (!mapRef.current) return;
       mapRef.current.addSource("earthquakes", {
         type: "geojson",
         generateId: true,
-        data: "https://docs.mapbox.com/mapbox-gl-js/assets/earthquakes.geojson",
+        data: "http://localhost:8000/api/user/stations",
         cluster: true,
         clusterMaxZoom: 14,
         clusterRadius: 50,
