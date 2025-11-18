@@ -15,13 +15,7 @@ export default function MapBox() {
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/standard",
-      config: {
-        basemap: {
-          theme: "standard",
-          lightPreset: "day",
-        },
-      },
+      style: "mapbox://styles/mapbox/standard-satellite",
       center: [9.25477, 34.26822],
       zoom: 1.5,
     });

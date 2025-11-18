@@ -5,7 +5,7 @@ import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import { Box, IconButton, useTheme } from "@mui/material";
+import { Box, IconButton, useTheme, Typography } from "@mui/material";
 import InputBase from "@mui/material/InputBase";
 import { ColorModeContext, tokens } from "../../theme";
 
@@ -20,33 +20,37 @@ const Topbar = () => {
         position: "relative",
         zIndex: 2,
         backgroundColor: colors.primary[400],
+        height: "10vh",
       }}
       display="flex"
       justifyContent="space-between"
+      alignItems="center"
       p={2}
     >
-      {/* SEARCH BAR */}
-      <Box
-        sx={{
-          display: "flex",
-          backgroundColor: colors.primary[400],
-          borderRadius: "3px",
-        }}
-      >
-        <InputBase sx={{ ml: 2, flex: 1 }} placeholder="Search" />
-        <IconButton type="button" sx={{ p: 1 }}>
-          <SearchIcon />
-        </IconButton>
+      {/* LEFT: title + search */}
+      <Box display="flex" alignItems="center" gap={2} ml="15px">
+        <Typography variant="h3" paddingRight="30px" color={colors.grey[100]}>
+          AGRODATA
+        </Typography>
+
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            backgroundColor: colors.primary[400],
+            borderRadius: "3px",
+            border: `1px solid ${colors.grey[600]}`,
+          }}
+        >
+          <InputBase sx={{ ml: 2, mr: 1, minWidth: 200 }} placeholder="Search" />
+          <IconButton type="button" sx={{ p: 1 }}>
+            <SearchIcon />
+          </IconButton>
+        </Box>
       </Box>
 
-      {/* ICONS */}
-      <Box
-        sx={{
-          position: "relative",
-          zIndex: 2,
-        }}
-        display="flex"
-      >
+      {/* RIGHT: icons */}
+      <Box sx={{ position: "relative", zIndex: 2 }} display="flex">
         <IconButton onClick={colorMode.toggleColorMode}>
           {theme.palette.mode === "dark" ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
         </IconButton>

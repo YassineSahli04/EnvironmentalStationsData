@@ -16,13 +16,15 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <div className="app">
-          <Sidebar isCollapsed={isSideBarCollapsed} setIsCollapsed={setIsSideBarCollapsed} />
-          <main className="content">
-            <Topbar />
-            <Routes>
-              <Route path="/" element={<Home isSideBarCollapsed={isSideBarCollapsed} />} />
-            </Routes>
-          </main>
+          <Topbar />
+          <div className="app-body">
+            <Sidebar isCollapsed={isSideBarCollapsed} setIsCollapsed={setIsSideBarCollapsed} />
+            <main className="content">
+              <Routes>
+                <Route path="/" element={<Home isSideBarCollapsed={isSideBarCollapsed} />} />
+              </Routes>
+            </main>
+          </div>
         </div>
       </ThemeProvider>
     </ColorModeContext.Provider>
