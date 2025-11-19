@@ -1,13 +1,13 @@
 .app {
   display: flex;
-  flex-direction: column; /* Topbar row + body row */
+  flex-direction: column;
   height: 100%;
   width: 100%;
 }
 
 .app-body {
-  display: flex; /* Sidebar | Content */
-  flex: 1; /* fill remaining height below Topbar */
+  display: flex;
+  flex: 1;
 }
 
 .content {

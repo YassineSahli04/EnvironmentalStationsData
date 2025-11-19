@@ -6,6 +6,6 @@ router = APIRouter(
     tags=["stations"],
 )
 
-@router.get('/stations')
+@router.get('/stations-Geojson')
 def user_stations_geojson():
     return get_all_user_stations_info_geojson()

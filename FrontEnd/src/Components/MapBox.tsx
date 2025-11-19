@@ -24,7 +24,7 @@ export default function MapBox() {
       mapRef.current.addSource("earthquakes", {
         type: "geojson",
         generateId: true,
-        data: "http://localhost:8000/api/user/stations",
+        data: "http://localhost:8000/api/user/stations-Geojson",
         cluster: true,
         clusterMaxZoom: 14,
         clusterRadius: 50,
