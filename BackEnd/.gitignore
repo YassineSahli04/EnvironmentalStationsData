@@ -7,3 +7,5 @@ test.py
 .jupyter/
 *.ipynb
 **/.ipynb_checkpoints/
+
+DbInfo.json

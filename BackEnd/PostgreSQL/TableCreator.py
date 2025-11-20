@@ -10,7 +10,7 @@ import sqlalchemy.engine as _engine
 
 class TableCreator:
     CHUNK_SIZE = 5000
-    DBINFOJSONPATH = "BackEnd/PostgreSQL/DbInfo.json"
+    SECRETJSONPATH = "BackEnd/PostgreSQL/DbInfo.json"
     newTableName: str | None;
     mysql_ddl: str;
     sourceDataId: int;
@@ -92,7 +92,7 @@ class TableCreator:
         return ddl
     
     def initialize_postgres_table_connection(self):
-        with open(self.DBINFOJSONPATH, "r") as f:
+        with open(self.SECRETJSONPATH, "r") as f:
             data = json.load(f)
             
         userName = data.get("userName")
