@@ -9,3 +9,4 @@ test.py
 **/.ipynb_checkpoints/
 
 DbInfo.json
+BackEnd/PostgreSQL/DbInfo.json
