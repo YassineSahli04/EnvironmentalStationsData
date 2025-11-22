@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from ..user import get_all_user_stations_info_geojson
+from BackEnd.user import get_all_user_stations_info_geojson
 
 router = APIRouter(
     prefix="/api/user",

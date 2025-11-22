@@ -1,7 +1,7 @@
-from .API_call import api_call
-from .GeoJson.GeoJsonObject import GeoJsonObject
-from .station import get_station_data_in_timestamp, get_station_info
-from .transform_data import transform_data_to_df_or_csv, combine_dfs_with_same_timestamp
+from BackEnd.API_call import api_call
+from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
+from BackEnd.station import get_station_data_in_timestamp, get_station_info
+from BackEnd.transform_data import transform_data_to_df_or_csv, combine_dfs_with_same_timestamp
 
 def get_user_info():
     endpoint = '/user'

@@ -1,4 +1,4 @@
-from .GeoJsonFeature import GeoJsonFeature as Feature
+from BackEnd.GeoJson.GeoJsonFeature import GeoJsonFeature as Feature
 class GeoJsonStationInfoFeature(Feature):
     def __init__(self, jsonObject: dict):
         super().__init__()

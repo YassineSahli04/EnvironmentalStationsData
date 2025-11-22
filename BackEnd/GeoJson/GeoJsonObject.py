@@ -1,4 +1,4 @@
-from .GeoJsonFeature import GeoJsonFeature
+from BackEnd.GeoJson.GeoJsonFeature import GeoJsonFeature
 
 class GeoJsonObject:
     def __init__(self):

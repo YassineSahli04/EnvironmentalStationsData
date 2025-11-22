@@ -1,4 +1,4 @@
-from .GeoJsonGeometry import GeoJsonGeometry as Geometry
+from BackEnd.GeoJson.GeoJsonGeometry import GeoJsonGeometry as Geometry
 class GeoJsonFeature:
     geometry: Geometry
     properties: dict[str, object]

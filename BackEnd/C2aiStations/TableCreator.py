@@ -1,33 +1,34 @@
+from logging import exception
 import re
 import pandas as pd
-from sqlalchemy import create_engine, text
-from ..C2aiStations.C2aiStationsApiCalls import C2aiStationsApiCalls
-from ..C2aiStations.QueryObject import QueryObject 
-import json
+from sqlalchemy import text
+from BackEnd.C2aiStations.C2aiStationsApiCalls import C2aiStationsApiCalls
+from BackEnd.C2aiStations.QueryObject import QueryObject 
+from pathlib import Path
 import sqlalchemy.engine as _engine
 
 
 
 class TableCreator:
     CHUNK_SIZE = 5000
-    SECRETJSONPATH = "BackEnd/PostgreSQL/DbInfo.json"
+    SECRETJSONPATH = Path(__file__).resolve().parents[2] / "BackEnd/PostgreSQL/DbInfo.json"
     newTableName: str | None;
     mysql_ddl: str;
     sourceDataId: int;
     engine: _engine.Engine;
-    def __init__(self, sourceDataId, oldTableName) -> None:
+    def __init__(self, engine, sourceDataId, oldTableName):
         self.sourceDataId = sourceDataId
         self.oldTableName = oldTableName
         self.set_new_table_name()
         self.set_db_creation_query()
-        self.initialize_postgres_table_connection()
+        self.engine = engine
 
     def set_new_table_name(self):
         query = "SELECT DATABASE();"
         queryObject = QueryObject(self.sourceDataId, query)
         apiCall = C2aiStationsApiCalls([queryObject])
         jsonResponse = apiCall.getRawResponse()
-        dbName = jsonResponse.get("results").get(queryObject.refId).get('frames')[0].get('data').get('values')[0][0]
+        dbName = jsonResponse.get("results").get(queryObject.refId).get('frames')[0].get('data').get('values')[0][0] # type: ignore
         self.newTableName = f"{dbName}-{self.oldTableName}"
     
     def set_db_creation_query(self):
@@ -35,7 +36,7 @@ class TableCreator:
         queryObject = QueryObject(self.sourceDataId, query)
         apiCall = C2aiStationsApiCalls([queryObject])
         jsonResponse = apiCall.getRawResponse()
-        self.mysql_ddl = jsonResponse.get("results").get(queryObject.refId).get('frames')[0].get('data').get('values')[1][0]
+        self.mysql_ddl = jsonResponse.get("results").get(queryObject.refId).get('frames')[0].get('data').get('values')[1][0] # type: ignore
 
 
     def mysql_ddl_to_postgres(self):
@@ -90,30 +91,10 @@ class TableCreator:
         if not ddl.endswith(";"):
             ddl += ";"
         return ddl
-    
-    def initialize_postgres_table_connection(self):
-        with open(self.SECRETJSONPATH, "r") as f:
-            data = json.load(f)
-            
-        userName = data.get("userName")
-        password = data.get("password")
-        host = data.get("host")
-        port = data.get("port")
-        database = data.get("database")
 
-        connection_string = f"postgresql+psycopg2://{userName}:{password}@{host}:{port}/{database}"
-
-        self.engine = create_engine(connection_string)
-
-    
-    def create_postgres_table(self):
-        postgres_ddl = self.mysql_ddl_to_postgres()
-        with self.engine.connect() as connection:
-            connection.execute(text(postgres_ddl))
-            connection.commit()
     
     def fix_datetime(self, col: pd.Series) -> pd.Series:
-        return pd.to_datetime(col, errors="coerce")
+        return pd.to_datetime(col, unit="ms", origin="unix", errors="coerce")
     
     def fix_boolean(self, col: pd.Series) -> pd.Series:
         return col.astype(str).map({"0": False, "1": True, "False": False, "True": True})
@@ -143,12 +124,12 @@ class TableCreator:
                 clean_name.startswith("RES_")  or
                 clean_name in ("NET_ID", "ADDR_ID")
             ):
-                new_df[col] = self.fix_number(new_df[col]).astype("Int64")     
+                new_df[col] = self.fix_number(new_df[col]).astype("Int64")  
+        new_df.columns = [c.split(" : ")[0] for c in df.columns]   
         return new_df
     
     def insert_df(self, df):
-        df.columns = [c.split(" : ")[0] for c in df.columns]
-        with self.engine.connect() as connection:
+        with self.engine.begin() as connection:
             df.to_sql(
                 name=self.newTableName,
                 con=connection,
@@ -158,10 +139,70 @@ class TableCreator:
                 chunksize=self.CHUNK_SIZE
             )
 
+    def get_filter_columns_to_keep(self) -> list[str]:
+        base_columns = ["DATE_TIME", "DATE_DOUBLE", "TYPE"]
+        channel_cols = [
+            f"{prefix}_{i}"
+            for i in range(1,13)
+            for prefix in ("MEAS", "STAT", "UM", "RES")
+        ]
+        return base_columns + channel_cols
+    
+    def filter_ed_tables(self, df: pd.DataFrame) -> pd.DataFrame:
+        if "ed" not in self.oldTableName:
+            raise Exception("Table is not an ed_ table.")
+        cols_to_keep = self.get_filter_columns_to_keep()
+        return df[cols_to_keep]   
+        
+    def filter_postgres_columns_in_creation_query(self, ddl: str) -> str:
+        if "ed" not in self.oldTableName.lower():
+            return ddl
+
+        lines = ddl.splitlines()
+        
+        new_lines: list[str] = []
+
+        cols_to_keep = set(self.get_filter_columns_to_keep())
+
+        for line in lines:
+            stripped = line.strip()
+
+            if stripped.startswith('"'):
+                first_token = stripped.split()[0]
+                col_name = first_token.strip('"')
+
+                if col_name not in cols_to_keep:
+                    continue
+
+            new_lines.append(line)
+
+        filtered_ddl = "\n".join(new_lines).strip()
+
+        if not filtered_ddl.endswith(";"):
+            filtered_ddl += ";"
+        return filtered_ddl
+
+
+    def create_postgre_table(self):
+        postgres_ddl = self.mysql_ddl_to_postgres()
+        if "ed" in self.oldTableName:
+            postgres_ddl = self.filter_postgres_columns_in_creation_query(postgres_ddl)
+        with self.engine.connect() as connection:
+            connection.execute(text(postgres_ddl))
+            connection.commit()
+
     def get_all_data_and_insert(self):
         query = f"SELECT * FROM {self.oldTableName};"
         queryObject = QueryObject(self.sourceDataId, query)
         apiCall = C2aiStationsApiCalls([queryObject])
+        dflist = []
         for df in apiCall.getResponse():
             transformed_df = self.transform_df(df)
+            if "ed" in self.oldTableName:
+                transformed_df = self.filter_ed_tables(transformed_df)
             self.insert_df(transformed_df)
+        
+            
+
+
+

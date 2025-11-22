@@ -1,12 +1,13 @@
 from collections.abc import Iterator
 import requests
 import json
-from .QueryObject import QueryObject
+from BackEnd.C2aiStations.QueryObject import QueryObject
 import pandas as pd
 import json
+from pathlib import Path
 
 class C2aiStationsApiCalls:
-    SECRETJSONPATH = "BackEnd/PostgreSQL/DbInfo.json"
+    SECRETJSONPATH = Path(__file__).resolve().parents[2] / "BackEnd/C2aiStations/C2aiInfo.json"
     endPoint = None
     bearerToken = None
     listQuery : list[QueryObject]
@@ -15,8 +16,8 @@ class C2aiStationsApiCalls:
         self.listQuery = listQuery
         with open(self.SECRETJSONPATH, "r") as f:
             secrets = json.load(f)
-            self.endPoint = secrets.get("c2aiEndpoint", self.endPoint)
-            self.bearerToken = secrets.get("bearerToken", self.bearerToken)
+        self.endPoint = secrets.get("c2aiEndpoint", self.endPoint)
+        self.bearerToken = secrets.get("bearerToken", self.bearerToken)
         self.response = requests.post(self.endPoint, headers=self.getHeaders(), json=self.getBody())
     def getBody(self):
         return {
@@ -49,7 +50,7 @@ class C2aiStationsApiCalls:
             df = pd.concat(cols, axis=1)
             yield df
 
-            
+
 
 
     

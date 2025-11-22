@@ -1,5 +1,5 @@
-from .API_call import api_call 
-from .GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
+from BackEnd.API_call import api_call 
+from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 
 def get_station_info(stationId, isGeoJsonFeature=False):
     endpoint = f'/station/{stationId}'

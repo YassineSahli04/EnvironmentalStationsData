@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from .stations_routes import router as stations_router
+from BackEnd.app.stations_routes import router as stations_router
 
 app = FastAPI()
 
