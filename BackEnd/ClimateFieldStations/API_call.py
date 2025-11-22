@@ -1,4 +1,4 @@
-from BackEnd.auth import AuthHmacMetos, publicKey, privateKey, apiURI
+from BackEnd.ClimateFieldStations.auth import AuthHmacMetos, publicKey, privateKey, apiURI
 import requests
 import json
 

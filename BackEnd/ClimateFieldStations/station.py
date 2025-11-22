@@ -1,4 +1,4 @@
-from BackEnd.API_call import api_call 
+from BackEnd.ClimateFieldStations.API_call import api_call 
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 
 def get_station_info(stationId, isGeoJsonFeature=False):
@@ -6,7 +6,7 @@ def get_station_info(stationId, isGeoJsonFeature=False):
     method = 'GET'
     jsonObject = api_call(method, endpoint)
     if isGeoJsonFeature:
-        return GeoJsonStationInfoFeature(jsonObject)    
+        return GeoJsonStationInfoFeature(jsonObject)     # type: ignore
     return jsonObject
 
 def get_all_station_sensors(stationId):
