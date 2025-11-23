@@ -1,0 +1,76 @@
+from BackEnd.ClimateFieldStations.ApiCalls import ApiCalls 
+from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
+from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject
+import sqlalchemy.engine as _engine
+from sqlalchemy import text
+
+from enum import Enum
+class StationDataGroup(Enum):
+    raw = "raw"
+    hourly ="hourly"
+    daily = "daily"
+    monthly = "monthly"
+
+class CfStation(StationDbObject):
+    engine = _engine.Engine
+    def __init__(
+        self,
+        stationId: str,
+        name: str | None = None,
+        location: str | None = None,
+        manufacturer: str | None = None,
+        type: str | None = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        altitude: float | None = None,
+        data_source_id: int | None = None,
+        data_table_name: str | None = None,
+    ):
+        super().__init__(stationId, name, location, manufacturer, type, latitude, longitude, altitude, data_source_id, data_table_name)
+        self.engine = PostgreSQL().engine
+        info = self.get_station_info_from_api()
+        self.Name = info.get("name").get("custom") if self.Name is None else self.Name # type: ignore
+        self.Manufacturer = "Pessl" if self.Manufacturer is None else self.Manufacturer # type: ignore
+        self.Longitude = info.get("position").get("geo").get("coordinates")[0] if self.Longitude is None else self.Longitude # type: ignore
+        self.Latitude = info.get("position").get("geo").get("coordinates")[1] if self.Latitude is None else self.Latitude # type: ignore
+        self.Altitude = info.get("position").get("altitude") if self.Altitude is None else self.Altitude # type: ignore
+        self.DataTableName = stationId if self.DataTableName is None else self.DataTableName # type: ignore
+
+        
+    def get_station_info_from_api(self):
+        endpoint = f'/station/{self.Id}'
+        method = 'GET'
+        jsonObject = ApiCalls.api_call(method, endpoint)
+        return jsonObject
+
+    def get_all_station_sensors_from_api(self):
+        endpoint = f'/station/{self.Id}/sensors'
+        method = 'GET'
+        return ApiCalls.api_call(method, endpoint)
+
+    def get_station_data_in_timestamp_from_api(self, dataGroup : StationDataGroup, startDate: int, endDate:int):
+        endpoint = f'/data/{self.Id}/{dataGroup}/from/{startDate}/to/{endDate}'
+        method = 'GET'
+        return ApiCalls.api_call(method,endpoint)
+    
+    def add_station_to_db(self):
+        query = f"INSERT INTO \"Stations\" (\"Id\", \"Name\", \"Manufacturer\", \"Latitude\", \"Longitude\", \"Altitude\", \"DataTableName\") VALUES (:id, :name, :manufacturer, :latitude, :longitude, :altitude, :tablename)"
+        with self.engine.connect() as connection: # type: ignore
+            connection.execute(
+            text(query),
+                {
+                    "id": self.Id,
+                    "name": self.Name,
+                    "manufacturer": self.Manufacturer,
+                    "latitude": self.Latitude,
+                    "longitude": self.Longitude,
+                    "altitude": self.Altitude,
+                    "tablename": self.DataTableName,
+                }
+            )
+            connection.commit()
+            
+
+
+

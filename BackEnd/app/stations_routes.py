@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from BackEnd.ClimateFieldStations.user import get_all_user_stations_info_geojson
+from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 
 router = APIRouter(
     prefix="/api/user",
@@ -8,4 +8,5 @@ router = APIRouter(
 
 @router.get('/stations-Geojson')
 def user_stations_geojson():
-    return get_all_user_stations_info_geojson()
+    db = PostgreSQL()
+    return db.get_stations_Geojson_object()

@@ -113,6 +113,12 @@ export default function MapBox() {
                 <h3 style="color: #2238ffff; margin: 0; ">${e.feature.properties.name}</h3>
                 <p style="color: #000000ff; margin: 4px 0 0 0;">
                   <strong style="color:#000000ff;">ID:</strong> ${e.feature.properties.id}<br />
+                  <strong style="color:#000000ff;">Manuf:</strong> ${e.feature.properties.manufacturer}<br />
+                  ${
+                    e.feature.properties.type
+                      ? `<strong style="color:#000000ff;">Type:</strong> ${e.feature.properties.type}<br />`
+                      : ""
+                  }
                   <strong style="color:#000000ff;">Lon:</strong> ${e.feature.geometry.coordinates[0].toFixed(
                     4
                   )}, <strong style="color:#000000ff;">Lat:</strong> ${e.feature.geometry.coordinates[1].toFixed(4)}

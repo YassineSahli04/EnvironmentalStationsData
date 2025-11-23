@@ -1,15 +1,13 @@
 from BackEnd.GeoJson.GeoJsonFeature import GeoJsonFeature as Feature
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 class GeoJsonStationInfoFeature(Feature):
-    def __init__(self, jsonObject: dict):
+    def __init__(self, station:StationDbObject):
         super().__init__()
-        id = jsonObject["name"]["original"]
-        name = jsonObject["name"]["custom"]
-        longitude = jsonObject["position"]["geo"]["coordinates"][0]
-        latitude = jsonObject["position"]["geo"]["coordinates"][1]
-        altitude = jsonObject["position"]["altitude"]
-        self.set_data_point(latitude, longitude, altitude)
-        self.add_property("id", id)
-        self.add_property("name", name)
+        self.set_data_point(station.Latitude, station.Longitude, station.Altitude)  # type: ignore
+        self.add_property("id", station.Id)
+        self.add_property("name", station.Name) # type: ignore
+        self.add_property("manufacturer", station.Manufacturer) # type: ignore
+        self.add_property("type", station.Type) # type: ignore
         
         
                                                 
