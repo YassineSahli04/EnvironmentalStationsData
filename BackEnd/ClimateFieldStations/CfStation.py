@@ -36,6 +36,7 @@ class CfStation(StationDbObject):
         self.Latitude = info.get("position").get("geo").get("coordinates")[1] if self.Latitude is None else self.Latitude # type: ignore
         self.Altitude = info.get("position").get("altitude") if self.Altitude is None else self.Altitude # type: ignore
         self.DataTableName = stationId if self.DataTableName is None else self.DataTableName # type: ignore
+        self.Type = self.get_station_type_from_api() if self.Type is None else self.Type
 
         
     def get_station_info_from_api(self):
@@ -54,8 +55,35 @@ class CfStation(StationDbObject):
         method = 'GET'
         return ApiCalls.api_call(method,endpoint)
     
+    def get_station_type_from_api(self):
+        stationInfo = self.get_station_info_from_api()
+        info = stationInfo.get("info") or {} # type: ignore
+        meta = stationInfo.get("meta") or {} # type: ignore
+
+        device_name = info.get("device_name")
+        soil_temp = meta.get("soilTemp")
+        rain_last = meta.get("rain_last")
+
+        if device_name == "iMetos ECO D3":
+            return "Pyranometer"
+
+        if device_name == "uMETOS CLIMA" and soil_temp:
+            return "Drill and Drop"
+
+        if device_name == "uMETOS CLIMA" and rain_last is not None:
+            return "Pluviometer"
+
+        if device_name == "LoRa CLIMA":
+            return "Meteorological"
+
+        if device_name == "LoRa SOIL":
+            return "Aquachek"
+
+        return None
+
+    
     def add_station_to_db(self):
-        query = f"INSERT INTO \"Stations\" (\"Id\", \"Name\", \"Manufacturer\", \"Latitude\", \"Longitude\", \"Altitude\", \"DataTableName\") VALUES (:id, :name, :manufacturer, :latitude, :longitude, :altitude, :tablename)"
+        query = f"INSERT INTO \"Stations\" (\"Id\", \"Name\", \"Manufacturer\", \"Type\", \"Latitude\", \"Longitude\", \"Altitude\", \"DataTableName\") VALUES (:id, :name, :manufacturer, :type, :latitude, :longitude, :altitude, :tablename)"
         with self.engine.connect() as connection: # type: ignore
             connection.execute(
             text(query),
@@ -63,6 +91,7 @@ class CfStation(StationDbObject):
                     "id": self.Id,
                     "name": self.Name,
                     "manufacturer": self.Manufacturer,
+                    "type": self.Type,
                     "latitude": self.Latitude,
                     "longitude": self.Longitude,
                     "altitude": self.Altitude,

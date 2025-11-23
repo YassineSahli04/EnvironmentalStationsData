@@ -1,12 +1,19 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 
 router = APIRouter(
-    prefix="/api/user",
+    prefix="/api/stations",
     tags=["stations"],
 )
 
-@router.get('/stations-Geojson')
-def user_stations_geojson():
+@router.get('/a')
+def get_stations():
     db = PostgreSQL()
-    return db.get_stations_Geojson_object()
+    return db.get_all_station_objects()
+
+@router.get('/geojson')
+def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]")):
+    db = PostgreSQL()
+    return db.get_stations_Geojson_object(typeFilter)
+
+

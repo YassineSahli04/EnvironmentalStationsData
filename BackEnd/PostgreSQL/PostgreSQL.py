@@ -1,10 +1,10 @@
 import json
 import sqlalchemy.engine as _engine
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, bindparam
 from pathlib import Path
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
-from BackEnd.C2aiStations.TableCreator import TableCreator
+from BackEnd.C2aiStations.C2aiTableCreator import TableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 
 class PostgreSQL:
@@ -28,11 +28,16 @@ class PostgreSQL:
 
         self.engine = create_engine(connection_string)
 
-    def get_all_station_objects(self) -> list[StationDbObject]:
+    def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
         query = text("SELECT \"Id\" FROM \"Stations\";")
+        if typeFilter:
+            query = (text(f"SELECT \"Id\" FROM \"Stations\" WHERE \"Type\" IN :types;").bindparams(bindparam("types", expanding=True)))
         stations = []
         with self.engine.connect() as connection:
-            result = connection.execute(query).fetchall()
+            if typeFilter:
+                result = connection.execute(query, {"types":typeFilter}).fetchall()
+            else:
+                result = connection.execute(query).fetchall()
             for res in result:
                 station_id = res[0]
                 station = StationDbObject(station_id=station_id)
@@ -50,9 +55,9 @@ class PostgreSQL:
             table_creator = TableCreator(self.engine, station.DataSourceId, station.Id)
             table_creator.create_postgre_table()
             table_creator.get_all_data_and_insert()
-            
-    def get_stations_Geojson_object(self):
-        stations = self.get_all_station_objects()
+
+    def get_stations_Geojson_object(self, typeFilter = None):
+        stations = self.get_all_station_objects(typeFilter)
         geoJson =  GeoJsonObject()
         for st in stations:
             feature = GeoJsonStationInfoFeature(st)

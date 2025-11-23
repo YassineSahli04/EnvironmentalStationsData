@@ -1,31 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography } from "@mui/material";
 
 type SearchSidePanelProps = {
   colors: any;
 };
 
-type Option = { label: string; value: string };
+type Option = { label: string; id: string };
 
 const SearchSidePanel = ({ colors }: SearchSidePanelProps) => {
-  const [selectedFilters, setSelectedFilters] = useState<Option[]>([]);
+  const [selectedStations, setSelectedStations] = useState<Option[]>([]);
   const [selectedSensors, setSelectedSensors] = useState<Option[]>([]);
 
-  const filterOptions: Option[] = [
-    { label: "Last 24 hours", value: "last_24h" },
-    { label: "Last 7 days", value: "last_7d" },
-    { label: "Last 30 days", value: "last_30d" },
-  ];
-
-  const sensorOptions: Option[] = [
-    { label: "Temperature", value: "temperature" },
-    { label: "Humidity", value: "humidity" },
-    { label: "Wind speed", value: "wind_speed" },
-  ];
+  const [stations, setStations] = useState<Option[]>([]);
+  useEffect(() => {
+    async function load() {
+      try {
+        const stations = await (await fetch("http://localhost:8000/api/stations/a")).json();
+        const stationOptions: Option[] = [];
+        for (let station of stations) {
+          const name: string = station.Id + "-" + station.Name;
+          const option: Option = { label: name, id: station.Id };
+          stationOptions.push(option);
+        }
+        setStations(stationOptions);
+      } catch {
+        console.log("====================================");
+        console.log("Issue While Loading Stations Data");
+        console.log("====================================");
+      }
+    }
+    load();
+  }, []);
 
   const handleViewData = () => {
-    console.log("Filters:", selectedFilters);
-    console.log("Sensors:", selectedSensors);
     // TODO: call backend / update map
   };
 
@@ -48,16 +55,16 @@ const SearchSidePanel = ({ colors }: SearchSidePanelProps) => {
         Search Stations
       </Typography>
       <Typography variant="body2" color={colors.grey[200]}>
-        Select filters and sensors, then view the data on the map.
+        Select Stations and sensors to visualize the data.
       </Typography>
 
       <Divider sx={{ borderColor: colors.grey[700] }} />
 
       <Autocomplete
         multiple
-        options={filterOptions}
-        value={selectedFilters}
-        onChange={(_, value) => setSelectedFilters(value)}
+        options={stations}
+        value={selectedStations}
+        onChange={(_, value) => setSelectedStations(value)}
         getOptionLabel={(option) => option.label}
         renderInput={(params) => (
           <TextField {...params} label="Filters" placeholder="Select filters" size="small" />
@@ -66,7 +73,7 @@ const SearchSidePanel = ({ colors }: SearchSidePanelProps) => {
 
       <Autocomplete
         multiple
-        options={sensorOptions}
+        options={stations}
         value={selectedSensors}
         onChange={(_, value) => setSelectedSensors(value)}
         getOptionLabel={(option) => option.label}

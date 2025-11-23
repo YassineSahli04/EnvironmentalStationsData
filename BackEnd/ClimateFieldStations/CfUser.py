@@ -7,21 +7,21 @@ from BackEnd.ClimateFieldStations.CfStation import StationDataGroup
 class CfUser:
     def __init__(self):
         pass
-    def get_user_info(self):
+    def get_user_info_from_api(self):
         endpoint = '/user'
         method = 'GET'
         return ApiCalls.api_call(method, endpoint)
 
     @staticmethod
-    def get_all_stations():
+    def get_all_stations_from_api():
         endpoint='/user/stations'
         method='GET'
         return ApiCalls.api_call(method, endpoint)
 
-    def get_all_user_stations_data(self, dataGroup :StationDataGroup, startDtUTC, endDtUTC, isCsv = False):
+    def get_all_user_stations_data_from_api(self, dataGroup :StationDataGroup, startDtUTC, endDtUTC, isCsv = False):
         startTimestamp = int(startDtUTC.timestamp())
         endTimestamp = int(endDtUTC.timestamp())
-        stations = self.get_all_stations()
+        stations = self.get_all_stations_from_api()
         dfs = []
         for st in stations:
             id = st["name"]["original"] # type: ignore
