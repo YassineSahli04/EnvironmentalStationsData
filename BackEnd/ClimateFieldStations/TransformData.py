@@ -57,7 +57,9 @@ class TransformData:
     def combine_dfs_with_diff_timestamp(dfs, time_col="DATE_TIME"):
         """
         - Rounds timestamps to the nearest minute
-        - Aligns all dfs on the union of all timestamps
+        - For rows that land on the same rounded timestamp in a df,
+        keeps a single row with the average of numeric columns
+        - Aligns all dfs on the union of all timestamps (outer join)
         - If a df has no data at a given timestamp -> NaN
         """
         if not dfs:
@@ -72,9 +74,10 @@ class TransformData:
 
             tmp[time_col] = tmp[time_col].dt.round("min")
 
-            tmp = tmp.drop_duplicates(subset=[time_col])
-
-            tmp = tmp.set_index(time_col)
+            tmp = (
+                tmp.groupby(time_col, as_index=True)
+                .mean(numeric_only=True)
+            )
 
             aligned.append(tmp)
 
