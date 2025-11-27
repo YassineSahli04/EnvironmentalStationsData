@@ -52,3 +52,33 @@ class TransformData:
         merged = pd.concat(dfs_idxed, axis=1).reset_index()
         merged.columns.names = dfs[0].columns.names
         return merged
+    
+    @staticmethod
+    def combine_dfs_with_diff_timestamp(dfs, time_col="DATE_TIME"):
+        """
+        - Rounds timestamps to the nearest minute
+        - Aligns all dfs on the union of all timestamps
+        - If a df has no data at a given timestamp -> NaN
+        """
+        if not dfs:
+            raise ValueError("dfs list is empty")
+
+        aligned = []
+
+        for df in dfs:
+            tmp = df.copy()
+
+            tmp[time_col] = pd.to_datetime(tmp[time_col])
+
+            tmp[time_col] = tmp[time_col].dt.round("min")
+
+            tmp = tmp.drop_duplicates(subset=[time_col])
+
+            tmp = tmp.set_index(time_col)
+
+            aligned.append(tmp)
+
+        merged = pd.concat(aligned, axis=1, join="outer").sort_index().reset_index()
+        merged.rename(columns={merged.columns[0]: time_col}, inplace=True)
+
+        return merged

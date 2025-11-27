@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, text, bindparam
 from pathlib import Path
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
-from BackEnd.C2aiStations.C2aiTableCreator import TableCreator
+from BackEnd.C2aiStations.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 
 class PostgreSQL:
@@ -52,7 +52,7 @@ class PostgreSQL:
                 continue
             if station.DataSourceId is None:
                 raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-            table_creator = TableCreator(self.engine, station.DataSourceId, station.Id)
+            table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
             table_creator.create_postgre_table()
             table_creator.get_all_data_and_insert()
 
