@@ -194,8 +194,6 @@ class C2aiTableCreator:
         else:
             return ["DATE_TIME", "MEAS_1", "MEAS_2", "MEAS_3", "MEAS_4", "MEAS_5", "MEAS_6", "MEAS_7", "MEAS_8", "MEAS_9"]
 
-
-
     def get_all_data_and_insert(self):
         dfList = []
         for table in self.edTablesDict:

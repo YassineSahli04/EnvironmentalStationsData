@@ -14,6 +14,9 @@ def get_stations():
 @router.get('/geojson')
 def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]")):
     db = PostgreSQL()
-    return db.get_stations_Geojson_object(typeFilter)
+    print(typeFilter)
+    x =db.get_stations_Geojson_object(typeFilter)
+    print(x)
+    return x
 
 
