@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography } from "@mui/material";
+import { getStations } from "../ApiService/Api.ts";
+import type { StationObj } from "../ApiService/Objects/StationObj.ts";
 
 type SearchSidePanelProps = {
   colors: any;
@@ -8,32 +10,61 @@ type SearchSidePanelProps = {
 type Option = { label: string; id: string };
 
 const SearchSidePanel = ({ colors }: SearchSidePanelProps) => {
-  const [selectedStations, setSelectedStations] = useState<Option[]>([]);
-  const [selectedSensors, setSelectedSensors] = useState<Option[]>([]);
+  const [allStations, setAllStations] = useState<StationObj[]>([]);
+
+  const [selectedManufacturer, setSelectedManufacturer] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedStation, setSelectedStation] = useState<Option>({ label: "", id: "" });
 
   const [stations, setStations] = useState<Option[]>([]);
+  const [manufacturers, setManufacturers] = useState<string[]>([]);
+  const [types, setTypes] = useState<string[]>([]);
+
+  const [unselectedStationErrorIsVisible, setUnselectedStationErrorIsVisible] =
+    useState<boolean>(false);
+
   useEffect(() => {
     async function load() {
-      try {
-        const stations = await (await fetch("http://localhost:8000/api/stations/a")).json();
-        const stationOptions: Option[] = [];
-        for (let station of stations) {
-          const name: string = station.Id + "-" + station.Name;
-          const option: Option = { label: name, id: station.Id };
-          stationOptions.push(option);
-        }
-        setStations(stationOptions);
-      } catch {
-        console.log("====================================");
-        console.log("Issue While Loading Stations Data");
-        console.log("====================================");
-      }
+      const stations = await getStations();
+      setAllStations(stations);
     }
     load();
   }, []);
 
+  useEffect(() => {
+    const stationOptions: Option[] = [];
+    const manufacturerOptions = new Set<string>([]);
+    const typeOptions = new Set<string>([]);
+    for (let station of allStations) {
+      const name: string = station.Id + "-" + station.Name;
+      const option: Option = { label: name, id: station.Id };
+      if (station.Manufacturer) manufacturerOptions.add(station.Manufacturer);
+      if (station.Type) typeOptions.add(station.Type);
+      if (selectedManufacturer.length === 0 && selectedTypes.length == 0) {
+        stationOptions.push(option);
+        continue;
+      }
+      const matchesManufacturer =
+        selectedManufacturer.length === 0 ||
+        (station.Manufacturer && selectedManufacturer.includes(station.Manufacturer));
+
+      const matchesType =
+        selectedTypes.length === 0 || (station.Type && selectedTypes.includes(station.Type));
+
+      if (matchesManufacturer && matchesType) {
+        stationOptions.push(option);
+      }
+    }
+    setManufacturers([...manufacturerOptions]);
+    setTypes([...typeOptions]);
+    setStations(stationOptions);
+  }, [allStations, selectedManufacturer, selectedTypes]);
+
   const handleViewData = () => {
-    // TODO: call backend / update map
+    if (!selectedStation) {
+      setUnselectedStationErrorIsVisible(true);
+      return;
+    }
   };
 
   return (
@@ -62,25 +93,49 @@ const SearchSidePanel = ({ colors }: SearchSidePanelProps) => {
 
       <Autocomplete
         multiple
-        options={stations}
-        value={selectedStations}
-        onChange={(_, value) => setSelectedStations(value)}
-        getOptionLabel={(option) => option.label}
+        options={manufacturers}
+        value={selectedManufacturer}
+        onChange={(_, value) => setSelectedManufacturer(value)}
+        getOptionLabel={(option) => option}
         renderInput={(params) => (
-          <TextField {...params} label="Filters" placeholder="Select filters" size="small" />
+          <TextField
+            {...params}
+            label="Station Manufacturer"
+            placeholder="Select station manufacturer"
+            size="small"
+          />
         )}
       />
 
       <Autocomplete
         multiple
-        options={stations}
-        value={selectedSensors}
-        onChange={(_, value) => setSelectedSensors(value)}
-        getOptionLabel={(option) => option.label}
+        options={types}
+        value={selectedTypes}
+        onChange={(_, value) => setSelectedTypes(value)}
+        getOptionLabel={(option) => option}
         renderInput={(params) => (
-          <TextField {...params} label="Sensors" placeholder="Select sensors" size="small" />
+          <TextField {...params} label="Types" placeholder="Select types" size="small" />
         )}
       />
+
+      <Autocomplete
+        options={stations}
+        value={selectedStation}
+        onChange={(_, value) => {
+          setSelectedStation(value);
+          if (value) setUnselectedStationErrorIsVisible(false);
+        }}
+        getOptionLabel={(option) => option.label}
+        renderInput={(params) => (
+          <TextField {...params} label="Stations" placeholder="Select station" size="small" />
+        )}
+      />
+
+      {unselectedStationErrorIsVisible && (
+        <Typography variant="body2" color="error" sx={{ mt: -1 }}>
+          Please select a station before viewing data.
+        </Typography>
+      )}
 
       <Box flexGrow={1} />
 

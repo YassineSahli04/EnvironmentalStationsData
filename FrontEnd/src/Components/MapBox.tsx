@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
-import axios from "axios";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { getStationsGeojson } from "../ApiService/Api";
 import "./SCSS/MapBox.scss";
 
 export default function MapBox() {
@@ -22,16 +22,7 @@ export default function MapBox() {
     });
 
     mapRef.current.on("load", async () => {
-      const typeFilter = [
-        "Pyranometer",
-        "Pluviometer",
-        "Meteorological",
-        "Meteorological/Pluviometer",
-      ];
-      const res = await axios.get("http://localhost:8000/api/stations/geojson", {
-        params: { type: typeFilter },
-      });
-      const data = res.data;
+      const data = await getStationsGeojson();
 
       if (!mapRef.current) return;
       mapRef.current.addSource("earthquakes", {
