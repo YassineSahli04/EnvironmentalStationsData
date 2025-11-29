@@ -18,7 +18,6 @@ const Topbar = () => {
     <Box
       sx={{
         position: "relative",
-        zIndex: 2,
         backgroundColor: colors.primary[400],
         height: "10vh",
       }}
@@ -50,7 +49,7 @@ const Topbar = () => {
       </Box>
 
       {/* RIGHT: icons */}
-      <Box sx={{ position: "relative", zIndex: 2 }} display="flex">
+      <Box sx={{ position: "relative" }} display="flex">
         <IconButton onClick={colorMode.toggleColorMode}>
           {theme.palette.mode === "dark" ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
         </IconButton>

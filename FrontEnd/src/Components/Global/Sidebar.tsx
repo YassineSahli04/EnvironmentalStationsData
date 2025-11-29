@@ -16,7 +16,7 @@ import "react-pro-sidebar/dist/css/styles.css";
 import { Link } from "react-router-dom";
 import img from "../../assets/user.png";
 import { tokens } from "../../theme";
-import SearchSidePanel from "../SearchSidePanel";
+import SearchSidePanel from "./SearchSidePanel";
 
 type ItemProps = {
   title: string;
@@ -56,19 +56,24 @@ const Item: React.FC<ItemProps> = ({ title, to, icon, selected, setSelected, onC
 type SidebarProps = {
   isCollapsed: boolean;
   setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  onStationViewData: (stationId: string) => void;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onStationViewData }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [selected, setSelected] = useState<string>("Dashboard");
 
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
+  const onViewData = (stationId: string) => {
+    setIsFilterPanelOpen(false);
+    onStationViewData(stationId);
+  };
+
   return (
     <Box
       sx={{
-        display: "flex",
         "& .pro-sidebar-inner": {
           background: `${colors.primary[400]} !important`,
         },
@@ -90,8 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
       <ProSidebar
         collapsed={isCollapsed}
         style={{
-          height: "90vh",
-          overflowY: "auto",
+          color: colors.grey[100],
         }}
       >
         <Menu>
@@ -246,7 +250,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
         </Menu>
       </ProSidebar>
 
-      {isFilterPanelOpen && <SearchSidePanel colors={colors} />}
+      {isFilterPanelOpen && <SearchSidePanel colors={colors} onViewData={onViewData} />}
     </Box>
   );
 };
