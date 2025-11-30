@@ -24,6 +24,7 @@ const Topbar = () => {
       display="flex"
       justifyContent="space-between"
       alignItems="center"
+      zIndex={2}
       p={2}
     >
       {/* LEFT: title + search */}

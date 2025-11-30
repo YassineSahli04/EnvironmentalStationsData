@@ -74,8 +74,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onStatio
   return (
     <Box
       sx={{
+        display: "flex",
+        flexShrink: 0,
+        "& .pro-sidebar": {
+          position: "relative !important",
+          height: "90vh !important",
+          width: "auto !important",
+          minWidth: "auto !important",
+        },
         "& .pro-sidebar-inner": {
           background: `${colors.primary[400]} !important`,
+          position: "relative !important",
+        },
+        "& .pro-sidebar > .pro-sidebar-inner > .pro-sidebar-layout": {
+          overflow: "hidden auto !important",
         },
         "& .pro-icon-wrapper": {
           backgroundColor: "transparent !important",
