@@ -1,15 +1,22 @@
 import { useState } from "react";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
+import "./App.css";
 import Sidebar from "./Components/Global/Sidebar";
 import Topbar from "./Components/Global/Topbar";
-import Home from "./Pages/Home";
+import MapBox from "./Components/MapBox";
+import StationDataPage from "./Pages/StationDataPage";
 import { ColorModeContext, useMode } from "./theme";
 
 function App() {
   const [theme, colorMode] = useMode();
   const [isSideBarCollapsed, setIsSideBarCollapsed] = useState(false);
+
+  const navigate = useNavigate();
+  const onStationViewData = (stationId: string) => {
+    navigate(`/station/${stationId}`);
+  };
 
   return (
     <ColorModeContext.Provider value={colorMode}>
@@ -18,10 +25,16 @@ function App() {
         <div className="app">
           <Topbar />
           <div className="app-body">
-            <Sidebar isCollapsed={isSideBarCollapsed} setIsCollapsed={setIsSideBarCollapsed} />
+            <Sidebar
+              isCollapsed={isSideBarCollapsed}
+              setIsCollapsed={setIsSideBarCollapsed}
+              onStationViewData={onStationViewData}
+            />
+
             <main className="content">
               <Routes>
-                <Route path="/" element={<Home isSideBarCollapsed={isSideBarCollapsed} />} />
+                <Route path="/" element={<MapBox isSideBarCollapsed={isSideBarCollapsed} />} />
+                <Route path="/station/:stationId" element={<StationDataPage />} />
               </Routes>
             </main>
           </div>

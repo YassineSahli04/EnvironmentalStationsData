@@ -72,6 +72,8 @@ const SearchSidePanel = ({ colors, onViewData }: SearchSidePanelProps) => {
   return (
     <Box
       sx={{
+        position: "absolute",
+        left: "100%",
         width: 300,
         backgroundColor: `${colors.primary[700]}`,
         borderRight: `1px solid ${colors.grey[700]}`,
@@ -80,8 +82,8 @@ const SearchSidePanel = ({ colors, onViewData }: SearchSidePanelProps) => {
         display: "flex",
         flexDirection: "column",
         gap: 2,
-        zIndex: 1,
         height: "90vh",
+        zIndex: 2,
       }}
     >
       <Typography variant="h6" fontWeight={600}>

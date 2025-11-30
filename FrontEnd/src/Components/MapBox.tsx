@@ -9,6 +9,14 @@ export default function MapBox() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    if (mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.resize();
+      }, 500);
+    }
+  }, [mapContainerRef]);
+
+  useEffect(() => {
     mapboxgl.accessToken =
       "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWkwZHhlamMwaWgxMmxweWloOWJ3YmdtIn0.dJtTsXAcQy2eErlpsMoUWA";
 

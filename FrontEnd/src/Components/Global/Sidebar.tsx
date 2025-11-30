@@ -74,20 +74,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onStatio
   return (
     <Box
       sx={{
+        position: "relative",
         display: "flex",
         flexShrink: 0,
-        "& .pro-sidebar": {
-          position: "relative !important",
-          height: "90vh !important",
-          width: "auto !important",
-          minWidth: "auto !important",
-        },
+        width: "fit-content",
         "& .pro-sidebar-inner": {
           background: `${colors.primary[400]} !important`,
-          position: "relative !important",
-        },
-        "& .pro-sidebar > .pro-sidebar-inner > .pro-sidebar-layout": {
-          overflow: "hidden auto !important",
         },
         "& .pro-icon-wrapper": {
           backgroundColor: "transparent !important",
@@ -108,6 +100,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onStatio
         collapsed={isCollapsed}
         style={{
           color: colors.grey[100],
+          height: "90vh",
+          overflowY: "auto",
         }}
       >
         <Menu>
