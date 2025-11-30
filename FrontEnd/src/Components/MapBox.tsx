@@ -1,22 +1,34 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
+import SatelliteAltIcon from "@mui/icons-material/SatelliteAlt";
+import { Box, IconButton } from "@mui/material";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../ApiService/Api";
 import "./SCSS/MapBox.scss";
 
-export default function MapBox() {
+const STYLE_STREETS = "mapbox://styles/mapbox/streets-v12";
+const STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
+
+type MapBoxProps = {
+  isSideBarCollapsed: boolean;
+};
+
+export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (mapRef.current) {
-      setTimeout(() => {
-        mapRef.current?.resize();
-      }, 500);
-    }
-  }, [mapContainerRef]);
+  const [mapStyle, setMapStyle] = useState<string>(STYLE_SATELLITE);
 
   useEffect(() => {
+    if (!mapRef.current) return;
+    setTimeout(() => {
+      mapRef.current?.resize();
+    }, 250);
+  }, [isSideBarCollapsed, mapContainerRef]);
+
+  useEffect(() => {
+    console.log("mapStyle");
     mapboxgl.accessToken =
       "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWkwZHhlamMwaWgxMmxweWloOWJ3YmdtIn0.dJtTsXAcQy2eErlpsMoUWA";
 
@@ -24,7 +36,7 @@ export default function MapBox() {
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      style: mapStyle,
       center: [9.25477, 34.26822],
       zoom: 1.5,
     });
@@ -48,7 +60,7 @@ export default function MapBox() {
         source: "earthquakes",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": ["step", ["get", "point_count"], "#51bbd6", 5, "#f1f075", 10, "#f28cb1"],
+          "circle-color": ["step", ["get", "point_count"], "#FFAB40", 5, "#FF7043", 10, "#E53935"],
           "circle-radius": ["step", ["get", "point_count"], 20, 5, 30, 10, 40],
           "circle-emissive-strength": 1,
         },
@@ -80,7 +92,7 @@ export default function MapBox() {
             "#1e88e5",
             "#757575",
           ],
-          "circle-radius": 4,
+          "circle-radius": 6,
           "circle-stroke-width": 1,
           "circle-stroke-color": "#fff",
           "circle-emissive-strength": 1,
@@ -195,7 +207,57 @@ export default function MapBox() {
       });
     });
     return () => mapRef.current.remove();
-  }, []);
+  }, [mapStyle]);
 
-  return <div id="map-container" ref={mapContainerRef} />;
+  return (
+    <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
+      {/* Map Style Toggle */}
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: 25,
+          right: "-3%",
+          transform: "translateX(-50%)",
+          zIndex: 10,
+          display: "flex",
+          backgroundColor: "white",
+          borderRadius: "50px",
+          padding: "6px 8px",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+        }}
+      >
+        <IconButton
+          onClick={() => setMapStyle(STYLE_STREETS)}
+          sx={{
+            width: 44,
+            height: 44,
+            backgroundColor: mapStyle === STYLE_STREETS ? "#1976d2" : "transparent",
+            color: mapStyle === STYLE_STREETS ? "white" : "#5f6368",
+            "&:hover": {
+              backgroundColor: mapStyle === STYLE_STREETS ? "#1565c0" : "rgba(0,0,0,0.04)",
+            },
+            transition: "all 0.2s ease",
+          }}
+        >
+          <MapOutlinedIcon />
+        </IconButton>
+        <IconButton
+          onClick={() => setMapStyle(STYLE_SATELLITE)}
+          sx={{
+            width: 44,
+            height: 44,
+            backgroundColor: mapStyle === STYLE_SATELLITE ? "#1976d2" : "transparent",
+            color: mapStyle === STYLE_SATELLITE ? "white" : "#5f6368",
+            "&:hover": {
+              backgroundColor: mapStyle === STYLE_SATELLITE ? "#1565c0" : "rgba(0,0,0,0.04)",
+            },
+            transition: "all 0.2s ease",
+          }}
+        >
+          <SatelliteAltIcon />
+        </IconButton>
+      </Box>
+      <div id="map-container" ref={mapContainerRef} />
+    </Box>
+  );
 }
