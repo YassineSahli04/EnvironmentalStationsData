@@ -1,10 +1,27 @@
 import { useRef, useEffect, useState } from "react";
+import AirOutlinedIcon from "@mui/icons-material/AirOutlined";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
+import OpacityOutlinedIcon from "@mui/icons-material/OpacityOutlined";
 import SatelliteAltIcon from "@mui/icons-material/SatelliteAlt";
-import { Box, IconButton } from "@mui/material";
+import ThermostatOutlinedIcon from "@mui/icons-material/ThermostatOutlined";
+import WaterDropOutlinedIcon from "@mui/icons-material/WaterDropOutlined";
+import WbSunnyOutlinedIcon from "@mui/icons-material/WbSunnyOutlined";
+import {
+  Box,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  ListItemButton,
+  List,
+  Paper,
+  Typography,
+  Divider,
+  useTheme,
+} from "@mui/material";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../ApiService/Api";
+import { tokens } from "../theme";
 import "./SCSS/MapBox.scss";
 
 const STYLE_STREETS = "mapbox://styles/mapbox/streets-v12";
@@ -15,6 +32,9 @@ type MapBoxProps = {
 };
 
 export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -211,6 +231,170 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
 
   return (
     <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
+      {/* Param Filter div */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: "15%",
+          right: "3%",
+          zIndex: 2,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1.5,
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            borderRadius: "12px",
+            minWidth: 250,
+            overflow: "hidden",
+            backgroundColor: colors.primary[400],
+            border: `1px solid ${colors.grey[700]}`,
+          }}
+        >
+          <Typography
+            sx={{
+              px: 2,
+              py: 1.5,
+              fontSize: 12,
+              fontWeight: 500,
+              color: colors.primary[100],
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            Weather Data
+          </Typography>
+          <Divider />
+          <List sx={{ py: 1, px: 1 }}>
+            <ListItemButton
+              selected={false}
+              sx={{
+                borderRadius: "8px",
+                py: 1,
+                px: 2,
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(66, 133, 244, 0.12)",
+                  color: "#1a73e8",
+                  "& .MuiListItemIcon-root": { color: "#1a73e8" },
+                },
+                "&:hover": { backgroundColor: "rgba(66, 133, 244, 0.08)" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: colors.primary[100] }}>
+                <ThermostatOutlinedIcon />
+              </ListItemIcon>
+              <ListItemText primary="Temperature +2m" primaryTypographyProps={{ fontSize: 14 }} />
+            </ListItemButton>
+            <ListItemButton
+              selected={false}
+              sx={{
+                borderRadius: "8px",
+                py: 1,
+                px: 2,
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(66, 133, 244, 0.12)",
+                  color: "#1a73e8",
+                  "& .MuiListItemIcon-root": { color: "#1a73e8" },
+                },
+                "&:hover": { backgroundColor: "rgba(66, 133, 244, 0.08)" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: colors.primary[100] }}>
+                <WaterDropOutlinedIcon />
+              </ListItemIcon>
+              <ListItemText primary="Precipitation" primaryTypographyProps={{ fontSize: 14 }} />
+            </ListItemButton>
+            <ListItemButton
+              selected={false}
+              sx={{
+                borderRadius: "8px",
+                py: 1,
+                px: 2,
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(66, 133, 244, 0.12)",
+                  color: "#1a73e8",
+                  "& .MuiListItemIcon-root": { color: "#1a73e8" },
+                },
+                "&:hover": { backgroundColor: "rgba(66, 133, 244, 0.08)" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: colors.primary[100] }}>
+                <OpacityOutlinedIcon />
+              </ListItemIcon>
+              <ListItemText primary="Relative Humidity" primaryTypographyProps={{ fontSize: 14 }} />
+            </ListItemButton>
+            <ListItemButton
+              selected={false}
+              sx={{
+                borderRadius: "8px",
+                py: 1,
+                px: 2,
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(66, 133, 244, 0.12)",
+                  color: "#1a73e8",
+                  "& .MuiListItemIcon-root": { color: "#1a73e8" },
+                },
+                "&:hover": { backgroundColor: "rgba(66, 133, 244, 0.08)" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: colors.primary[100] }}>
+                <WbSunnyOutlinedIcon />
+              </ListItemIcon>
+              <ListItemText primary="Solar Radiation" primaryTypographyProps={{ fontSize: 14 }} />
+            </ListItemButton>
+            <ListItemButton
+              selected={false}
+              sx={{
+                borderRadius: "8px",
+                py: 1,
+                px: 2,
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(66, 133, 244, 0.12)",
+                  color: "#1a73e8",
+                  "& .MuiListItemIcon-root": { color: "#1a73e8" },
+                },
+                "&:hover": { backgroundColor: "rgba(66, 133, 244, 0.08)" },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: colors.primary[100] }}>
+                <AirOutlinedIcon />
+              </ListItemIcon>
+              <ListItemText primary="Wind Speed" primaryTypographyProps={{ fontSize: 14 }} />
+            </ListItemButton>
+          </List>
+        </Paper>
+
+        <Paper
+          elevation={3}
+          sx={{
+            borderRadius: "12px",
+            minWidth: 250,
+            overflow: "hidden",
+            backgroundColor: colors.primary[400],
+            border: `1px solid ${colors.grey[700]}`,
+          }}
+        >
+          <List sx={{ py: 1, px: 1 }}>
+            <ListItemText
+              primary="Temperature +2m"
+              primaryTypographyProps={{ fontSize: 14, marginLeft: "15px" }}
+            />
+            <Divider />
+            <ListItemText
+              primary="Temperature +2m"
+              primaryTypographyProps={{ fontSize: 14, marginLeft: "15px" }}
+            />
+            <Divider />
+            <ListItemText
+              primary="Temperature +2m"
+              primaryTypographyProps={{ fontSize: 14, marginLeft: "15px" }}
+            />
+          </List>
+        </Paper>
+      </Box>
+
       {/* Map Style Toggle */}
       <Box
         sx={{
@@ -218,7 +402,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
           bottom: 25,
           right: "-3%",
           transform: "translateX(-50%)",
-          zIndex: 10,
+          zIndex: 2,
           display: "flex",
           backgroundColor: "white",
           borderRadius: "50px",
