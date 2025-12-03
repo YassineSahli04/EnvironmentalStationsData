@@ -1,9 +1,9 @@
 from BackEnd.ClimateFieldStations.ApiCalls import ApiCalls 
-from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 import sqlalchemy.engine as _engine
 from sqlalchemy import text
+from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorObject
 
 from enum import Enum
 class StationDataGroup(Enum):
@@ -99,6 +99,14 @@ class CfStation(StationDbObject):
                 }
             )
             connection.commit()
+
+    def getSensorData(self, sensorId, dataGroup, startDtUTC, endDtUTC, isDataInDf = False): 
+        startTimestamp = int(startDtUTC.timestamp())
+        endTimestamp = int(endDtUTC.timestamp())
+        stationData = self.get_station_data_in_timestamp_from_api( dataGroup, startTimestamp, endTimestamp)
+        sensor = CfSensorObject(stationData, sensorId, isDataInDf=isDataInDf)
+
+        return sensor
             
 
 

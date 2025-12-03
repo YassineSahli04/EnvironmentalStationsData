@@ -10,3 +10,17 @@ export interface StationObj {
   DataSourceId: number | null;
   DataTableName: string | null;
 }
+
+export interface CfSensorDataRow {
+  time: string;
+  values: Record<string, number | null>;
+}
+export interface StationSensorObj {
+  sensorName: string;
+  sensorId: string;
+  type: string;
+  decimals: number;
+  unit: string;
+  aggregationsType: string[];
+  data: CfSensorDataRow[];
+}

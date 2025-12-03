@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { tokens } from "../theme";
 
-enum WeatherParam {
+export enum WeatherParam {
   TEMPERATURE = "Temperature",
   PRECIPITATION = "Precipitation",
   RELATIVE_HUMIDITY = "Relative Humidity",
@@ -25,12 +25,16 @@ enum WeatherParam {
   WIND_SPEED = "Wind Speed",
 }
 const OPTIONS = {
-  COMMON: ["Min.", "Max.", "Avg.", "Last Measured"],
+  COMMON: ["Avg.", "Min.", "Max.", "Last Measured"],
   SOLAR: ["Sum", "Last Measured"],
   PRECIP: ["Sum Last 24h", "Sum Last 48h", "Sum Last Week", "Last Measured"],
 } as const;
 
-export default function MapParamPanel() {
+type MapParamPanelProps = {
+  onSelectedParamChange: (param: WeatherParam | undefined, dataOption: string | undefined) => void;
+};
+
+export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelProps) {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
 
@@ -57,6 +61,11 @@ export default function MapParamPanel() {
     setOptions(optionsList);
     setSelectedOption(optionsList[0]);
   };
+
+  useEffect(() => {
+    if (selectedParam || selectedOption) return;
+    onSelectedParamChange(selectedParam, selectedOption);
+  }, [selectedParam, selectedOption]);
 
   return (
     <Box

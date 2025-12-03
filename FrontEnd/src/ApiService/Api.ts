@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { StationObj } from "../ApiService/Objects/StationObj";
+import type { StationObj, StationSensorObj } from "../ApiService/Objects/StationObj";
 
 const typeFilter = ["Pyranometer", "Pluviometer", "Meteorological", "Meteorological/Pluviometer"];
 const url = "http://localhost:8000/api/stations";
@@ -20,6 +20,24 @@ export async function getStationsGeojson() {
   const geojsonUrl = `${url}/geojson`;
   const res = await axios.get(geojsonUrl, {
     params: { type: typeFilter },
+  });
+  return res.data;
+}
+
+export async function getStationSensorData(
+  stationId: string,
+  sensorId: string,
+  dataGroup?: string,
+  startDtUTC?: Date | string,
+  endDtUTC?: Date | string
+): Promise<StationSensorObj> {
+  const sensorUrl = `${url}/station/${stationId}/${sensorId}`;
+  const res = await axios.get(sensorUrl, {
+    params: {
+      dataGroup,
+      startDtUTC: startDtUTC instanceof Date ? startDtUTC.toISOString() : startDtUTC,
+      endDtUTC: endDtUTC instanceof Date ? endDtUTC.toISOString() : endDtUTC,
+    },
   });
   return res.data;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography } from "@mui/material";
 import { getStations } from "../ApiService/Api.ts";
 import type { StationObj } from "../ApiService/Objects/StationObj.ts";
