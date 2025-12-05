@@ -104,6 +104,8 @@ class CfStation(StationDbObject):
         startTimestamp = int(startDtUTC.timestamp())
         endTimestamp = int(endDtUTC.timestamp())
         stationData = self.get_station_data_in_timestamp_from_api( dataGroup, startTimestamp, endTimestamp)
+        if (stationData.get("message")):
+            raise Exception(f"Error Occured for station [{self.Id}]: "+ stationData.get("message"))
         sensor = CfSensorObject(stationData, sensorId, isDataInDf=isDataInDf)
 
         return sensor

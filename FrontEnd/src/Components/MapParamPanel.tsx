@@ -26,8 +26,7 @@ export enum WeatherParam {
 }
 const OPTIONS = {
   COMMON: ["Avg.", "Min.", "Max.", "Last Measured"],
-  SOLAR: ["Sum", "Last Measured"],
-  PRECIP: ["Sum Last 24h", "Sum Last 48h", "Sum Last Week", "Last Measured"],
+  SUM: ["Sum", "Last Measured"],
 } as const;
 
 type MapParamPanelProps = {
@@ -52,19 +51,16 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
         optionsList.push(...OPTIONS.COMMON);
         break;
       case WeatherParam.SOLAR_RADIATION:
-        optionsList.push(...OPTIONS.SOLAR);
-        break;
       case WeatherParam.PRECIPITATION:
-        optionsList.push(...OPTIONS.PRECIP);
+        optionsList.push(...OPTIONS.SUM);
         break;
     }
     setOptions(optionsList);
     setSelectedOption(optionsList[0]);
   };
-
   useEffect(() => {
-    if (selectedParam || selectedOption) return;
-    onSelectedParamChange(selectedParam, selectedOption);
+    if (!selectedParam || !selectedOption) return;
+    onSelectedParamChange(selectedParam, selectedOption.replace(/\.$/, "").toLowerCase());
   }, [selectedParam, selectedOption]);
 
   return (

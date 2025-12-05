@@ -3,6 +3,7 @@ import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import SatelliteAltIcon from "@mui/icons-material/SatelliteAlt";
 import { Box, IconButton } from "@mui/material";
 import mapboxgl from "mapbox-gl";
+import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../ApiService/Api";
 import { getMapDataForParam } from "../ApiService/DataHandling";
@@ -25,16 +26,21 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
 
   const [mapStyle, setMapStyle] = useState<string>(STYLE_SATELLITE);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [selectedParam, setSelectedParam] = useState<WeatherParam | undefined>();
 
   useEffect(() => {
     if (!mapRef.current) return;
-    setTimeout(() => {
-      mapRef.current?.resize();
+    const timeoutId = setTimeout(() => {
+      if (mapRef.current && mapRef.current.getCanvas()) {
+        mapRef.current.resize();
+      }
     }, 250);
+    return () => clearTimeout(timeoutId);
   }, [isSideBarCollapsed]);
 
   const addStationLayers = useCallback(() => {
     if (!mapRef.current || !geoDataRef.current) return;
+    console.log(geoDataRef.current);
 
     mapRef.current.addSource("earthquakes", {
       type: "geojson",
@@ -89,11 +95,75 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
         "circle-emissive-strength": 1,
       },
     });
+
+    mapRef.current.addSource("stations-plain", {
+      type: "geojson",
+      data: geoDataRef.current,
+    });
+    mapRef.current.addLayer({
+      id: "station-param-points",
+      type: "circle",
+      source: "stations-plain",
+      paint: {
+        "circle-color": "#757575",
+        "circle-radius": 6,
+        "circle-stroke-width": 1,
+        "circle-stroke-color": "#fff",
+        "circle-emissive-strength": 1,
+      },
+      layout: {
+        visibility: "none",
+      },
+    });
   }, []);
 
   const addInteractions = useCallback(() => {
     if (!mapRef.current) return;
 
+    // Shared handlers
+    const handleStationClick = (e: any) => {
+      if (!mapRef.current || !e.feature) return;
+      const coordinates = (e.feature.geometry as any).coordinates.slice();
+      const props = e.feature.properties;
+
+      const popup = new mapboxgl.Popup()
+        .setLngLat(coordinates)
+        .setHTML(
+          `
+          <div class="station-popup" style="cursor: pointer;">
+            <h3 style="color: #2238ffff; margin: 0;">${props?.name}</h3>
+            <p style="color: #000000ff; margin: 4px 0 0 0;">
+              <strong style="color:#000000ff;">ID:</strong> ${props?.id}<br />
+              <strong style="color:#000000ff;">Manuf:</strong> ${props?.manufacturer}<br />
+              ${props?.type ? `<strong style="color:#000000ff;">Type:</strong> ${props.type}<br />` : ""}
+              <strong style="color:#000000ff;">Lon:</strong> ${coordinates[0].toFixed(4)}, 
+              <strong style="color:#000000ff;">Lat:</strong> ${coordinates[1].toFixed(4)}
+              ${props?.paramValue != null ? `<br /><strong style="color:#000000ff;">${props.param?.toString()}:</strong> ${props.paramValue}` : ""}
+            </p>
+          </div>
+        `
+        )
+        .addTo(mapRef.current);
+
+      const popupElement = popup
+        .getElement()
+        ?.querySelector(".station-popup") as HTMLDivElement | null;
+      if (popupElement) {
+        popupElement.addEventListener("click", () => {
+          console.log(`Station ID: ${props?.name}`);
+        });
+      }
+    };
+
+    const handleMouseEnter = () => {
+      if (mapRef.current) mapRef.current.getCanvas().style.cursor = "pointer";
+    };
+
+    const handleMouseLeave = () => {
+      if (mapRef.current) mapRef.current.getCanvas().style.cursor = "";
+    };
+
+    // Cluster interactions
     mapRef.current.addInteraction("click-clusters", {
       type: "click",
       target: { layerId: "clusters" },
@@ -115,76 +185,37 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
       },
     });
 
-    mapRef.current.addInteraction("click-unclustered", {
-      type: "click",
-      target: { layerId: "unclustered-point" },
-      handler: (e) => {
-        if (!mapRef.current || !e.feature) return;
-        const coordinates = (e.feature.geometry as any).coordinates.slice();
-
-        const popup = new mapboxgl.Popup()
-          .setLngLat(coordinates)
-          .setHTML(
-            `
-            <div class="station-popup" style="cursor: pointer;">
-              <h3 style="color: #2238ffff; margin: 0; ">${e.feature.properties?.name}</h3>
-              <p style="color: #000000ff; margin: 4px 0 0 0;">
-                <strong style="color:#000000ff;">ID:</strong> ${e.feature.properties?.id}<br />
-                <strong style="color:#000000ff;">Manuf:</strong> ${e.feature.properties?.manufacturer}<br />
-                ${
-                  e.feature.properties?.type
-                    ? `<strong style="color:#000000ff;">Type:</strong> ${e.feature.properties.type}<br />`
-                    : ""
-                }
-                <strong style="color:#000000ff;">Lon:</strong> ${coordinates[0].toFixed(4)}, 
-                <strong style="color:#000000ff;">Lat:</strong> ${coordinates[1].toFixed(4)}
-              </p>
-            </div>
-          `
-          )
-          .addTo(mapRef.current);
-
-        const popupElement = popup
-          .getElement()
-          ?.querySelector(".station-popup") as HTMLDivElement | null;
-        if (popupElement) {
-          popupElement.addEventListener("click", () => {
-            console.log(`Station ID: ${e.feature?.properties?.name}`);
-          });
-        }
-      },
-    });
-
     mapRef.current.addInteraction("clustered-mouseenter", {
       type: "mouseenter",
       target: { layerId: "clusters" },
-      handler: () => {
-        if (mapRef.current) mapRef.current.getCanvas().style.cursor = "pointer";
-      },
+      handler: handleMouseEnter,
     });
 
     mapRef.current.addInteraction("clustered-mouseleave", {
       type: "mouseleave",
       target: { layerId: "clusters" },
-      handler: () => {
-        if (mapRef.current) mapRef.current.getCanvas().style.cursor = "";
-      },
+      handler: handleMouseLeave,
     });
 
-    mapRef.current.addInteraction("unclustered-mouseenter", {
-      type: "mouseenter",
-      target: { layerId: "unclustered-point" },
-      handler: () => {
-        if (mapRef.current) mapRef.current.getCanvas().style.cursor = "pointer";
-      },
-    });
+    // Station point interactions (unclustered-point and station-param-points)
+    ["unclustered-point", "station-param-points"].forEach((layerId) => {
+      mapRef.current!.addInteraction(`click-${layerId}`, {
+        type: "click",
+        target: { layerId },
+        handler: handleStationClick,
+      });
 
-    mapRef.current.addInteraction("unclustered-mouseleave", {
-      type: "mouseleave",
-      target: { layerId: "unclustered-point" },
-      handler: () => {
-        if (mapRef.current) mapRef.current.getCanvas().style.cursor = "";
-      },
+      mapRef.current!.addInteraction(`mouseenter-${layerId}`, {
+        type: "mouseenter",
+        target: { layerId },
+        handler: handleMouseEnter,
+      });
+
+      mapRef.current!.addInteraction(`mouseleave-${layerId}`, {
+        type: "mouseleave",
+        target: { layerId },
+        handler: handleMouseLeave,
+      });
     });
   }, []);
 
@@ -223,19 +254,162 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
 
     mapRef.current.once("style.load", () => {
       addStationLayers();
-      addInteractions();
+      applyParamMode();
     });
 
     mapRef.current.setStyle(mapStyle);
   }, [mapStyle, isMapLoaded, addStationLayers, addInteractions]);
 
-  const onSelectedParamChange = (
+  const applyParamMode = useCallback(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+    switch (selectedParam !== undefined) {
+      case true:
+        mapRef.current.setLayoutProperty("clusters", "visibility", "none");
+        mapRef.current.setLayoutProperty("cluster-count", "visibility", "none");
+        mapRef.current.setLayoutProperty("unclustered-point", "visibility", "none");
+
+        mapRef.current.setLayoutProperty("station-param-points", "visibility", "visible");
+        mapRef.current.setPaintProperty(
+          "station-param-points",
+          "circle-color",
+          getParamColorScale()
+        );
+        mapRef.current.flyTo({ center: [11.08813, 34.13523], zoom: 5.54 });
+        break;
+      case false:
+        mapRef.current.setLayoutProperty("clusters", "visibility", "visible");
+        mapRef.current.setLayoutProperty("cluster-count", "visibility", "visible");
+        mapRef.current.setLayoutProperty("unclustered-point", "visibility", "visible");
+
+        mapRef.current.setLayoutProperty("station-param-points", "visibility", "none");
+        break;
+    }
+  }, [selectedParam, isMapLoaded]);
+
+  const getParamColorScale = (): mapboxgl.ExpressionSpecification => {
+    switch (selectedParam) {
+      case WeatherParam.TEMPERATURE:
+        return [
+          "interpolate",
+          ["linear"],
+          ["get", "paramValue"],
+          0,
+          "#1F77B4",
+          10,
+          "#76B7E0",
+          20,
+          "#2ECC71",
+          30,
+          "#F1C40F",
+          35,
+          "#E67E22",
+          40,
+          "#E74C3C",
+        ];
+      case WeatherParam.RELATIVE_HUMIDITY:
+        return [
+          "interpolate",
+          ["linear"],
+          ["get", "paramValue"],
+          30,
+          "#E57373",
+          50,
+          "#FB8C00",
+          70,
+          "#66BB6A",
+          90,
+          "#42A5F5",
+          100,
+          "#8E44AD",
+        ];
+      case WeatherParam.WIND_SPEED:
+        return [
+          "interpolate",
+          ["linear"],
+          ["get", "paramValue"],
+          1,
+          "#CFD8DC",
+          3,
+          "#81D4FA",
+          7,
+          "#FFD54F",
+          10,
+          "#FB8C00",
+          15,
+          "#E53935",
+        ];
+      case WeatherParam.SOLAR_RADIATION:
+        return [
+          "interpolate",
+          ["linear"],
+          ["get", "paramValue"],
+          200,
+          "#ECEFF1",
+          400,
+          "#4FC3F7",
+          700,
+          "#66BB6A",
+          900,
+          "#FFEB3B",
+          1000,
+          "#E53935",
+        ];
+      case WeatherParam.PRECIPITATION:
+        return [
+          "interpolate",
+          ["linear"],
+          ["get", "paramValue"],
+          0,
+          "#B0BEC5",
+          5,
+          "#81D4FA",
+          20,
+          "#1E88E5",
+          50,
+          "#8E44AD",
+          75,
+          "#C62828",
+        ];
+      default:
+        return ["get", "paramValue"];
+    }
+  };
+
+  useEffect(() => {
+    applyParamMode();
+  }, [selectedParam]);
+
+  const onSelectedParamChange = async (
     param: WeatherParam | undefined,
     dataOption: string | undefined
   ) => {
-    if (!param || !dataOption) return;
+    if (!mapRef.current || !geoDataRef.current || !param || !dataOption) return;
+    if (!param || !dataOption) {
+      setSelectedParam(undefined);
+      return;
+    }
 
-    return getMapDataForParam(param, dataOption);
+    const source = mapRef.current.getSource("stations-plain") as GeoJSONSource | undefined;
+    if (!source) return;
+
+    const paramData = await getMapDataForParam(param, dataOption);
+
+    const updatedGeoJson = {
+      ...geoDataRef.current,
+      features: geoDataRef.current.features.map((f) => {
+        const rows = paramData[f.properties.id];
+        const lastRow = rows && rows.length > 0 ? rows[rows.length - 1] : null;
+        const lastValue = lastRow ? lastRow.value : null;
+        const featureUpdated = {
+          ...f,
+          properties: { ...f.properties, param: param, paramValue: lastValue },
+        };
+        return featureUpdated;
+      }),
+    };
+    geoDataRef.current = updatedGeoJson;
+    source.setData(updatedGeoJson as any);
+    setSelectedParam(param);
   };
 
   return (

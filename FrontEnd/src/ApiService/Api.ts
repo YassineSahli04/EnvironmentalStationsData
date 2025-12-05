@@ -30,14 +30,31 @@ export async function getStationSensorData(
   dataGroup?: string,
   startDtUTC?: Date | string,
   endDtUTC?: Date | string
-): Promise<StationSensorObj> {
+): Promise<StationSensorObj | null> {
   const sensorUrl = `${url}/station/${stationId}/${sensorId}`;
-  const res = await axios.get(sensorUrl, {
-    params: {
-      dataGroup,
-      startDtUTC: startDtUTC instanceof Date ? startDtUTC.toISOString() : startDtUTC,
-      endDtUTC: endDtUTC instanceof Date ? endDtUTC.toISOString() : endDtUTC,
-    },
-  });
-  return res.data;
+
+  try {
+    const res = await axios.get<StationSensorObj>(sensorUrl, {
+      params: {
+        dataGroup,
+        startDtUTC: startDtUTC instanceof Date ? startDtUTC.toISOString() : startDtUTC,
+        endDtUTC: endDtUTC instanceof Date ? endDtUTC.toISOString() : endDtUTC,
+      },
+    });
+
+    return res.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      console.error("Failed to fetch station sensor data:", {
+        stationId,
+        sensorId,
+        status: err.response?.status,
+        detail: err.response?.data?.detail ?? err.message,
+      });
+      return null;
+    }
+
+    console.error("Unexpected error while fetching station sensor data:", err);
+    return null;
+  }
 }
