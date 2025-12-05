@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, text, bindparam
 from pathlib import Path
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
-from BackEnd.C2aiStations.C2aiTableCreator import C2aiTableCreator
+from BackEnd.C2aiStations.C2aiApi.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from datetime import timezone
 

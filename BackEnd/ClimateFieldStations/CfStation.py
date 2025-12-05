@@ -1,16 +1,9 @@
 from BackEnd.ClimateFieldStations.ApiCalls import ApiCalls 
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
-from BackEnd.PostgreSQL.StationDbObject import StationDbObject
+from BackEnd.PostgreSQL.StationDbObject import StationDataGroup, StationDbObject
 import sqlalchemy.engine as _engine
 from sqlalchemy import text
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorObject
-
-from enum import Enum
-class StationDataGroup(Enum):
-    raw = "raw"
-    hourly ="hourly"
-    daily = "daily"
-    monthly = "monthly"
 
 class CfStation(StationDbObject):
     engine = _engine.Engine
@@ -104,8 +97,8 @@ class CfStation(StationDbObject):
         startTimestamp = int(startDtUTC.timestamp())
         endTimestamp = int(endDtUTC.timestamp())
         stationData = self.get_station_data_in_timestamp_from_api( dataGroup, startTimestamp, endTimestamp)
-        if (stationData.get("message")):
-            raise Exception(f"Error Occured for station [{self.Id}]: "+ stationData.get("message"))
+        if (stationData.get("message")):  # type: ignore
+            raise Exception(f"Error Occured for station [{self.Id}]: "+ stationData.get("message"))   # type: ignore
         sensor = CfSensorObject(stationData, sensorId, isDataInDf=isDataInDf)
 
         return sensor

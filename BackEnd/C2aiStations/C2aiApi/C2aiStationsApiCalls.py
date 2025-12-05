@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 import requests
 import json
-from BackEnd.C2aiStations.QueryObject import QueryObject
+from BackEnd.C2aiStations.C2aiApi.QueryObject import QueryObject
 import pandas as pd
 import json
 from pathlib import Path

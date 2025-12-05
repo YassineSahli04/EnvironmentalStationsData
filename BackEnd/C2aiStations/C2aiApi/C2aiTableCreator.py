@@ -2,8 +2,8 @@ from logging import exception
 from BackEnd.ClimateFieldStations.TransformData import TransformData
 import pandas as pd
 from sqlalchemy import text, bindparam
-from BackEnd.C2aiStations.C2aiStationsApiCalls import C2aiStationsApiCalls
-from BackEnd.C2aiStations.QueryObject import QueryObject 
+from BackEnd.C2aiStations.C2aiApi.C2aiStationsApiCalls import C2aiStationsApiCalls
+from BackEnd.C2aiStations.C2aiApi.QueryObject import QueryObject 
 from pathlib import Path
 import sqlalchemy.engine as _engine
 from enum import Enum

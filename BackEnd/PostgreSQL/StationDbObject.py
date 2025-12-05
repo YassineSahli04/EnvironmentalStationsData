@@ -2,6 +2,13 @@ import sqlalchemy.engine as _engine
 from sqlalchemy import text
 from datetime import datetime
 
+from enum import Enum
+class StationDataGroup(Enum):
+    raw = "raw"
+    hourly ="hourly"
+    daily = "daily"
+    monthly = "monthly"
+
 class StationDbObject:
     Id: str
     Name: str | None
