@@ -35,14 +35,13 @@ async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str 
         logger.exception(
             "Error while getting sensor data for station=%s sensor=%s", stationId, sensorId
         )
-        # logger.exception(
-        #     e
-        # )
-        # raise HTTPException(
-        #     status_code=500,
-        #     detail=e
-        # ) from e
-        print()
+        logger.exception(
+            e
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=e
+        ) from e
         
 
 

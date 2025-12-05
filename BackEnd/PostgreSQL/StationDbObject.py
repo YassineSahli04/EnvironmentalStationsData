@@ -1,5 +1,6 @@
 import sqlalchemy.engine as _engine
 from sqlalchemy import text
+from datetime import datetime
 
 class StationDbObject:
     Id: str
@@ -12,6 +13,7 @@ class StationDbObject:
     Altitude: float | None
     DataSourceId: int | None
     DataTableName: str | None
+    LastDataPointTime: datetime | None
 
     def __init__(
         self,
@@ -37,7 +39,7 @@ class StationDbObject:
         self.DataSourceId = data_source_id
         self.DataTableName = data_table_name
 
-    def set_or_update_station_data(self, engine:_engine.Engine):
+    def set_or_update_station_metadata(self, engine:_engine.Engine):
         query = text(f"SELECT * FROM \"Stations\" Where \"Id\"= :id;")
 
         with engine.connect() as connection:
@@ -56,6 +58,16 @@ class StationDbObject:
         self.Altitude      = row.get("Altitude")
         self.DataSourceId  = row.get("DataSourceId")
         self.DataTableName = row.get("DataTableName")
+
+    def set_last_data_point_time(self, engine:_engine.Engine):
+        if self.Manufacturer is None: self.LastDataPointTime = None; return;
+        if self.Manufacturer != "DeltaOHM":
+            raise Exception("Data Tables are only available for DeltaOHM Stations")
+        with engine.connect() as connection:
+            lastDateTimeQuery = text(f"SELECT MAX(\"date_time\") FROM \"{self.Id}\";")
+            self.LastDataPointTime = connection.execute(lastDateTimeQuery).scalar()
+        
+
 
     
 

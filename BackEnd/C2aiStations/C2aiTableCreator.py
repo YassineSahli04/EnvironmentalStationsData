@@ -169,15 +169,14 @@ class C2aiTableCreator:
                 highestTime = time
         return highestTime // 1000
 
-    def get_table_data(self, table):
-        highestTime = self.get_highest_starting_timestamp()
+    def get_table_data(self, table, unixStartTime):
         columnsList = self.get_table_used_columns(table)
 
         cols_sql = ", ".join(columnsList)
         query =  (
             f"SELECT {cols_sql} "
             f"FROM {table} "
-            f"WHERE DATE_TIME >= FROM_UNIXTIME({highestTime});"
+            f"WHERE DATE_TIME > FROM_UNIXTIME({unixStartTime});"
         )
         queryObject = QueryObject(self.sourceDataId, query)
         apiCall = C2aiStationsApiCalls([queryObject])
@@ -194,14 +193,10 @@ class C2aiTableCreator:
         else:
             return ["DATE_TIME", "MEAS_1", "MEAS_2", "MEAS_3", "MEAS_4", "MEAS_5", "MEAS_6", "MEAS_7", "MEAS_8", "MEAS_9"]
 
-    def get_all_data_and_insert(self):
+    def get_data_and_insert(self, unixStartTime = None):
         dfList = []
+        if unixStartTime is None: unixStartTime = self.get_highest_starting_timestamp()
         for table in self.edTablesDict:
-            dfList.append(self.get_table_data(table))
-        fullData =  TransformData.combine_dfs_with_diff_timestamp(dfList, "date_time")
-        self.insert_df(fullData)       
-        
-            
-
-
-
+            dfList.append(self.get_table_data(table, unixStartTime))
+        combinedData =  TransformData.combine_dfs_with_diff_timestamp(dfList, "date_time")
+        self.insert_df(combinedData)

@@ -40,7 +40,6 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
 
   const addStationLayers = useCallback(() => {
     if (!mapRef.current || !geoDataRef.current) return;
-    console.log(geoDataRef.current);
 
     mapRef.current.addSource("earthquakes", {
       type: "geojson",

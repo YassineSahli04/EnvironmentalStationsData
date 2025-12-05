@@ -6,6 +6,7 @@ from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.C2aiStations.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
+from datetime import timezone
 
 class PostgreSQL:
     SECRETJSONPATH = Path(__file__).resolve().parents[2] / "BackEnd/PostgreSQL/DbInfo.json"
@@ -41,7 +42,7 @@ class PostgreSQL:
             for res in result:
                 station_id = res[0]
                 station = StationDbObject(station_id=station_id)
-                station.set_or_update_station_data(self.engine)
+                station.set_or_update_station_metadata(self.engine)
                 stations.append(station)
         return stations
     
@@ -54,7 +55,7 @@ class PostgreSQL:
                 raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
             table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
             table_creator.create_postgre_table()
-            table_creator.get_all_data_and_insert()
+            table_creator.get_data_and_insert()
 
     def get_stations_Geojson_object(self, typeFilter = None):
         stations = self.get_all_station_objects(typeFilter)
@@ -63,7 +64,18 @@ class PostgreSQL:
             feature = GeoJsonStationInfoFeature(st)
             geoJson.add_feature(feature) # type: ignore
         return geoJson.to_dict()
-
-
+    
+    def update_c2ai_tables(self):
+        stations = self.get_all_station_objects()
+        for station in stations:
+            if station.Manufacturer != "DeltaOHM":
+                continue
+            if station.DataSourceId is None:
+                raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
+            table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+            station.set_last_data_point_time(self.engine)
+            table_creator.get_data_and_insert(int(station.LastDataPointTime.replace(tzinfo=timezone.utc).timestamp()))  # type: ignore
                 
-           
+                
+
+

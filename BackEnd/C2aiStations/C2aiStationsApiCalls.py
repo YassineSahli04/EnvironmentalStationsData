@@ -37,6 +37,7 @@ class C2aiStationsApiCalls:
     def getResponse(self) -> Iterator[pd.DataFrame]:
         for query in self.listQuery:
             frames = self.response.json().get("results").get(query.refId).get("frames")
+            print(frames)
             cols = []
             for frame in frames:
                 fields = frame.get("schema").get("fields")
