@@ -375,6 +375,71 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     }
   };
 
+  const getParamLegendData = (): { value: number; color: string }[] => {
+    switch (selectedParam) {
+      case WeatherParam.TEMPERATURE:
+        return [
+          { value: 0, color: "#1F77B4" },
+          { value: 10, color: "#76B7E0" },
+          { value: 20, color: "#2ECC71" },
+          { value: 30, color: "#F1C40F" },
+          { value: 35, color: "#E67E22" },
+          { value: 40, color: "#E74C3C" },
+        ];
+      case WeatherParam.RELATIVE_HUMIDITY:
+        return [
+          { value: 30, color: "#E57373" },
+          { value: 50, color: "#FB8C00" },
+          { value: 70, color: "#66BB6A" },
+          { value: 90, color: "#42A5F5" },
+          { value: 100, color: "#8E44AD" },
+        ];
+      case WeatherParam.WIND_SPEED:
+        return [
+          { value: 1, color: "#CFD8DC" },
+          { value: 3, color: "#81D4FA" },
+          { value: 7, color: "#FFD54F" },
+          { value: 10, color: "#FB8C00" },
+          { value: 15, color: "#E53935" },
+        ];
+      case WeatherParam.SOLAR_RADIATION:
+        return [
+          { value: 200, color: "#ECEFF1" },
+          { value: 400, color: "#4FC3F7" },
+          { value: 700, color: "#66BB6A" },
+          { value: 900, color: "#FFEB3B" },
+          { value: 1000, color: "#E53935" },
+        ];
+      case WeatherParam.PRECIPITATION:
+        return [
+          { value: 0, color: "#B0BEC5" },
+          { value: 5, color: "#81D4FA" },
+          { value: 20, color: "#1E88E5" },
+          { value: 50, color: "#8E44AD" },
+          { value: 75, color: "#C62828" },
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const getParamUnit = (): string => {
+    switch (selectedParam) {
+      case WeatherParam.TEMPERATURE:
+        return "°C";
+      case WeatherParam.RELATIVE_HUMIDITY:
+        return "%";
+      case WeatherParam.WIND_SPEED:
+        return "m/s";
+      case WeatherParam.SOLAR_RADIATION:
+        return "W/m²";
+      case WeatherParam.PRECIPITATION:
+        return "mm";
+      default:
+        return "";
+    }
+  };
+
   useEffect(() => {
     applyParamMode();
   }, [selectedParam]);
@@ -462,6 +527,67 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
           <SatelliteAltIcon />
         </IconButton>
       </Box>
+
+      {/* Color Scale Legend */}
+      {selectedParam && (
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: 25,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2,
+            backgroundColor: "rgba(255, 255, 255, 0.92)",
+            borderRadius: "10px",
+            padding: "10px 16px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
+          }}
+        >
+          <Box
+            sx={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#444",
+              textAlign: "center",
+              marginBottom: "6px",
+              letterSpacing: "0.3px",
+            }}
+          >
+            {selectedParam} ({getParamUnit()})
+          </Box>
+          <Box
+            sx={{
+              width: 240,
+              height: 12,
+              borderRadius: "6px",
+              background: `linear-gradient(to right, ${getParamLegendData()
+                .map((d) => d.color)
+                .join(", ")})`,
+            }}
+          />
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: 240,
+              marginTop: "5px",
+            }}
+          >
+            {getParamLegendData().map((d, i) => (
+              <Box
+                key={i}
+                sx={{
+                  fontSize: 10,
+                  color: "#555",
+                }}
+              >
+                {d.value}
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+
       <div id="map-container" ref={mapContainerRef} />
     </Box>
   );
