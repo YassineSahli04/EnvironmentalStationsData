@@ -7,6 +7,7 @@ import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../ApiService/Api";
 import { getMapDataForParam } from "../ApiService/DataHandling";
+import type { CfSensorDataRow } from "../ApiService/Objects/StationObj";
 import MapParamPanel from "./MapParamPanel";
 import { WeatherParam } from "./MapParamPanel";
 import "./SCSS/MapBox.scss";
@@ -27,6 +28,8 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   const [mapStyle, setMapStyle] = useState<string>(STYLE_SATELLITE);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [selectedParam, setSelectedParam] = useState<WeatherParam | undefined>();
+  const prevParamRef = useRef<WeatherParam | undefined>(undefined);
+  const paramDataRef = useRef<Record<string, CfSensorDataRow[]>>({});
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -456,14 +459,17 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     const source = mapRef.current.getSource("stations-plain") as GeoJSONSource | undefined;
     if (!source) return;
 
-    const paramData = await getMapDataForParam(param, dataOption);
+    if (param !== prevParamRef.current) {
+      paramDataRef.current = await getMapDataForParam(param);
+      prevParamRef.current = param;
+    }
 
     const updatedGeoJson = {
       ...geoDataRef.current,
       features: geoDataRef.current.features.map((f) => {
-        const rows = paramData[f.properties.id];
+        const rows = paramDataRef.current[f.properties.id];
         const lastRow = rows && rows.length > 0 ? rows[rows.length - 1] : null;
-        const lastValue = lastRow ? lastRow.value : null;
+        const lastValue = lastRow ? lastRow.values[dataOption] : null;
         const featureUpdated = {
           ...f,
           properties: { ...f.properties, param: param, paramValue: lastValue },
