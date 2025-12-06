@@ -137,7 +137,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
               ${props?.type ? `<strong style="color:#000000ff;">Type:</strong> ${props.type}<br />` : ""}
               <strong style="color:#000000ff;">Lon:</strong> ${coordinates[0].toFixed(4)}, 
               <strong style="color:#000000ff;">Lat:</strong> ${coordinates[1].toFixed(4)}
-              ${props?.paramValue != null ? `<br /><strong style="color:#000000ff;">${props.param?.toString()}:</strong> ${props.paramValue}` : ""}
+              ${props?.paramValue != null ? `<br /><strong style="color:#000000ff;">${props.param?.toString()}:</strong> ${props.paramValue.toFixed(2)}` : ""}
             </p>
           </div>
         `

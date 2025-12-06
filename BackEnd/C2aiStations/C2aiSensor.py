@@ -15,6 +15,13 @@ PARAM_TO_COLUMN_DELTAOHM = {
     "Solar Radiation": "solar_radiation_w_m2",
     "Wind Speed": "wind_speed_ms",
 }
+AVAILABLE_AGGREGATION = {
+    "Temperature": ["avg","min","max"],
+    "Precipitation": ["sum"],
+    "Relative Humidity": ["avg","min","max"],
+    "Solar Radiation": ["sum"],
+    "Wind Speed": ["avg","min","max"],
+}
 
 class C2aiSensor:
     stationId: str;
@@ -27,17 +34,23 @@ class C2aiSensor:
 
     def setSensorData(self, engine, queryParams):
         column_name = PARAM_TO_COLUMN_DELTAOHM[self.sensorId]
+        aggregationTypes = AVAILABLE_AGGREGATION[self.sensorId]
+            
+        aggSelects = ",\n".join([f'{a}("{column_name}") AS "{a}"' for a in aggregationTypes])
 
-        sql = text(f"""
-            SELECT
-                date_trunc(:step, "date_time") AS "Date/Time",
-                avg("{column_name}") AS "{self.sensorId}"
-            FROM "{self.stationId}"
-            WHERE "date_time" >= :start_dt
-            AND "date_time" <  :end_dt
-            GROUP BY "Date/Time"
-            ORDER BY "Date/Time";
-        """)
+        if(self.sensorId == "Precipitation"): 
+            sql = self.getPrecipitationSensorQuery(column_name, aggregationTypes)
+        else: 
+            sql = text(f"""
+                SELECT
+                    date_trunc(:step, "date_time") AS "Date/Time",
+                    {aggSelects}
+                FROM "{self.stationId}"
+                WHERE "date_time" >= :start_dt
+                AND "date_time" <  :end_dt
+                GROUP BY "Date/Time"
+                ORDER BY "Date/Time";
+            """)
 
 
         with engine.connect() as connection:
@@ -49,10 +62,25 @@ class C2aiSensor:
 
         records = []
         for _, row in df.iterrows():
-            values = {"avg": row[self.sensorId]}
+            values = {agg: row[agg] for agg in aggregationTypes}
             records.append({
                 "time": row["Date/Time"],
                 "values": values
             })
 
         self.data = records
+
+    def getPrecipitationSensorQuery(self, column_name, aggregationTypes):
+        aggSelects = ",\n".join([f'"{column_name}" AS "{a}"' for a in aggregationTypes])
+
+        return text(f"""
+            SELECT
+                "date_time" AS "Date/Time",
+                {aggSelects}                
+            FROM "{self.stationId}"
+            WHERE "date_time" >= :start_dt
+            AND "date_time" <  :end_dt
+            ORDER BY "Date/Time"
+            DESC LIMIT 1;
+        """)
+

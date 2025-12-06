@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 class C2aiStationsApiCalls:
-    SECRETJSONPATH = Path(__file__).resolve().parents[2] / "BackEnd/C2aiStations/C2aiInfo.json"
+    SECRETJSONPATH = Path(__file__).resolve().parents[3] / "BackEnd/C2aiStations/C2aiInfo.json"
     endPoint = None
     bearerToken = None
     listQuery : list[QueryObject]
@@ -37,7 +37,6 @@ class C2aiStationsApiCalls:
     def getResponse(self) -> Iterator[pd.DataFrame]:
         for query in self.listQuery:
             frames = self.response.json().get("results").get(query.refId).get("frames")
-            print(frames)
             cols = []
             for frame in frames:
                 fields = frame.get("schema").get("fields")

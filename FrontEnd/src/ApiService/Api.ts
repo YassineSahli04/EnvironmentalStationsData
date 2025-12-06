@@ -1,7 +1,14 @@
 import axios from "axios";
 import type { StationObj, StationSensorObj } from "../ApiService/Objects/StationObj";
 
-const typeFilter = ["Pyranometer", "Pluviometer", "Meteorological", "Meteorological/Pluviometer"];
+const typeFilter = [
+  "Pyranometer",
+  "Pluviometer",
+  "Meteorological",
+  "Meteorological/Pluviometer",
+  // "Drill and Drop",
+  // "Aquachek",
+];
 const url = "http://localhost:8000/api/stations";
 
 export async function getStations(): Promise<StationObj[]> {

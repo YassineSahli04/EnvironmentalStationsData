@@ -5,13 +5,14 @@ export async function getMapDataForParam(param: WeatherParam, dataOption: string
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   startOfToday.setDate(startOfToday.getDate() - 1);
-  const now = new Date();
+  const endOfDay = new Date(startOfToday);
+  endOfDay.setHours(23, 59, 59, 999);
 
   const stations = await getStations();
   const sensorsData: Record<string, { time: string; value: number | null }[]> = {};
 
   for (const st of stations) {
-    const sensor = await getStationSensorData(st.Id, param, "hourly", startOfToday, now);
+    const sensor = await getStationSensorData(st.Id, param, "daily", startOfToday, endOfDay);
     if (!sensor) continue;
     console.log(sensor);
 
