@@ -1,7 +1,7 @@
 import json
 import sqlalchemy.engine as _engine
 from sqlalchemy import create_engine, text, bindparam
-from pathlib import Path
+import os
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.C2aiStations.C2aiApi.C2aiTableCreator import C2aiTableCreator
@@ -9,13 +9,17 @@ from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from datetime import timezone
 
 class PostgreSQL:
-    SECRETJSONPATH = Path(__file__).resolve().parents[2] / "BackEnd/PostgreSQL/DbInfo.json"
     engine: _engine.Engine;
     def __init__(self):
+        self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
         
 
     def initialize_postgres_connection(self):
+        if self.SECRETJSONPATH is None:
+            raise RuntimeError("DBINFO_PATH env var is not set")
+        if not os.path.exists(self.SECRETJSONPATH):
+            raise RuntimeError(f"Secret file not found: {self.SECRETJSONPATH}")
         with open(self.SECRETJSONPATH, "r") as f:
             data = json.load(f)
             

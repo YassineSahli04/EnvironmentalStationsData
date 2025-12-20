@@ -3,16 +3,18 @@ import requests
 import json
 from BackEnd.C2aiStations.C2aiApi.QueryObject import QueryObject
 import pandas as pd
-import json
-from pathlib import Path
+import os
 
 class C2aiStationsApiCalls:
-    SECRETJSONPATH = Path(__file__).resolve().parents[3] / "BackEnd/C2aiStations/C2aiInfo.json"
     endPoint = None
     bearerToken = None
     listQuery : list[QueryObject]
     response : requests.Response;
     def __init__(self, listQuery:list[QueryObject]):
+        self.SECRETJSONPATH = os.getenv("C2AIINFO_PATH")
+        if self.SECRETJSONPATH is None:
+            raise RuntimeError("C2AIINFO_PATH env var is not set")
+        
         self.listQuery = listQuery
         with open(self.SECRETJSONPATH, "r") as f:
             secrets = json.load(f)

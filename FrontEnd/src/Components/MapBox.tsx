@@ -29,6 +29,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [selectedParam, setSelectedParam] = useState<WeatherParam | undefined>();
   const prevParamRef = useRef<WeatherParam | undefined>(undefined);
+  const prevDateRef = useRef<Date | undefined>(undefined);
   const paramDataRef = useRef<Record<string, CfSensorDataRow[]>>({});
 
   useEffect(() => {
@@ -234,6 +235,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
       zoom: 1.5,
     });
 
+    map.setPadding({ top: 0, bottom: 0, left: 0, right: 250 });
     mapRef.current = map;
 
     map.on("load", async () => {
@@ -448,7 +450,8 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
 
   const onSelectedParamChange = async (
     param: WeatherParam | undefined,
-    dataOption: string | undefined
+    dataOption: string | undefined,
+    date: Date
   ) => {
     if (!mapRef.current || !geoDataRef.current || !param || !dataOption) return;
     if (!param || !dataOption) {
@@ -459,9 +462,10 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     const source = mapRef.current.getSource("stations-plain") as GeoJSONSource | undefined;
     if (!source) return;
 
-    if (param !== prevParamRef.current) {
-      paramDataRef.current = await getMapDataForParam(param);
+    if (param !== prevParamRef.current && date !== prevDateRef.current) {
+      paramDataRef.current = await getMapDataForParam(param, date);
       prevParamRef.current = param;
+      prevDateRef.current = date;
     }
 
     const updatedGeoJson = {

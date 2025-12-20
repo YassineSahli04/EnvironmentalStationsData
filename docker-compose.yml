@@ -1,0 +1,28 @@
+services:
+  frontend:
+    depends_on:
+      - backend
+    image: node:24-slim
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./FrontEnd:/app
+      - vite_node_modules:/app/node_modules
+    command: sh -lc "if [ ! -d node_modules ]; then npm ci; fi && npm run dev -- --host"
+
+  backend:
+    build:
+      context: ./BackEnd
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./BackEnd:/app/BackEnd
+      - ./BackEnd/Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
+      - ./BackEnd/Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
+    environment:
+      - DBINFO_PATH=/run/secrets/DbInfo.json
+      - C2AIINFO_PATH=/run/secrets/C2aiInfo.json
+
+volumes:
+  vite_node_modules:

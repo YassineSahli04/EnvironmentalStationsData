@@ -68,19 +68,26 @@ class C2aiSensor:
                 "values": values
             })
 
+        if(self.stationId == "ed_8441-ed_8539"): print(records)
+
         self.data = records
 
     def getPrecipitationSensorQuery(self, column_name, aggregationTypes):
         aggSelects = ",\n".join([f'"{column_name}" AS "{a}"' for a in aggregationTypes])
 
-        return text(f"""
+        x = text(f"""
             SELECT
                 "date_time" AS "Date/Time",
                 {aggSelects}                
             FROM "{self.stationId}"
             WHERE "date_time" >= :start_dt
             AND "date_time" <  :end_dt
+            AND "{column_name}" IS NOT NULL
             ORDER BY "Date/Time"
             DESC LIMIT 1;
         """)
+        if(self.stationId == "ed_8441-ed_8539"):print(x)
+        return x
+    
+
 

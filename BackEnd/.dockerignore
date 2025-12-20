@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+.jupyter/
+*.ipynb
+
+# Explicit sensitive JSONs
+DbInfo.json
+C2aiStations/C2aiInfo.json

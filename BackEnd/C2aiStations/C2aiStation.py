@@ -22,6 +22,7 @@ class C2aiStation(StationDbObject):
             "start_dt": startDtUTC,
             "end_dt": endDtUTC, 
         }
+        if(self.Id == "ed_8441-ed_8539"): print(queryParams)
         sensor = C2aiSensor(self.Id, sensorId, isDataInDf=False)
         sensor.setSensorData(self.engine, queryParams)
         return sensor
