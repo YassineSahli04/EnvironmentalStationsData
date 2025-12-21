@@ -4,3 +4,6 @@
 **/.ipynb_checkpoints/
 
 .vscode/
+
+Scheduler/*
+docker-compose.scheduler.yml

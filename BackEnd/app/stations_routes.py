@@ -54,3 +54,10 @@ async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str 
         
 
 
+
+
+### SCHEDULER CODE FOR UPDATING THE DB FROM THE SERVER 
+@router.post("/server/update-db")
+def update_db():
+    db = PostgreSQL()
+    db.update_c2ai_tables()
