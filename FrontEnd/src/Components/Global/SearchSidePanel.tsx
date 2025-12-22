@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography } from "@mui/material";
-import { getStations } from "../../ApiService/Api.ts";
-import type { StationObj } from "../../ApiService/Objects/StationObj.ts";
+import { getStations } from "../../Api/Api.ts";
+import type { StationObj } from "../../Api/Objects/StationObj.ts";
 
 type SearchSidePanelProps = {
   colors: any;

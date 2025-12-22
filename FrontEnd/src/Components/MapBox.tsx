@@ -5,9 +5,9 @@ import { Box, IconButton } from "@mui/material";
 import mapboxgl from "mapbox-gl";
 import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getStationsGeojson } from "../ApiService/Api";
-import { getMapDataForParam } from "../ApiService/DataHandling";
-import type { CfSensorDataRow } from "../ApiService/Objects/StationObj";
+import { getStationsGeojson } from "../Api/Api";
+import { getMapDataForParam } from "../Api/DataHandling";
+import type { CfSensorDataRow } from "../Api/Objects/StationObj";
 import MapParamPanel from "./MapParamPanel";
 import { WeatherParam } from "./MapParamPanel";
 import "./SCSS/MapBox.scss";
@@ -462,7 +462,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     const source = mapRef.current.getSource("stations-plain") as GeoJSONSource | undefined;
     if (!source) return;
 
-    if (param !== prevParamRef.current && date !== prevDateRef.current) {
+    if (param !== prevParamRef.current || date !== prevDateRef.current) {
       paramDataRef.current = await getMapDataForParam(param, date);
       prevParamRef.current = param;
       prevDateRef.current = date;

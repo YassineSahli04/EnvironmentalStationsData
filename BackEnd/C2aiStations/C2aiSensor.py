@@ -68,8 +68,6 @@ class C2aiSensor:
                 "values": values
             })
 
-        if(self.stationId == "ed_8441-ed_8539"): print(records)
-
         self.data = records
 
     def getPrecipitationSensorQuery(self, column_name, aggregationTypes):
@@ -86,7 +84,6 @@ class C2aiSensor:
             ORDER BY "Date/Time"
             DESC LIMIT 1;
         """)
-        if(self.stationId == "ed_8441-ed_8539"):print(x)
         return x
     
 
