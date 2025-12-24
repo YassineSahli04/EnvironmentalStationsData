@@ -2,6 +2,9 @@
 .jupyter/
 *.ipynb
 **/.ipynb_checkpoints/
+.DS_Store
+BackEnd/.DS_Store
+FrontEnd/.DS_Store
 
 .vscode/
 
