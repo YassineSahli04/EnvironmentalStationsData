@@ -87,6 +87,9 @@ class C2aiTableCreator:
         return list(jsonResponse.get("results").get(queryObject.refId).get('frames')[0].get('data').get('values')[0])  # type: ignore
 
     def fix_datetime(self, col: pd.Series) -> pd.Series:
+        """
+        Converts unix timestamp in milliseconds to pandas datetime.
+        """
         return pd.to_datetime(col, unit="ms", origin="unix", errors="coerce")
     
     def fix_number(self, col: pd.Series) -> pd.Series:
@@ -158,6 +161,9 @@ class C2aiTableCreator:
             connection.commit()
     
     def get_highest_starting_timestamp(self):
+        """
+        Docstring for get_highest_starting_timestamp
+        """
         highestTime = 0
         for table in self.edTablesDict:
             query = f"SELECT MIN(DATE_TIME) AS oldest_time FROM {table};"
