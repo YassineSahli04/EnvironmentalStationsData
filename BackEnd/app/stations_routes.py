@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Query, HTTPException
 from BackEnd.C2aiStations.C2aiStation import C2aiStation
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
-from BackEnd.ClimateFieldStations.CfStation import CfStation
-from BackEnd.PostgreSQL.StationDbObject import StationDataGroup, StationDbObject
+from BackEnd.ClimateFieldStations.API.CfStation import CfStation
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from datetime import datetime
 import logging
 

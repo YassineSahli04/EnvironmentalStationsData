@@ -1,6 +1,6 @@
-from BackEnd.ClimateFieldStations.ApiCalls import ApiCalls
-from BackEnd.ClimateFieldStations.CfStation import CfStation
-from BackEnd.ClimateFieldStations.TransformData import TransformData
+from BackEnd.ClimateFieldStations.API.ApiCalls import ApiCalls
+from BackEnd.ClimateFieldStations.API.CfStation import CfStation
+from BackEnd.Utils.TransformData import TransformData
 from BackEnd.PostgreSQL.StationDbObject import StationDataGroup
 
 class CfUser:
