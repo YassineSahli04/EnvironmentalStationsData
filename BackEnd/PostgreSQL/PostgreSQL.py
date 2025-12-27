@@ -7,9 +7,11 @@ from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.C2aiStations.C2aiApi.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from datetime import timezone
+from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
 
 class PostgreSQL:
     engine: _engine.Engine;
+    CHUNK_SIZE = 5000
     def __init__(self):
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
@@ -56,16 +58,31 @@ class PostgreSQL:
                 stations.append(station)
         return stations
     
-    def create_all_c2ai_stations_data_tables(self):
+    def create_all_stations_data_tables(self):
         stations = self.get_all_station_objects()
         for station in stations:
-            if station.Manufacturer != "DeltaOHM":
-                continue
-            if station.DataSourceId is None:
-                raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-            table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
-            table_creator.create_postgre_table()
-            table_creator.get_data_and_insert()
+            if station.Manufacturer == "DeltaOHM":  
+                if station.DataSourceId is None:
+                    raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
+                table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+                table_creator.create_postgre_table()
+                dataDf = table_creator.get_data_df()
+                self.insert_df(dataDf, table_creator.newTableName)
+            if station.Manufacturer == "Pessl":
+                table_creator = CfTableCreator(station.Id)
+                dataDf = table_creator.getFullStationData()
+                self.insert_df(dataDf, station.Id)
+
+    def insert_df(self, df, tableName):
+        with self.engine.begin() as connection:
+            df.to_sql(
+                name=tableName,
+                con=connection,
+                if_exists="append",
+                index=False,
+                method="multi",
+                chunksize=self.CHUNK_SIZE
+            )
 
     def get_stations_Geojson_object(self, typeFilter = None):
         stations = self.get_all_station_objects(typeFilter)
@@ -84,7 +101,8 @@ class PostgreSQL:
                 raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
             table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
             station.set_last_data_point_time(self.engine)
-            table_creator.get_data_and_insert(int(station.LastDataPointTime.replace(tzinfo=timezone.utc).timestamp()))  # type: ignore
+            dataDf = table_creator.get_data_df(int(station.LastDataPointTime.replace(tzinfo=timezone.utc).timestamp())) # type: ignore
+            self.insert_df(dataDf, table_creator.newTableName)
                 
                 
 
