@@ -90,7 +90,7 @@ class C2aiTableCreator:
         """
         Converts unix timestamp in milliseconds to pandas datetime.
         """
-        return pd.to_datetime(col, unit="ms", origin="unix", errors="coerce")
+        return pd.to_datetime(col, unit="ms", origin="unix", errors="coerce", utc=True)
     
     def fix_number(self, col: pd.Series) -> pd.Series:
         return pd.to_numeric(col, errors="coerce")
@@ -182,7 +182,7 @@ class C2aiTableCreator:
         query =  (
             f"SELECT {cols_sql} "
             f"FROM {table} "
-            f"WHERE DATE_TIME > FROM_UNIXTIME({unixStartTime});"
+            f"WHERE DATE_TIME >= FROM_UNIXTIME({unixStartTime});"
         )
         queryObject = QueryObject(self.sourceDataId, query)
         apiCall = C2aiStationsApiCalls([queryObject])

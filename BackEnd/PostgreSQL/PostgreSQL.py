@@ -1,6 +1,6 @@
 import json
 import sqlalchemy.engine as _engine
-from sqlalchemy import create_engine, text, bindparam
+from sqlalchemy import create_engine, text, bindparam, event
 import os
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
@@ -13,16 +13,17 @@ class PostgreSQL:
     def __init__(self):
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
-        
+       
 
     def initialize_postgres_connection(self):
         if self.SECRETJSONPATH is None:
             raise RuntimeError("DBINFO_PATH env var is not set")
         if not os.path.exists(self.SECRETJSONPATH):
             raise RuntimeError(f"Secret file not found: {self.SECRETJSONPATH}")
+
         with open(self.SECRETJSONPATH, "r") as f:
             data = json.load(f)
-            
+
         userName = data.get("userName")
         password = data.get("password")
         host = data.get("host")
@@ -30,8 +31,13 @@ class PostgreSQL:
         database = data.get("database")
 
         connection_string = f"postgresql+psycopg2://{userName}:{password}@{host}:{port}/{database}"
-
         self.engine = create_engine(connection_string)
+
+        @event.listens_for(self.engine, "connect")
+        def _set_sql_timezone(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("SET TIME ZONE 'UTC';")
+            cursor.close()
 
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
         query = text("SELECT \"Id\" FROM \"Stations\";")
