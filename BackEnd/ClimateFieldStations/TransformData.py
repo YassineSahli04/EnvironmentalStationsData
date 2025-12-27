@@ -70,9 +70,13 @@ class TransformData:
         for df in dfs:
             tmp = df.copy()
 
-            tmp[time_col] = pd.to_datetime(tmp[time_col])
+            tmp[time_col] = pd.to_datetime(tmp[time_col], unit="ms", origin="unix", utc=True) #this is
 
-            tmp[time_col] = tmp[time_col].dt.round("min")
+            tmp[time_col] = tmp[time_col].dt.round("min")     
+            
+            # guard rail to check timestamp conversion
+            if tmp[time_col].dt.year.min() < 2000:
+                raise ValueError("Timestamp conversion failed: likely wrong unit")
 
             tmp = (
                 tmp.groupby(time_col, as_index=True)

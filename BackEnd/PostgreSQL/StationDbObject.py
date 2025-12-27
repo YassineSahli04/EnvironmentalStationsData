@@ -71,7 +71,7 @@ class StationDbObject:
         if self.Manufacturer != "DeltaOHM":
             raise Exception("Data Tables are only available for DeltaOHM Stations")
         with engine.connect() as connection:
-            lastDateTimeQuery = text(f"SELECT MAX(\"date_time\") FROM \"{self.Id}\";")
+            lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{self.Id}\";")
             self.LastDataPointTime = connection.execute(lastDateTimeQuery).scalar()
         
 
