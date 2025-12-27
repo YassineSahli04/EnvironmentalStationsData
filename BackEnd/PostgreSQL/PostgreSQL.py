@@ -15,7 +15,7 @@ class PostgreSQL:
     def __init__(self):
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
-        
+       
 
     def initialize_postgres_connection(self):
         if self.SECRETJSONPATH is None:

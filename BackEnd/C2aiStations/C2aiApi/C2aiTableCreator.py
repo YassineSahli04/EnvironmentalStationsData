@@ -87,7 +87,10 @@ class C2aiTableCreator:
         return list(jsonResponse.get("results").get(queryObject.refId).get('frames')[0].get('data').get('values')[0])  # type: ignore
 
     def fix_datetime(self, col: pd.Series) -> pd.Series:
-        return pd.to_datetime(col, unit="ms", origin="unix", errors="coerce")
+        """
+        Converts unix timestamp in milliseconds to pandas datetime.
+        """
+        return pd.to_datetime(col, unit="ms", origin="unix", errors="coerce", utc=True)
     
     def fix_number(self, col: pd.Series) -> pd.Series:
         return pd.to_numeric(col, errors="coerce")
@@ -147,6 +150,9 @@ class C2aiTableCreator:
             connection.commit()
     
     def get_highest_starting_timestamp(self):
+        """
+        Docstring for get_highest_starting_timestamp
+        """
         highestTime = 0
         for table in self.edTablesDict:
             query = f"SELECT MIN(DATE_TIME) AS oldest_time FROM {table};"
@@ -165,7 +171,7 @@ class C2aiTableCreator:
         query =  (
             f"SELECT {cols_sql} "
             f"FROM {table} "
-            f"WHERE DATE_TIME > FROM_UNIXTIME({unixStartTime});"
+            f"WHERE DATE_TIME >= FROM_UNIXTIME({unixStartTime});"
         )
         queryObject = QueryObject(self.sourceDataId, query)
         apiCall = C2aiStationsApiCalls([queryObject])
