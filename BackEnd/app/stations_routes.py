@@ -60,4 +60,4 @@ async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str 
 @router.post("/server/update-db")
 def update_db():
     db = PostgreSQL()
-    db.update_c2ai_tables()
+    db.update_db_tables()

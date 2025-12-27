@@ -1,9 +1,10 @@
+from datetime import datetime
 from logging import exception
 from BackEnd.Utils.TransformData import TransformData
 import pandas as pd
 from sqlalchemy import text, bindparam
-from BackEnd.C2aiStations.C2aiApi.C2aiStationsApiCalls import C2aiStationsApiCalls
-from BackEnd.C2aiStations.C2aiApi.QueryObject import QueryObject 
+from BackEnd.C2aiStations.Api.C2aiStationsApiCalls import C2aiStationsApiCalls
+from BackEnd.C2aiStations.Api.QueryObject import QueryObject 
 from pathlib import Path
 import sqlalchemy.engine as _engine
 from enum import Enum
@@ -143,11 +144,26 @@ class C2aiTableCreator:
         else:
             return None
         
-    def create_postgre_table(self):
+    def create_postgre_table(self) -> bool:
+        already_exists_query = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_name = :table_name
+            );
+        """
         query = f"CREATE TABLE IF NOT EXISTS \"{self.newTableName}\" (date_time TIMESTAMPTZ PRIMARY KEY, battery_voltage_v NUMERIC(10,3), supply_voltage_v NUMERIC(10,3), wind_speed_ms NUMERIC(10,3), wind_direction_deg NUMERIC(10,3), air_temperature_c NUMERIC(10,3), relative_humidity_pct NUMERIC(10,3), dew_point_c NUMERIC(10,3), solar_radiation_w_m2 NUMERIC(10,3), atmospheric_pressure_hpa NUMERIC(10,3), hourly_evapotranspiration_mm_h NUMERIC(10,3), daily_evapotranspiration_mm_d NUMERIC(10,3), rain_intensity_mm_h NUMERIC(10,3), daily_rainfall_mm NUMERIC(10,3), total_rainfall_mm NUMERIC(10,3), microclimate_temperature_c NUMERIC(10,3), microclimate_relative_humidity_pct NUMERIC(10,3), microclimate_dew_point_c NUMERIC(10,3), microclimate_absolute_humidity_g_m3 NUMERIC(10,3), microclimate_upper_leaf_wetness_pct NUMERIC(10,3), microclimate_lower_leaf_wetness_pct NUMERIC(10,3));"
         with self.engine.connect() as connection:
+            alreadyExists = connection.execute(
+                text(already_exists_query),
+                {"table_name": self.newTableName}
+            ).scalar()
+            if alreadyExists:
+                return True
             connection.execute(text(query))
             connection.commit()
+            return False
     
     def get_highest_starting_timestamp(self):
         """
@@ -188,8 +204,10 @@ class C2aiTableCreator:
         else:
             return ["DATE_TIME", "MEAS_1", "MEAS_2", "MEAS_3", "MEAS_4", "MEAS_5", "MEAS_6", "MEAS_7", "MEAS_8", "MEAS_9"]
 
-    def get_data_df(self, unixStartTime = None):
+    def getFullDataDf(self, startQueryTime : datetime | None = None):
         dfList = []
+        if startQueryTime is not None:
+            unixStartTime = int(startQueryTime.timestamp())
         if unixStartTime is None: unixStartTime = self.get_highest_starting_timestamp()
         for table in self.edTablesDict:
             dfList.append(self.get_table_data(table, unixStartTime))

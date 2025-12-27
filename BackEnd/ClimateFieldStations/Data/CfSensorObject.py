@@ -96,6 +96,12 @@ class CfSensorObject:
         s = s.dt.tz_convert("UTC")
         df[("date_time", "")] = s
 
+        df = df.dropna(subset=[("date_time", "")])
+        df = df.set_index(("date_time", ""))
+        df.index.name = "date_time"
+        df =  df.groupby(level=0).mean(numeric_only=True)
+        df = df.reset_index()
+
         if isColomnHeaderCombined:
             def combine_col(col_tuple):
                 sensor, metric = col_tuple

@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 import requests
 import json
-from BackEnd.C2aiStations.C2aiApi.QueryObject import QueryObject
+from BackEnd.C2aiStations.Api.QueryObject import QueryObject
 import pandas as pd
 import os
 
