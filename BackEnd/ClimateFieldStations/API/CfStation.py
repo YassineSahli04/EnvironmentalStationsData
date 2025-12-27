@@ -4,11 +4,11 @@ from BackEnd.PostgreSQL.StationDbObject import StationDataGroup, StationDbObject
 import sqlalchemy.engine as _engine
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorObject
 from datetime import datetime, timezone, timedelta
-from BackEnd.Utils.TransformData import TransformData
+
 
 class CfStation(StationDbObject):
     DATA_ACCESS_DAYS_LIMIT = 365
-    QUERY_DAYS_LIMIT_HOURLY = 7
+    QUERY_DAYS_LIMIT_HOURLY = 30
 
     engine = _engine.Engine
     def __init__(
@@ -86,37 +86,7 @@ class CfStation(StationDbObject):
         sensor = CfSensorObject(stationData, sensorId, isDataInDf=isDataInDf)
         return sensor
         
-    
-    def getFullStationData(self, dataGroup :StationDataGroup = StationDataGroup.hourly):
-        minMaxTimeStamps = self.get_station_min_max_timestamps_from_api()
-        max_str = minMaxTimeStamps["max_date"]  # type: ignore
 
-        now = datetime.now(self.DataTimeZone)
-        min = now - timedelta(self.DATA_ACCESS_DAYS_LIMIT)
-        max = datetime.strptime(max_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.DataTimeZone)
-
-        if min >= max:
-            return []
-
-        dfDataBatches = []
-        start = min
-        while start < max:
-            end = start + timedelta(days=self.QUERY_DAYS_LIMIT_HOURLY)
-            if (end > max):
-                end = max
-            if (start == end):
-                break
-            try:
-                stationData = self.get_station_data_in_timestamp_from_api(dataGroup.value, int(start.astimezone(timezone.utc).timestamp()), int(end.astimezone(timezone.utc).timestamp()))
-                if (stationData.get("message")):  # type: ignore
-                    raise Exception(f"Error Occured for station [{self.Id}]: "+ stationData.get("message"))   # type: ignore
-                df = TransformData.transform_data_to_df_or_csv(stationData)
-                dfDataBatches.append(df)
-            except Exception as e:
-                print(e)
-            start = end
-  
-        return dfDataBatches
 
 
 

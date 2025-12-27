@@ -123,17 +123,6 @@ class C2aiTableCreator:
 
         return new_df
     
-    def insert_df(self, df):
-        with self.engine.begin() as connection:
-            df.to_sql(
-                name=self.newTableName,
-                con=connection,
-                if_exists="append",
-                index=False,
-                method="multi",
-                chunksize=self.CHUNK_SIZE
-            )
-    
     def get_c2ai_table_type(self, tableName: str):
         query = f"SELECT (CASE WHEN SUM(CASE WHEN MEAS_1 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_2 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_3 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_4 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_5 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_6 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_7 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_8 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_9 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_10 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_11 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_12 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END) AS non_zero_meas_columns FROM {tableName}"
         queryObject = QueryObject(self.sourceDataId, query)
@@ -152,7 +141,7 @@ class C2aiTableCreator:
             return None
         
     def create_postgre_table(self):
-        query = f"CREATE TABLE \"{self.newTableName}\" (date_time TIMESTAMPTZ PRIMARY KEY, battery_voltage_v NUMERIC(10,3), supply_voltage_v NUMERIC(10,3), wind_speed_ms NUMERIC(10,3), wind_direction_deg NUMERIC(10,3), air_temperature_c NUMERIC(10,3), relative_humidity_pct NUMERIC(10,3), dew_point_c NUMERIC(10,3), solar_radiation_w_m2 NUMERIC(10,3), atmospheric_pressure_hpa NUMERIC(10,3), hourly_evapotranspiration_mm_h NUMERIC(10,3), daily_evapotranspiration_mm_d NUMERIC(10,3), rain_intensity_mm_h NUMERIC(10,3), daily_rainfall_mm NUMERIC(10,3), total_rainfall_mm NUMERIC(10,3), microclimate_temperature_c NUMERIC(10,3), microclimate_relative_humidity_pct NUMERIC(10,3), microclimate_dew_point_c NUMERIC(10,3), microclimate_absolute_humidity_g_m3 NUMERIC(10,3), microclimate_upper_leaf_wetness_pct NUMERIC(10,3), microclimate_lower_leaf_wetness_pct NUMERIC(10,3));"
+        query = f"CREATE TABLE IF NOT EXISTS \"{self.newTableName}\" (date_time TIMESTAMPTZ PRIMARY KEY, battery_voltage_v NUMERIC(10,3), supply_voltage_v NUMERIC(10,3), wind_speed_ms NUMERIC(10,3), wind_direction_deg NUMERIC(10,3), air_temperature_c NUMERIC(10,3), relative_humidity_pct NUMERIC(10,3), dew_point_c NUMERIC(10,3), solar_radiation_w_m2 NUMERIC(10,3), atmospheric_pressure_hpa NUMERIC(10,3), hourly_evapotranspiration_mm_h NUMERIC(10,3), daily_evapotranspiration_mm_d NUMERIC(10,3), rain_intensity_mm_h NUMERIC(10,3), daily_rainfall_mm NUMERIC(10,3), total_rainfall_mm NUMERIC(10,3), microclimate_temperature_c NUMERIC(10,3), microclimate_relative_humidity_pct NUMERIC(10,3), microclimate_dew_point_c NUMERIC(10,3), microclimate_absolute_humidity_g_m3 NUMERIC(10,3), microclimate_upper_leaf_wetness_pct NUMERIC(10,3), microclimate_lower_leaf_wetness_pct NUMERIC(10,3));"
         with self.engine.connect() as connection:
             connection.execute(text(query))
             connection.commit()
@@ -193,10 +182,9 @@ class C2aiTableCreator:
         else:
             return ["DATE_TIME", "MEAS_1", "MEAS_2", "MEAS_3", "MEAS_4", "MEAS_5", "MEAS_6", "MEAS_7", "MEAS_8", "MEAS_9"]
 
-    def get_data_and_insert(self, unixStartTime = None):
+    def get_data_df(self, unixStartTime = None):
         dfList = []
         if unixStartTime is None: unixStartTime = self.get_highest_starting_timestamp()
         for table in self.edTablesDict:
             dfList.append(self.get_table_data(table, unixStartTime))
-        combinedData =  TransformData.combine_dfs_with_diff_timestamp(dfList, "date_time")
-        self.insert_df(combinedData)
+        return  TransformData.combine_dfs_with_diff_timestamp(dfList, "date_time")

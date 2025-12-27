@@ -2,6 +2,7 @@ from BackEnd.ClimateFieldStations.API.ApiCalls import ApiCalls
 from BackEnd.ClimateFieldStations.API.CfStation import CfStation
 from BackEnd.Utils.TransformData import TransformData
 from BackEnd.PostgreSQL.StationDbObject import StationDataGroup
+from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorObject
 
 class CfUser:
     def __init__(self):
@@ -36,7 +37,7 @@ class CfUser:
         st_dataJsonObject = station.get_station_data_in_timestamp_from_api(dataGroup, startTimestamp, endTimestamp)
         if (st_dataJsonObject.get("message")): # type: ignore
             raise Exception(f"Error Occured for station [{id}]: "+ st_dataJsonObject.get("message")) # type: ignore
-        st_df = TransformData.transform_data_to_df_or_csv(st_dataJsonObject)
+        st_df = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, station.DataTimeZone)
 
         return st_df
         
