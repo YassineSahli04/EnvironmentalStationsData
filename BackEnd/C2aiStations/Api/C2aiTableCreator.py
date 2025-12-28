@@ -206,6 +206,7 @@ class C2aiTableCreator:
 
     def getFullDataDf(self, startQueryTime : datetime | None = None):
         dfList = []
+        unixStartTime = None
         if startQueryTime is not None:
             unixStartTime = int(startQueryTime.timestamp())
         if unixStartTime is None: unixStartTime = self.get_highest_starting_timestamp()

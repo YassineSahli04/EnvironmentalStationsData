@@ -31,7 +31,7 @@ async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str 
     if station.Manufacturer == "DeltaOHM": 
         station = C2aiStation(stationId)
     else:
-        station = CfStation(stationId) 
+        station = CfStation(db.engine, stationId) 
     
     try:    
         return station.getSensorData(
@@ -60,4 +60,4 @@ async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str 
 @router.post("/server/update-db")
 def update_db():
     db = PostgreSQL()
-    db.update_db_tables()
+    db.create_update_all_stations_data_tables()

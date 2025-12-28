@@ -93,7 +93,7 @@ class CfStation(StationDbObject):
         st_dataJsonObject = self.get_station_data_in_timestamp_from_api(dataGroup.value, startTimestamp, endTimestamp) # type: ignore
         if (st_dataJsonObject.get("message")): # type: ignore
             raise Exception(f"Error Occured for station [{id}]: "+ st_dataJsonObject.get("message")) # type: ignore
-        st_df = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, self.DataTimeZone, isColomnHeaderCombined=True)
+        st_df = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True)
 
         return st_df
         

@@ -33,18 +33,20 @@ class CfTableCreator(CfStation):
     def getFullDataDf(self, startQueryTime: datetime | None = None, dataGroup :StationDataGroup = StationDataGroup.hourly):
         minMaxTimeStamps = self.get_station_min_max_timestamps_from_api()
         max_str = minMaxTimeStamps["max_date"]  # type: ignore
-
+      
         now = datetime.now(self.DataTimeZone)
         if startQueryTime is None:
             startQueryTime = now - timedelta(self.DATA_ACCESS_DAYS_LIMIT)
+        else:
+            startQueryTime += timedelta(minutes=1)
         max = datetime.strptime(max_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.DataTimeZone)
 
         if startQueryTime >= max:
-            return []
+            return None
 
         dfDataBatches = []
         start = startQueryTime
-        while start < max:
+        while start <= max:
             end = start + timedelta(days=self.QUERY_DAYS_LIMIT_HOURLY)
             if (end > max):
                 end = max
@@ -56,8 +58,9 @@ class CfTableCreator(CfStation):
                 dfDataBatches.append(df)
             except Exception as e:
                 print(e)
-            start = end
-  
+            start = end 
+        if len(dfDataBatches) == 0:
+            return None
         return TransformData.combine_df_batches_with_same_columns(dfDataBatches)
     
     def IsDataTableCreated(self) -> bool:

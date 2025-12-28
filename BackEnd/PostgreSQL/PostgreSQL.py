@@ -10,7 +10,7 @@ from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
 
 class PostgreSQL:
     engine: _engine.Engine;
-    CHUNK_SIZE = 5000
+    CHUNK_SIZE = 25
     def __init__(self):
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
@@ -57,7 +57,7 @@ class PostgreSQL:
                 stations.append(station)
         return stations
     
-    def create_all_stations_data_tables(self):
+    def create_update_all_stations_data_tables(self):
         stations = self.get_all_station_objects()
         for station in stations:
             match station.Manufacturer:
@@ -79,14 +79,16 @@ class PostgreSQL:
 
     def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:
-            df.to_sql(
-                name=tableName,
-                con=connection,
-                if_exists="append",
-                index=False, 
-                method="multi",
-                chunksize=self.CHUNK_SIZE,
-            )
+            connection.execute(text("SET TIME ZONE 'UTC';"))
+            if(df is not None):
+                df.to_sql(
+                    name=tableName,
+                    con=connection,
+                    if_exists="append",
+                    index=False, 
+                    method="multi",
+                    chunksize=self.CHUNK_SIZE,
+                )
             connection.execute(text(f"""
                 DO $$
                 BEGIN
@@ -114,11 +116,6 @@ class PostgreSQL:
             feature = GeoJsonStationInfoFeature(st)
             geoJson.add_feature(feature) # type: ignore
         return geoJson.to_dict()
-    
-    def update_db_tables(self):
-        stations = self.get_all_station_objects()
-        for station in stations: 
-            self.update_db_table(station)
 
     def update_db_table(self, station: StationDbObject):
         match station.Manufacturer:
@@ -133,7 +130,3 @@ class PostgreSQL:
         station.set_last_data_point_time(self.engine)
         dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)
-                
-                
-
-
