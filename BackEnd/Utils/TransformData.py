@@ -44,7 +44,6 @@ class TransformData:
 
             tmp[time_col] = tmp[time_col].dt.round("min")     
             
-            # guard rail to check timestamp conversion
             if tmp[time_col].dt.year.min() < 2000:
                 raise ValueError("Timestamp conversion failed: likely wrong unit")
 

@@ -1,9 +1,8 @@
 from BackEnd.ClimateFieldStations.API.ApiCalls import ApiCalls 
-from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 from BackEnd.PostgreSQL.StationDbObject import StationDataGroup, StationDbObject
 import sqlalchemy.engine as _engine
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorObject
-from datetime import datetime, timezone, timedelta
+from datetime import timezone, timedelta
 
 
 class CfStation(StationDbObject):
@@ -13,10 +12,11 @@ class CfStation(StationDbObject):
     engine = _engine.Engine
     def __init__(
         self,
+        engine : _engine.Engine,
         stationId: str
     ):
         super().__init__(stationId)
-        self.engine = PostgreSQL().engine
+        self.engine = engine
         info = self.get_station_info_from_api()
         self.Name = info.get("name").get("custom") if self.Name is None else self.Name # type: ignore
         self.Manufacturer = "Pessl" if self.Manufacturer is None else self.Manufacturer # type: ignore
@@ -85,6 +85,17 @@ class CfStation(StationDbObject):
             raise Exception(f"Error Occured for station [{self.Id}]: "+ stationData.get("message"))   # type: ignore
         sensor = CfSensorObject(stationData, sensorId, isDataInDf=isDataInDf)
         return sensor
+    
+    def get_station_data_df(self, dataGroup :StationDataGroup, startDtUTC, endDtUTC):
+        startTimestamp = int(startDtUTC.astimezone(timezone.utc).timestamp())
+        endTimestamp = int(endDtUTC.astimezone(timezone.utc).timestamp())
+            
+        st_dataJsonObject = self.get_station_data_in_timestamp_from_api(dataGroup.value, startTimestamp, endTimestamp) # type: ignore
+        if (st_dataJsonObject.get("message")): # type: ignore
+            raise Exception(f"Error Occured for station [{id}]: "+ st_dataJsonObject.get("message")) # type: ignore
+        st_df = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True)
+
+        return st_df
         
 
 

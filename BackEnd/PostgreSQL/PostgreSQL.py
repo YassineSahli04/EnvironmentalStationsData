@@ -4,14 +4,13 @@ from sqlalchemy import create_engine, text, bindparam, event
 import os
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
-from BackEnd.C2aiStations.C2aiApi.C2aiTableCreator import C2aiTableCreator
+from BackEnd.C2aiStations.Api.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
-from datetime import timezone
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
 
 class PostgreSQL:
     engine: _engine.Engine;
-    CHUNK_SIZE = 5000
+    CHUNK_SIZE = 25
     def __init__(self):
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
@@ -58,31 +57,57 @@ class PostgreSQL:
                 stations.append(station)
         return stations
     
-    def create_all_stations_data_tables(self):
+    def create_update_all_stations_data_tables(self):
         stations = self.get_all_station_objects()
         for station in stations:
-            if station.Manufacturer == "DeltaOHM":  
-                if station.DataSourceId is None:
-                    raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-                table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
-                table_creator.create_postgre_table()
-                dataDf = table_creator.get_data_df()
-                self.insert_df(dataDf, table_creator.newTableName)
-            if station.Manufacturer == "Pessl":
-                table_creator = CfTableCreator(station.Id)
-                dataDf = table_creator.getFullStationData()
-                self.insert_df(dataDf, station.Id)
+            match station.Manufacturer:
+                case "DeltaOHM":  
+                    if station.DataSourceId is None:
+                        raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
+                    table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+                    alreadyExists = table_creator.create_postgre_table()
+                    
+                case "Pessl":
+                    table_creator = CfTableCreator(self.engine, station.Id)
+                    alreadyExists = table_creator.IsDataTableCreated()
 
-    def insert_df(self, df, tableName):
+            if not alreadyExists:
+                dataDf = table_creator.getFullDataDf()
+                self.insert_create_data_df(dataDf, table_creator.newTableName)
+            else:
+                self.update_db_table(station)
+
+    def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:
-            df.to_sql(
-                name=tableName,
-                con=connection,
-                if_exists="append",
-                index=False,
-                method="multi",
-                chunksize=self.CHUNK_SIZE
-            )
+            connection.execute(text("SET TIME ZONE 'UTC';"))
+            if(df is not None):
+                df.to_sql(
+                    name=tableName,
+                    con=connection,
+                    if_exists="append",
+                    index=False, 
+                    method="multi",
+                    chunksize=self.CHUNK_SIZE,
+                )
+            connection.execute(text(f"""
+                DO $$
+                BEGIN
+                    IF to_regclass(:tbl) IS NOT NULL THEN
+                        IF NOT EXISTS (
+                            SELECT 1
+                            FROM pg_constraint c
+                            WHERE c.conrelid = to_regclass(:tbl)
+                            AND c.contype = 'p'
+                        ) THEN
+                            ALTER TABLE "{tableName}"
+                            ADD CONSTRAINT "{tableName}_pkey" PRIMARY KEY (date_time);
+                        END IF;
+                    END IF;
+                END $$;
+                """), {"tbl": tableName})
+
+
+
 
     def get_stations_Geojson_object(self, typeFilter = None):
         stations = self.get_all_station_objects(typeFilter)
@@ -91,19 +116,17 @@ class PostgreSQL:
             feature = GeoJsonStationInfoFeature(st)
             geoJson.add_feature(feature) # type: ignore
         return geoJson.to_dict()
-    
-    def update_c2ai_tables(self):
-        stations = self.get_all_station_objects()
-        for station in stations:
-            if station.Manufacturer != "DeltaOHM":
-                continue
-            if station.DataSourceId is None:
-                raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-            table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
-            station.set_last_data_point_time(self.engine)
-            dataDf = table_creator.get_data_df(int(station.LastDataPointTime.replace(tzinfo=timezone.utc).timestamp())) # type: ignore
-            self.insert_df(dataDf, table_creator.newTableName)
-                
-                
 
-
+    def update_db_table(self, station: StationDbObject):
+        match station.Manufacturer:
+            case "DeltaOHM":
+                if station.DataSourceId is None:
+                    raise ValueError(f"DeltaOHM Station {station.Id} does not have a DataSourceId.")
+                table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+            case "Pessl":
+                table_creator = CfTableCreator(self.engine, station.Id)
+            case _:
+                raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
+        station.set_last_data_point_time(self.engine)
+        dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
+        self.insert_create_data_df(dataDf, table_creator.newTableName)

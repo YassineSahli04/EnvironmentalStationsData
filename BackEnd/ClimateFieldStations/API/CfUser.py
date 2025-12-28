@@ -1,8 +1,4 @@
 from BackEnd.ClimateFieldStations.API.ApiCalls import ApiCalls
-from BackEnd.ClimateFieldStations.API.CfStation import CfStation
-from BackEnd.Utils.TransformData import TransformData
-from BackEnd.PostgreSQL.StationDbObject import StationDataGroup
-from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorObject
 
 class CfUser:
     def __init__(self):
@@ -18,27 +14,19 @@ class CfUser:
         method='GET'
         return ApiCalls.api_call(method, endpoint)
 
-    def get_all_user_stations_data_from_api(self, dataGroup :StationDataGroup, startDtUTC, endDtUTC, isCsv = False):
-        stations = self.get_all_stations_from_api()
-        dfs = []
-        for st in stations:
-            id = st["name"]["original"] # type: ignore
-            st_df = self.get_station_data_df(id, dataGroup, startDtUTC, endDtUTC)
-            dfs.append(st_df)
-        final_df = TransformData.combine_dfs_with_same_timestamp(dfs)
-        if isCsv: final_df.to_csv("test.csv", index=False); return
-        return final_df
-    
-    def get_station_data_df(self, stationId,  dataGroup :StationDataGroup, startDtUTC, endDtUTC):
-        startTimestamp = int(startDtUTC.timestamp())
-        endTimestamp = int(endDtUTC.timestamp())
-        station = CfStation(stationId)
-            
-        st_dataJsonObject = station.get_station_data_in_timestamp_from_api(dataGroup, startTimestamp, endTimestamp)
-        if (st_dataJsonObject.get("message")): # type: ignore
-            raise Exception(f"Error Occured for station [{id}]: "+ st_dataJsonObject.get("message")) # type: ignore
-        st_df = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, station.DataTimeZone)
 
-        return st_df
+    # This method is Deprecated and should be getting the data from the postgre db and not the API
+
+    # def get_all_user_stations_data_from_api(self, dataGroup :StationDataGroup, startDtUTC, endDtUTC, isCsv = False):
+    #     stations = self.get_all_stations_from_api()
+    #     dfs = []
+    #     for st in stations:
+    #         id = st["name"]["original"] # type: ignore
+    #         st_df = self.get_station_data_df(id, dataGroup, startDtUTC, endDtUTC)
+    #         dfs.append(st_df)
+    #     final_df = TransformData.combine_dfs_with_same_timestamp(dfs)
+    #     if isCsv: final_df.to_csv("test.csv", index=False); return
+    #     return final_df
+    
         
 

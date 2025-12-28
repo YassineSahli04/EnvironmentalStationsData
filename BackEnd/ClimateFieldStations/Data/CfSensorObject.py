@@ -1,6 +1,7 @@
 from enum import Enum
 import pandas as pd
 import re
+from datetime import timezone
 
 class CfDataType(Enum):
     Sensor=0
@@ -66,7 +67,7 @@ class CfSensorObject:
         self.data = self.getDataValues(data.get('values'), stationData)
 
     @staticmethod
-    def transform_data_to_df_or_csv(dataJsonObject, dataTimeZone, isColomnHeaderCombined = False, isCsv = False):
+    def transform_data_to_df_or_csv(dataJsonObject, isColomnHeaderCombined = False, isCsv = False):
         cols = [('date_time', "")]
         sensorsData = dataJsonObject["data"]
         
@@ -91,10 +92,13 @@ class CfSensorObject:
             dataVals.append(row)
         df = pd.DataFrame(dataVals, columns=columns)
         
-        s = pd.to_datetime(df[("date_time", "")], errors="coerce")
-        s = s.dt.tz_localize(dataTimeZone)
-        s = s.dt.tz_convert("UTC")
-        df[("date_time", "")] = s
+        df[("date_time", "")] = pd.to_datetime(df[("date_time", "")], utc=True, errors="coerce")
+
+        df = df.dropna(subset=[("date_time", "")])
+        df = df.set_index(("date_time", ""))
+        df.index.name = "date_time"
+        df =  df.groupby(level=0).mean(numeric_only=True)
+        df = df.reset_index()
 
         if isColomnHeaderCombined:
             def combine_col(col_tuple):

@@ -1,6 +1,5 @@
 import pandas as pd
 from BackEnd.PostgreSQL.StationDbObject import StationDataGroup
-import sqlalchemy.engine as _engine
 from sqlalchemy import text
 
 granularityMap = {

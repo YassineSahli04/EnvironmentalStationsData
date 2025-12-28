@@ -1,6 +1,6 @@
 import sqlalchemy.engine as _engine
 from sqlalchemy import text
-from datetime import datetime
+from datetime import datetime, timezone
 
 from enum import Enum
 class StationDataGroup(Enum):
@@ -68,11 +68,18 @@ class StationDbObject:
 
     def set_last_data_point_time(self, engine:_engine.Engine):
         if self.Manufacturer is None: self.LastDataPointTime = None; return;
-        if self.Manufacturer != "DeltaOHM":
-            raise Exception("Data Tables are only available for DeltaOHM Stations")
+    
+        allowed = {"DeltaOHM", "Pessl"}
+        if self.Manufacturer not in allowed:
+            raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
         with engine.connect() as connection:
             lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{self.Id}\";")
-            self.LastDataPointTime = connection.execute(lastDateTimeQuery).scalar()
+            time = connection.execute(lastDateTimeQuery).scalar()
+            if(time is not None):
+                utcTime = time.replace(tzinfo=timezone.utc)
+                self.LastDataPointTime = utcTime
+                return
+            self.LastDataPointTime = None
         
 
 
