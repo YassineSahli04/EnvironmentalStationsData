@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
-from BackEnd.C2aiStations.C2aiStation import C2aiStation
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
-from BackEnd.ClimateFieldStations.API.CfStation import CfStation
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from datetime import datetime
 import logging
@@ -26,20 +24,11 @@ def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]"
 @router.get('/station/{stationId}/{sensorId}')
 async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)): 
     db = PostgreSQL()
-    station = StationDbObject(stationId)
-    station.set_or_update_station_metadata(db.engine)
-    if station.Manufacturer == "DeltaOHM": 
-        station = C2aiStation(stationId)
-    else:
-        station = CfStation(db.engine, stationId) 
+    station = StationDbObject(db.engine, stationId)
+    station.set_station_metadata()
     
     try:    
-        return station.getSensorData(
-            sensorId=sensorId,
-            dataGroup=dataGroup,
-            startDtUTC=startDtUTC,
-            endDtUTC=endDtUTC,
-        )
+        return station.getSensorData(db.engine, sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
     except Exception as e:
         logger.exception(
             "Error while getting sensor data for station=%s sensor=%s", stationId, sensorId

@@ -1,13 +1,15 @@
 import sqlalchemy.engine as _engine
 from sqlalchemy import text
 from datetime import datetime, timezone
-
 from enum import Enum
+from BackEnd.PostgreSQL.SensorDbObject import SensorDbObject
+
+
 class StationDataGroup(Enum):
-    raw = "raw"
-    hourly ="hourly"
-    daily = "daily"
-    monthly = "monthly"
+    hourly= 'hour'
+    daily =  'day'
+    monthly = 'month'
+
 
 class StationDbObject:
     Id: str
@@ -24,32 +26,17 @@ class StationDbObject:
 
     def __init__(
         self,
-        station_id: str,
-        name: str | None = None,
-        location: str | None = None,
-        manufacturer: str | None = None,
-        type: str | None = None,
-        latitude: float | None = None,
-        longitude: float | None = None,
-        altitude: float | None = None,
-        data_source_id: int | None = None,
-        data_table_name: str | None = None,
+        engine:_engine.Engine,
+        station_id: str
     ):
         self.Id = station_id
-        self.Name = name
-        self.Location = location
-        self.Manufacturer = manufacturer
-        self.Type = type
-        self.Latitude = latitude
-        self.Longitude = longitude
-        self.Altitude = altitude
-        self.DataSourceId = data_source_id
-        self.DataTableName = data_table_name
+        self.engine = engine
+        self.set_station_metadata()
 
-    def set_or_update_station_metadata(self, engine:_engine.Engine):
+    def set_station_metadata(self):
         query = text(f"SELECT * FROM \"Stations\" Where \"Id\"= :id;")
 
-        with engine.connect() as connection:
+        with self.engine.connect() as connection:
             result = connection.execute(query, {"id": self.Id})
             row = result.mappings().first()
 
@@ -66,13 +53,13 @@ class StationDbObject:
         self.DataSourceId  = row.get("DataSourceId")
         self.DataTableName = row.get("DataTableName")
 
-    def set_last_data_point_time(self, engine:_engine.Engine):
+    def set_last_data_point_time(self):
         if self.Manufacturer is None: self.LastDataPointTime = None; return;
     
         allowed = {"DeltaOHM", "Pessl"}
         if self.Manufacturer not in allowed:
             raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
-        with engine.connect() as connection:
+        with self.engine.connect() as connection:
             lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{self.Id}\";")
             time = connection.execute(lastDateTimeQuery).scalar()
             if(time is not None):
@@ -80,6 +67,22 @@ class StationDbObject:
                 self.LastDataPointTime = utcTime
                 return
             self.LastDataPointTime = None
+
+    def getSensorData(self, sensorId:str, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
+        try:
+            dataGroup = StationDataGroup(dataGroup) # type: ignore 
+        except Exception as e:
+            allowed = [e.value for e in StationDataGroup]
+            raise ValueError(f"Invalid dataGroup '{dataGroup}'. Allowed: {allowed}")
+
+        queryParams = {
+            "step": dataGroup,
+            "start_dt": startDtUTC,
+            "end_dt": endDtUTC, 
+        }
+        sensor = SensorDbObject(self, sensorId, isDataInDf=False)
+        sensor.setSensorData(queryParams)
+        return sensor
         
 
 

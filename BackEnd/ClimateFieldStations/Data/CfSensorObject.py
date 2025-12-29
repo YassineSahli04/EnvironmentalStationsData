@@ -67,7 +67,7 @@ class CfSensorObject:
         self.data = self.getDataValues(data.get('values'), stationData)
 
     @staticmethod
-    def transform_data_to_df_or_csv(dataJsonObject, isColomnHeaderCombined = False, isCsv = False):
+    def transform_data_to_df_or_csv(dataJsonObject, isColomnHeaderCombined = False) -> pd.DataFrame:
         cols = [('date_time', "")]
         sensorsData = dataJsonObject["data"]
         
@@ -109,7 +109,6 @@ class CfSensorObject:
                 return f"{sensor} - {metric_str}" if metric_str else str(sensor)
             df.columns = [combine_col(c) for c in df.columns]
         
-        if isCsv: df.to_csv("test.csv", index=False); return;
         return df 
 
     

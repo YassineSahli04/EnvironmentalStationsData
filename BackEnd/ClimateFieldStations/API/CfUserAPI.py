@@ -1,6 +1,6 @@
 from BackEnd.ClimateFieldStations.API.ApiCalls import ApiCalls
 
-class CfUser:
+class CfUserAPI:
     def __init__(self):
         pass
     def get_user_info_from_api(self):

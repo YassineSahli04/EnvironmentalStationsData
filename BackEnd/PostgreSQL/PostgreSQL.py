@@ -52,8 +52,8 @@ class PostgreSQL:
                 result = connection.execute(query).fetchall()
             for res in result:
                 station_id = res[0]
-                station = StationDbObject(station_id=station_id)
-                station.set_or_update_station_metadata(self.engine)
+                station = StationDbObject(self.engine, station_id)
+                station.set_station_metadata()
                 stations.append(station)
         return stations
     
@@ -127,6 +127,6 @@ class PostgreSQL:
                 table_creator = CfTableCreator(self.engine, station.Id)
             case _:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
-        station.set_last_data_point_time(self.engine)
+        station.set_last_data_point_time()
         dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)

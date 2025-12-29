@@ -49,17 +49,12 @@ class TableColumnNameTransformer:
 
 
 class C2aiTableCreator:
-    CHUNK_SIZE = 5000
-    SECRETJSONPATH = Path(__file__).resolve().parents[2] / "BackEnd/PostgreSQL/DbInfo.json"
     newTableName: str | None;
-    mysql_ddl: str;
     sourceDataId: int;
     engine: _engine.Engine;
-    oldTableName :str;
     edTablesDict: dict;
     def __init__(self, engine, sourceDataId):
         self.sourceDataId = sourceDataId
-        self.oldTableName = "ed"
         self.set_ed_tables_type_and_new_table_name()
         self.engine = engine
         
