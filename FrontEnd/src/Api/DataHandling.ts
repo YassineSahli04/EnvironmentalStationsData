@@ -15,7 +15,7 @@ export async function getMapDataForParam(param: WeatherParam, date: Date) {
   const sensorsData: Record<string, CfSensorDataRow[]> = {};
 
   for (const st of stations) {
-    const sensor = await getStationSensorData(st.Id, param, "daily", startOfDay, endOfDay);
+    const sensor = await getStationSensorData(st.Id, param, "day", startOfDay, endOfDay);
     if (!sensor) continue;
 
     sensorsData[st.Id] = sensor.data;

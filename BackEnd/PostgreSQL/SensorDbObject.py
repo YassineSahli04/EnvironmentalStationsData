@@ -1,7 +1,11 @@
+from __future__ import annotations
 import pandas as pd
 from sqlalchemy import text
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
-from BackEnd.PostgreSQL.StationDbObject import StationDbObject
+
 from enum import Enum
 import sqlalchemy.engine as _engine
 
@@ -45,7 +49,7 @@ class SensorDbObject:
             raise ValueError(f"Aggregation is not set.")
         self.columnNames = {}
         for elem in self.aggr:
-            converter = StationColumnConverter(self.station, self.sensor, elem)
+            converter = StationColumnConverter(self.engine, self.station.Id,self.station.Manufacturer, self.station.Type, self.sensor, elem)
             self.columnNames[elem] = converter.getActualSensorColumn()
 
 

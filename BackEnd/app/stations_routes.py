@@ -28,7 +28,7 @@ async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str 
     station.set_station_metadata()
     
     try:    
-        return station.getSensorData(db.engine, sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+        return station.getSensorData(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
     except Exception as e:
         logger.exception(
             "Error while getting sensor data for station=%s sensor=%s", stationId, sensorId

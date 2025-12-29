@@ -70,7 +70,7 @@ class StationDbObject:
 
     def getSensorData(self, sensorId:str, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
         try:
-            dataGroup = StationDataGroup(dataGroup) # type: ignore 
+            dataGroup = StationDataGroup(dataGroup).value # type: ignore 
         except Exception as e:
             allowed = [e.value for e in StationDataGroup]
             raise ValueError(f"Invalid dataGroup '{dataGroup}'. Allowed: {allowed}")

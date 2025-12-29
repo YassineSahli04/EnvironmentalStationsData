@@ -1,6 +1,5 @@
 from sqlalchemy import text
 import sqlalchemy.engine as _engine
-from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from enum import Enum
 
 class WeatherParamDeltaohmColumns(Enum):
@@ -16,22 +15,31 @@ class WeatherParamDeltaohmColumns(Enum):
 
 
 class StationColumnConverter:
-    def __init__(self, station:StationDbObject, sensor:str, aggr: str):
-        self.station = station
+    def __init__(self,engine: _engine.Engine, stId: str, stManufacturer: str | None, stType: str | None, sensor:str, aggr: str):
+        self.engine = engine
+        self.stId = stId
+        self.stManufacturer = stManufacturer
+        self.stType = stType
         self.searchedTableColumn = sensor
         self.aggr = aggr
         self.setStationTableAvailableColumns()
         
 
     def setStationTableAvailableColumns(self):
-        query = text("SELECT column_name FROM information.schema.columns WHERE table_schema = 'public' AND table_name = :tableName ORDER BY ordinal_position;")
-        with self.station.engine.connect() as connection:
-            results = connection.execute(query, {"tableName": self.station.Id})
+        query = text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND table_name = :tableName
+            ORDER BY ordinal_position;
+        """)
+        with self.engine.connect() as connection:
+            results = connection.execute(query, {"tableName": self.stId})
         self.tableColumns = [res[0] for res in results]
 
     def getActualSensorColumn(self):
         column = ''
-        match self.station.Manufacturer:
+        match self.stManufacturer:
             case "DeltaOHM":
                 weatherParamKey = WeatherParamDeltaohmColumns.weatherParamToEnumKey(self.searchedTableColumn)
                 try:
@@ -41,8 +49,8 @@ class StationColumnConverter:
                     raise ValueError(f"Invalid Sensor '{self.searchedTableColumn}'. Allowed: {allowed}")
                 return 
             case "Pessl":
-                if self.station.Type == 'Aquachek' or self.station.Type == 'Drill and Drop':
-                    raise NotImplementedError(f"Station {self.station.Id} is of type {self.station.Type} and code hasn't been implemented yet for that type.")
+                if self.stType == 'Aquachek' or self.stType == 'Drill and Drop':
+                    raise NotImplementedError(f"Station {self.stId} is of type {self.stType} and code hasn't been implemented yet for that type.")
                 sensor = self.searchedTableColumn.strip().lower()
                 aggr = self.aggr.strip().lower()
                 for col in self.tableColumns:
