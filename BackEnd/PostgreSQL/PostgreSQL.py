@@ -32,13 +32,10 @@ class PostgreSQL:
         database = data.get("database")
 
         connection_string = f"postgresql+psycopg2://{userName}:{password}@{host}:{port}/{database}"
-        self.engine = create_engine(connection_string)
-
-        @event.listens_for(self.engine, "connect")
-        def _set_sql_timezone(dbapi_connection, connection_record):
-            cursor = dbapi_connection.cursor()
-            cursor.execute("SET TIME ZONE 'UTC';")
-            cursor.close()
+        self.engine = create_engine(
+            connection_string,
+            connect_args={"options": "-c timezone=UTC"},
+        )
 
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
         query = text("SELECT \"Id\" FROM \"Stations\";")
@@ -127,6 +124,5 @@ class PostgreSQL:
                 table_creator = CfTableCreator(self.engine, station.Id)
             case _:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
-        station.set_last_data_point_time()
         dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)

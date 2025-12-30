@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
-
 from enum import Enum
 import sqlalchemy.engine as _engine
+from dataclasses import dataclass
 
 class WeatherParamAggregation(Enum):
     Temperature= ["avg","min","max"]
@@ -19,6 +19,16 @@ class WeatherParamAggregation(Enum):
     @staticmethod
     def weatherParamToEnumKey(weatherParam):
         return weatherParam.strip().replace(" ", "_")
+
+
+
+@dataclass
+class SensorSerializable:
+    stationId: str
+    sensor: str
+    # unit: str    The UNITs are not got yet from the api, This will be added later
+    aggregationsType: list
+    data: pd.DataFrame | list
 
 
 class SensorDbObject:
@@ -50,10 +60,15 @@ class SensorDbObject:
         self.columnNames = {}
         for elem in self.aggr:
             converter = StationColumnConverter(self.engine, self.station.Id,self.station.Manufacturer, self.station.Type, self.sensor, elem)
-            self.columnNames[elem] = converter.getActualSensorColumn()
+            col = converter.getActualSensorColumn()
+            if col is not None:
+                self.columnNames[elem] = col
 
 
-    def setSensorData(self, queryParams):  
+    def setSensorData(self, queryParams):
+        if len(self.columnNames) == 0:
+            raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.")
+    
         aggSelects = ",\n".join([f'{elem}("{self.columnNames[elem]}") AS "{elem}"' for elem in self.columnNames])
 
         if(self.sensor == "Precipitation" and self.station.Manufacturer == "DeltaOHM"): 
@@ -81,10 +96,10 @@ class SensorDbObject:
         records = []
         for _, row in df.iterrows():
             values = {agg: row[agg] for agg in self.aggr}
-            records.append({
-                "time": row["Date/Time"],
-                "values": values
-            })
+            t = row["Date/Time"]
+            if hasattr(t, "to_pydatetime"):
+                t = t.to_pydatetime()
+            records.append({"time": t, "values": values})
 
         self.data = records
 
@@ -103,3 +118,12 @@ class SensorDbObject:
             ORDER BY "Date/Time"
             DESC LIMIT 1;
         """)
+
+
+    def getSerializableObj(self) -> SensorSerializable:
+        return SensorSerializable(
+            stationId = self.station.Id,
+            sensor = self.sensor,
+            aggregationsType = self.aggr,
+            data= self.data
+        )

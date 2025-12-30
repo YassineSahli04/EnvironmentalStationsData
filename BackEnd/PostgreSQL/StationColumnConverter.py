@@ -38,7 +38,7 @@ class StationColumnConverter:
         self.tableColumns = [res[0] for res in results]
 
     def getActualSensorColumn(self):
-        column = ''
+        column = None
         match self.stManufacturer:
             case "DeltaOHM":
                 weatherParamKey = WeatherParamDeltaohmColumns.weatherParamToEnumKey(self.searchedTableColumn)

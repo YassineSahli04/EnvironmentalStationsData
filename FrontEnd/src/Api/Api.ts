@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { StationObj, StationSensorObj } from "../ApiService/Objects/StationObj";
+import type { StationObj, StationSensorObj } from "../Api/Objects/StationObj";
 
 const typeFilter = [
   "Pyranometer",
@@ -12,8 +12,9 @@ const typeFilter = [
 const url = "http://localhost:8000/api/stations";
 
 export async function getStations(): Promise<StationObj[]> {
+  const allStationsUrl = `${url}/all`;
   try {
-    const response = await axios.get<StationObj[]>(url, {
+    const response = await axios.get<StationObj[]>(allStationsUrl, {
       params: { type: typeFilter },
     });
     return response.data;

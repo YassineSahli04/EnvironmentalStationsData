@@ -20,13 +20,13 @@ class CfStationAPI:
     ):
         self.Id = stationId
         info = self.get_station_info_from_api()
-        self.Name = info.get("name").get("custom") if self.Name is None else self.Name # type: ignore
-        self.Manufacturer = "Pessl" if self.Manufacturer is None else self.Manufacturer # type: ignore
-        self.Longitude = info.get("position").get("geo").get("coordinates")[0] if self.Longitude is None else self.Longitude # type: ignore
-        self.Latitude = info.get("position").get("geo").get("coordinates")[1] if self.Latitude is None else self.Latitude # type: ignore
-        self.Altitude = info.get("position").get("altitude") if self.Altitude is None else self.Altitude # type: ignore
-        self.DataTableName = stationId if self.DataTableName is None else self.DataTableName # type: ignore
-        self.Type = self.get_station_type_from_api() if self.Type is None else self.Type
+        self.Name = info.get("name").get("custom") # type: ignore
+        self.Manufacturer = "Pessl" # type: ignore
+        self.Longitude = info.get("position").get("geo").get("coordinates")[0] # type: ignore
+        self.Latitude = info.get("position").get("geo").get("coordinates")[1] # type: ignore
+        self.Altitude = info.get("position").get("altitude")  # type: ignore
+        self.DataTableName = stationId  # type: ignore
+        self.Type = self.get_station_type_from_api() 
         timezoneOffset = info.get("config", {}).get("timezone_offset", 0) # type: ignore 
         self.DataTimeZone = timezone(timedelta(minutes=timezoneOffset))
       

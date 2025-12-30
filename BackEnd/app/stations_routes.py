@@ -2,7 +2,9 @@ from fastapi import APIRouter, Query, HTTPException
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from datetime import datetime
-import logging
+import traceback, logging
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 logger = logging.getLogger(__name__)
 
@@ -11,10 +13,14 @@ router = APIRouter(
     tags=["stations"],
 )
 
-@router.get('')
+@router.get('/all')
 def get_stations(typeFilter:list[str]= Query(None, alias="type[]")):
     db = PostgreSQL()
-    return db.get_all_station_objects(typeFilter)
+    stations = db.get_all_station_objects(typeFilter)
+    stsSerializable = []
+    for st in stations:
+        stsSerializable.append(st.getSerializableObj())
+    return stsSerializable
 
 @router.get('/geojson')
 def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]")):
@@ -22,7 +28,7 @@ def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]"
     return db.get_stations_Geojson_object(typeFilter)
 
 @router.get('/station/{stationId}/{sensorId}')
-async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)): 
+def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)): 
     db = PostgreSQL()
     station = StationDbObject(db.engine, stationId)
     station.set_station_metadata()
@@ -33,16 +39,14 @@ async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str 
         logger.exception(
             "Error while getting sensor data for station=%s sensor=%s", stationId, sensorId
         )
+        logger.error("FAILED:\n%s", traceback.format_exc())
         logger.exception(
             e
         )
         raise HTTPException(
             status_code=500,
-            detail=e
+            detail=str(e)
         ) from e
-        
-
-
 
 
 ### SCHEDULER CODE FOR UPDATING THE DB FROM THE SERVER 

@@ -3,6 +3,7 @@ from sqlalchemy import text
 from datetime import datetime, timezone
 from enum import Enum
 from BackEnd.PostgreSQL.SensorDbObject import SensorDbObject
+from dataclasses import dataclass
 
 
 class StationDataGroup(Enum):
@@ -10,6 +11,17 @@ class StationDataGroup(Enum):
     daily =  'day'
     monthly = 'month'
 
+@dataclass
+class StationSerializable:
+    Id: str
+    Name: str | None
+    Location: str | None
+    Manufacturer: str | None
+    Type: str | None
+    Latitude: float | None
+    Longitude: float | None
+    Altitude: float | None
+    LastDataPointTime: datetime | None
 
 class StationDbObject:
     Id: str
@@ -52,6 +64,7 @@ class StationDbObject:
         self.Altitude      = row.get("Altitude")
         self.DataSourceId  = row.get("DataSourceId")
         self.DataTableName = row.get("DataTableName")
+        self.set_last_data_point_time()
 
     def set_last_data_point_time(self):
         if self.Manufacturer is None: self.LastDataPointTime = None; return;
@@ -82,10 +95,21 @@ class StationDbObject:
         }
         sensor = SensorDbObject(self, sensorId, isDataInDf=False)
         sensor.setSensorData(queryParams)
-        return sensor
+        return sensor.getSerializableObj()
         
 
-
+    def getSerializableObj(self) -> StationSerializable:
+        return StationSerializable(
+            Id = self.Id,
+            Name = self.Name,
+            Location = self.Location,
+            Manufacturer = self.Manufacturer,
+            Type = self.Type,
+            Latitude = self.Latitude,
+            Longitude = self.Longitude,
+            Altitude = self.Altitude,
+            LastDataPointTime = self.LastDataPointTime
+        )
     
 
     
