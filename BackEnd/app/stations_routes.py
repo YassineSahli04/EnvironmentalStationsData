@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Query, HTTPException
-from BackEnd.C2aiStations.C2aiStation import C2aiStation
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
-from BackEnd.ClimateFieldStations.API.CfStation import CfStation
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from datetime import datetime
-import logging
+import traceback, logging
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +13,14 @@ router = APIRouter(
     tags=["stations"],
 )
 
-@router.get('')
+@router.get('/all')
 def get_stations(typeFilter:list[str]= Query(None, alias="type[]")):
     db = PostgreSQL()
-    return db.get_all_station_objects(typeFilter)
+    stations = db.get_all_station_objects(typeFilter)
+    stsSerializable = []
+    for st in stations:
+        stsSerializable.append(st.getSerializableObj())
+    return stsSerializable
 
 @router.get('/geojson')
 def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]")):
@@ -24,36 +28,24 @@ def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]"
     return db.get_stations_Geojson_object(typeFilter)
 
 @router.get('/station/{stationId}/{sensorId}')
-async def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)): 
+def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)): 
     db = PostgreSQL()
-    station = StationDbObject(stationId)
-    station.set_or_update_station_metadata(db.engine)
-    if station.Manufacturer == "DeltaOHM": 
-        station = C2aiStation(stationId)
-    else:
-        station = CfStation(db.engine, stationId) 
+    station = StationDbObject(db.engine, stationId)
+    station.set_station_metadata()
     
     try:    
-        return station.getSensorData(
-            sensorId=sensorId,
-            dataGroup=dataGroup,
-            startDtUTC=startDtUTC,
-            endDtUTC=endDtUTC,
+        return station.getSensorData(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+    except ValueError as e:
+        logger.warning(
+            "%s FROM:%s - To:%s ", e, startDtUTC, endDtUTC
         )
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.exception(
-            "Error while getting sensor data for station=%s sensor=%s", stationId, sensorId
+        logger.error(
+            "Error while getting sensor data: station=%s sensor=%s (%s)",
+            stationId, sensorId, e
         )
-        logger.exception(
-            e
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=e
-        ) from e
-        
-
-
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
 ### SCHEDULER CODE FOR UPDATING THE DB FROM THE SERVER 
