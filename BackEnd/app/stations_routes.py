@@ -35,18 +35,17 @@ def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None
     
     try:    
         return station.getSensorData(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+    except ValueError as e:
+        logger.warning(
+            "%s FROM:%s - To:%s ", e, startDtUTC, endDtUTC
+        )
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.exception(
-            "Error while getting sensor data for station=%s sensor=%s", stationId, sensorId
+        logger.error(
+            "Error while getting sensor data: station=%s sensor=%s (%s)",
+            stationId, sensorId, e
         )
-        logger.error("FAILED:\n%s", traceback.format_exc())
-        logger.exception(
-            e
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        ) from e
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
 ### SCHEDULER CODE FOR UPDATING THE DB FROM THE SERVER 

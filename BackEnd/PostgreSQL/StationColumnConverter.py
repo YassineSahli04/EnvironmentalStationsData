@@ -47,7 +47,6 @@ class StationColumnConverter:
                 except KeyError:
                     allowed = [e.name.replace("_", " ") for e in WeatherParamDeltaohmColumns]
                     raise ValueError(f"Invalid Sensor '{self.searchedTableColumn}'. Allowed: {allowed}")
-                return 
             case "Pessl":
                 if self.stType == 'Aquachek' or self.stType == 'Drill and Drop':
                     raise NotImplementedError(f"Station {self.stId} is of type {self.stType} and code hasn't been implemented yet for that type.")
