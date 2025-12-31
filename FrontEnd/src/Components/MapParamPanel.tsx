@@ -69,9 +69,10 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
   };
   useEffect(() => {
     if (!selectedParam || !selectedOption) return;
+
     const handler = setTimeout(() => {
       onSelectedParamChange(selectedParam, selectedOption.replace(/\.$/, "").toLowerCase(), date);
-    }, 2000);
+    }, 500);
     return () => clearTimeout(handler);
   }, [selectedParam, selectedOption, date]);
 
