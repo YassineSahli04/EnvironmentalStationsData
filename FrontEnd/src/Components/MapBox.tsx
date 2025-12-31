@@ -8,6 +8,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../Api/Api";
 import { getMapDataForParam } from "../Api/DataHandling";
 import type { CfSensorDataRow } from "../Api/Objects/StationObj";
+import { OverlayLoader } from "./Global/OverlayLoader";
 import MapParamPanel from "./MapParamPanel";
 import { WeatherParam } from "./MapParamPanel";
 import "./SCSS/MapBox.scss";
@@ -20,6 +21,8 @@ type MapBoxProps = {
 };
 
 export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
+  const [loading, setLoading] = useState(false);
+
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const geoDataRef = useRef<any>(null);
@@ -124,9 +127,9 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     if (!mapRef.current) return;
 
     // Shared handlers
-    const handleStationClick = (e: any) => {
+    const handleStationClick = (e) => {
       if (!mapRef.current || !e.feature) return;
-      const coordinates = (e.feature.geometry as any).coordinates.slice();
+      const coordinates = e.feature.geometry.coordinates.slice();
       const props = e.feature.properties;
 
       const popup = new mapboxgl.Popup()
@@ -238,58 +241,21 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     map.setPadding({ top: 0, bottom: 0, left: 0, right: 250 });
     mapRef.current = map;
 
+    setLoading(true);
     map.on("load", async () => {
       geoDataRef.current = await getStationsGeojson();
       addStationLayers();
       addInteractions();
       setIsMapLoaded(true);
     });
+    setLoading(false);
 
     return () => {
       map.remove();
     };
   }, []);
 
-  useEffect(() => {
-    if (!mapRef.current || !isMapLoaded) return;
-
-    if (prevStyleRef.current === mapStyle) return;
-    prevStyleRef.current = mapStyle;
-
-    mapRef.current.once("style.load", () => {
-      addStationLayers();
-      applyParamMode();
-    });
-
-    mapRef.current.setStyle(mapStyle);
-  }, [mapStyle, isMapLoaded, addStationLayers, addInteractions]);
-
-  const applyParamMode = useCallback(() => {
-    if (!mapRef.current || !isMapLoaded) return;
-    switch (selectedParam !== undefined) {
-      case true:
-        mapRef.current.setLayoutProperty("clusters", "visibility", "none");
-        mapRef.current.setLayoutProperty("cluster-count", "visibility", "none");
-        mapRef.current.setLayoutProperty("unclustered-point", "visibility", "none");
-
-        mapRef.current.setLayoutProperty("station-param-points", "visibility", "visible");
-        mapRef.current.setPaintProperty(
-          "station-param-points",
-          "circle-color",
-          getParamColorScale()
-        );
-        mapRef.current.flyTo({ center: [11.08813, 34.13523], zoom: 5.54 });
-        break;
-      case false:
-        mapRef.current.setLayoutProperty("clusters", "visibility", "visible");
-        mapRef.current.setLayoutProperty("cluster-count", "visibility", "visible");
-        mapRef.current.setLayoutProperty("unclustered-point", "visibility", "visible");
-
-        mapRef.current.setLayoutProperty("station-param-points", "visibility", "none");
-        break;
-    }
-  }, [selectedParam, isMapLoaded]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const getParamColorScale = (): mapboxgl.ExpressionSpecification => {
     switch (selectedParam) {
       case WeatherParam.TEMPERATURE:
@@ -444,15 +410,56 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     }
   };
 
+  const applyParamMode = useCallback(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+    switch (selectedParam !== undefined) {
+      case true:
+        mapRef.current.setLayoutProperty("clusters", "visibility", "none");
+        mapRef.current.setLayoutProperty("cluster-count", "visibility", "none");
+        mapRef.current.setLayoutProperty("unclustered-point", "visibility", "none");
+
+        mapRef.current.setLayoutProperty("station-param-points", "visibility", "visible");
+        mapRef.current.setPaintProperty(
+          "station-param-points",
+          "circle-color",
+          getParamColorScale()
+        );
+        mapRef.current.flyTo({ center: [11.08813, 34.13523], zoom: 5.54 });
+        break;
+      case false:
+        mapRef.current.setLayoutProperty("clusters", "visibility", "visible");
+        mapRef.current.setLayoutProperty("cluster-count", "visibility", "visible");
+        mapRef.current.setLayoutProperty("unclustered-point", "visibility", "visible");
+
+        mapRef.current.setLayoutProperty("station-param-points", "visibility", "none");
+        break;
+    }
+  }, [selectedParam, isMapLoaded, getParamColorScale]);
+
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+
+    if (prevStyleRef.current === mapStyle) return;
+    prevStyleRef.current = mapStyle;
+
+    mapRef.current.once("style.load", () => {
+      addStationLayers();
+      applyParamMode();
+    });
+
+    mapRef.current.setStyle(mapStyle);
+  }, [mapStyle, isMapLoaded, addStationLayers, addInteractions, applyParamMode]);
+
   useEffect(() => {
     applyParamMode();
-  }, [selectedParam]);
+  }, [applyParamMode, selectedParam]);
 
   const onSelectedParamChange = async (
     param: WeatherParam | undefined,
     dataOption: string | undefined,
     date: Date
   ) => {
+    setLoading(true);
     if (!mapRef.current || !geoDataRef.current || !param || !dataOption) return;
     if (!param || !dataOption) {
       setSelectedParam(undefined);
@@ -484,6 +491,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     geoDataRef.current = updatedGeoJson;
     source.setData(updatedGeoJson as any);
     setSelectedParam(param);
+    setLoading(false);
   };
 
   return (
@@ -596,6 +604,8 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
           </Box>
         </Box>
       )}
+
+      <OverlayLoader show={loading} dim={0.2} blockInteraction={loading} />
 
       <div id="map-container" ref={mapContainerRef} />
     </Box>
