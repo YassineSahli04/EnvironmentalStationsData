@@ -50,7 +50,6 @@ class PostgreSQL:
             for res in result:
                 station_id = res[0]
                 station = StationDbObject(self.engine, station_id)
-                station.set_station_metadata()
                 stations.append(station)
         return stations
     
