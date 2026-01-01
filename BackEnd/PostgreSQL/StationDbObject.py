@@ -34,6 +34,7 @@ class StationDbObject:
     Altitude: float | None
     DataSourceId: int | None
     DataTableName: str | None
+    HasDataTable: bool
     LastDataPointTime: datetime | None
 
     def __init__(
@@ -66,12 +67,20 @@ class StationDbObject:
         self.DataTableName = row.get("DataTableName")
         self.set_last_data_point_time()
 
+    def set_has_data_table(self):
+        query = text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = :dataTableName);")
+        with self.engine.connect() as connection:
+            result = connection.execute(query, {"dataTableName":self.Id}).fetchone()
+        self.HasDataTable = result[0] # type: ignore
+    
+
     def set_last_data_point_time(self):
-        if self.Manufacturer is None: self.LastDataPointTime = None; return;
+        if self.Manufacturer is None or not self.HasDataTable: self.LastDataPointTime = None; return;
     
         allowed = {"DeltaOHM", "Pessl"}
         if self.Manufacturer not in allowed:
             raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
+        
         with self.engine.connect() as connection:
             lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{self.Id}\";")
             time = connection.execute(lastDateTimeQuery).scalar()
