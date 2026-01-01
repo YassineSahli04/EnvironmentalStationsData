@@ -1,5 +1,5 @@
-import { WeatherParam } from "../Components/MapParamPanel";
 import { getStations, getStationSensorData } from "./Api";
+import { WeatherParam } from "./Api.ts";
 import type { CfSensorDataRow } from "./Objects/StationObj";
 
 export async function getMapDataForParam(param: WeatherParam, date: Date) {

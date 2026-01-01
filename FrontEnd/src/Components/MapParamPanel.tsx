@@ -18,15 +18,9 @@ import {
   Divider,
   useTheme,
 } from "@mui/material";
+import { WeatherParam } from "../Api/Api.ts";
 import { tokens } from "../theme";
 
-export enum WeatherParam {
-  TEMPERATURE = "Temperature",
-  PRECIPITATION = "Precipitation",
-  RELATIVE_HUMIDITY = "Relative Humidity",
-  SOLAR_RADIATION = "Solar Radiation",
-  WIND_SPEED = "Wind Speed",
-}
 const OPTIONS = {
   COMMON: ["Avg.", "Min.", "Max.", "Last Measured"],
   SUM: ["Sum", "Last Measured"],
