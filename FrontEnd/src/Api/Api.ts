@@ -9,7 +9,7 @@ export enum WeatherParam {
   WIND_SPEED = "Wind Speed",
 }
 
-const typeFilter = [
+const TypeFilter = [
   "Pyranometer",
   "Pluviometer",
   "Meteorological",
@@ -19,7 +19,7 @@ const typeFilter = [
 ];
 const url = "http://localhost:8000/api/stations";
 
-export async function getStations(): Promise<StationObj[]> {
+export async function getStations(typeFilter: string[] = TypeFilter): Promise<StationObj[]> {
   const allStationsUrl = `${url}/all`;
   try {
     const response = await axios.get<StationObj[]>(allStationsUrl, {
@@ -32,7 +32,7 @@ export async function getStations(): Promise<StationObj[]> {
   }
 }
 
-export async function getStationsGeojson() {
+export async function getStationsGeojson(typeFilter: string[] = TypeFilter) {
   const geojsonUrl = `${url}/geojson`;
   const res = await axios.get(geojsonUrl, {
     params: { type: typeFilter },
