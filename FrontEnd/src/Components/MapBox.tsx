@@ -226,6 +226,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     mapboxgl.accessToken =
       "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWkwZHhlamMwaWgxMmxweWloOWJ3YmdtIn0.dJtTsXAcQy2eErlpsMoUWA";
 
@@ -241,14 +242,13 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     map.setPadding({ top: 0, bottom: 0, left: 0, right: 250 });
     mapRef.current = map;
 
-    setLoading(true);
     map.on("load", async () => {
       geoDataRef.current = await getStationsGeojson();
       addStationLayers();
       addInteractions();
       setIsMapLoaded(true);
+      setLoading(false);
     });
-    setLoading(false);
 
     return () => {
       map.remove();

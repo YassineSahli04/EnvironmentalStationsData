@@ -12,14 +12,37 @@ export async function getMapDataForParam(param: WeatherParam, date: Date) {
   );
 
   const stations = await getStations();
-  const sensorsData: Record<string, CfSensorDataRow[]> = {};
 
-  for (const st of stations) {
+  const pairs = await getDataInBatches(stations, 8, async (st) => {
     const sensor = await getStationSensorData(st.Id, param, "day", startOfDay, endOfDay);
-    if (!sensor) continue;
+    return sensor ? ([st.Id, sensor.data] as const) : null;
+  });
 
-    sensorsData[st.Id] = sensor.data;
+  const sensorsData: Record<string, CfSensorDataRow[]> = {};
+  for (const p of pairs) {
+    if (!p) continue;
+    const [stationId, data] = p;
+    sensorsData[stationId] = data;
   }
 
   return sensorsData;
+}
+
+export async function getDataInBatches<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  let i = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      results[idx] = await fn(items[idx]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
 }

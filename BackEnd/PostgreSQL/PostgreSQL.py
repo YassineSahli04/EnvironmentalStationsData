@@ -7,6 +7,9 @@ from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.C2aiStations.Api.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
+from concurrent.futures import ThreadPoolExecutor
+import logging
+import time
 
 class PostgreSQL:
     engine: _engine.Engine;
@@ -104,12 +107,14 @@ class PostgreSQL:
 
 
 
-
     def get_stations_Geojson_object(self, typeFilter = None):
         stations = self.get_all_station_objects(typeFilter)
+
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            features = list(ex.map(GeoJsonStationInfoFeature, stations))
+
         geoJson =  GeoJsonObject()
-        for st in stations:
-            feature = GeoJsonStationInfoFeature(st)
+        for feature in features:
             geoJson.add_feature(feature) # type: ignore
         return geoJson.to_dict()
 
