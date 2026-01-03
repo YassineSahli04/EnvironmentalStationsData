@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AirOutlinedIcon from "@mui/icons-material/AirOutlined";
 import KeyboardDoubleArrowLeftIcon from "@mui/icons-material/KeyboardDoubleArrowLeft";
 import KeyboardDoubleArrowRightIcon from "@mui/icons-material/KeyboardDoubleArrowRight";
@@ -18,18 +18,12 @@ import {
   Divider,
   useTheme,
 } from "@mui/material";
+import { WeatherParam } from "../Api/Api.ts";
 import { tokens } from "../theme";
 
-export enum WeatherParam {
-  TEMPERATURE = "Temperature",
-  PRECIPITATION = "Precipitation",
-  RELATIVE_HUMIDITY = "Relative Humidity",
-  SOLAR_RADIATION = "Solar Radiation",
-  WIND_SPEED = "Wind Speed",
-}
 const OPTIONS = {
-  COMMON: ["Avg.", "Min.", "Max.", "Last Measured"],
-  SUM: ["Sum", "Last Measured"],
+  COMMON: ["Avg.", "Min.", "Max."],
+  SUM: ["Sum"],
 } as const;
 
 type MapParamPanelProps = {
@@ -45,28 +39,39 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
   const colors = tokens(theme.palette.mode);
 
   const [selectedParam, setSelectedParam] = useState<WeatherParam>();
-  const [options, setOptions] = useState<string[]>([...OPTIONS.COMMON]);
   const [selectedOption, setSelectedOption] = useState<string>();
 
   const [date, setDate] = useState<Date>(new Date());
 
-  const onSelectParam = (param: WeatherParam) => {
-    setSelectedParam(param);
-    const optionsList: string[] = [];
-    switch (param) {
+  const options = useMemo(() => {
+    if (!selectedParam) return [];
+
+    let base: string[] = [];
+    switch (selectedParam) {
       case WeatherParam.TEMPERATURE:
       case WeatherParam.RELATIVE_HUMIDITY:
       case WeatherParam.WIND_SPEED:
-        optionsList.push(...OPTIONS.COMMON);
+        base = [...OPTIONS.COMMON];
         break;
+
       case WeatherParam.SOLAR_RADIATION:
       case WeatherParam.PRECIPITATION:
-        optionsList.push(...OPTIONS.SUM);
+        base = [...OPTIONS.SUM];
         break;
     }
-    setOptions(optionsList);
-    setSelectedOption(optionsList[0]);
-  };
+
+    const now = new Date();
+    if (isDateEqual(now, date) && !base.includes("Last Measured")) {
+      base.push("Last Measured");
+    }
+
+    return base;
+  }, [selectedParam, date]);
+
+  useEffect(() => {
+    if (options.length) setSelectedOption(options[0]);
+  }, [options]);
+
   useEffect(() => {
     if (!selectedParam || !selectedOption) return;
 
@@ -187,7 +192,7 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
         <List sx={{ py: 1, px: 1 }}>
           <ListItemButton
             selected={selectedParam === WeatherParam.TEMPERATURE}
-            onClick={() => onSelectParam(WeatherParam.TEMPERATURE)}
+            onClick={() => setSelectedParam(WeatherParam.TEMPERATURE)}
             sx={{
               borderRadius: "8px",
               py: 1,
@@ -210,7 +215,7 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
           </ListItemButton>
           <ListItemButton
             selected={selectedParam === WeatherParam.PRECIPITATION}
-            onClick={() => onSelectParam(WeatherParam.PRECIPITATION)}
+            onClick={() => setSelectedParam(WeatherParam.PRECIPITATION)}
             sx={{
               borderRadius: "8px",
               py: 1,
@@ -233,7 +238,7 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
           </ListItemButton>
           <ListItemButton
             selected={selectedParam === WeatherParam.RELATIVE_HUMIDITY}
-            onClick={() => onSelectParam(WeatherParam.RELATIVE_HUMIDITY)}
+            onClick={() => setSelectedParam(WeatherParam.RELATIVE_HUMIDITY)}
             sx={{
               borderRadius: "8px",
               py: 1,
@@ -256,7 +261,7 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
           </ListItemButton>
           <ListItemButton
             selected={selectedParam === WeatherParam.SOLAR_RADIATION}
-            onClick={() => onSelectParam(WeatherParam.SOLAR_RADIATION)}
+            onClick={() => setSelectedParam(WeatherParam.SOLAR_RADIATION)}
             sx={{
               borderRadius: "8px",
               py: 1,
@@ -279,7 +284,7 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
           </ListItemButton>
           <ListItemButton
             selected={selectedParam === WeatherParam.WIND_SPEED}
-            onClick={() => onSelectParam(WeatherParam.WIND_SPEED)}
+            onClick={() => setSelectedParam(WeatherParam.WIND_SPEED)}
             sx={{
               borderRadius: "8px",
               py: 1,
@@ -303,40 +308,42 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
         </List>
       </Paper>
 
-      <Paper
-        elevation={3}
-        sx={{
-          borderRadius: "12px",
-          minWidth: 250,
-          overflow: "hidden",
-          backgroundColor: colors.primary[400],
-          border: `1px solid ${colors.grey[700]}`,
-        }}
-      >
-        <List sx={{ py: 1, px: 1 }}>
-          {options.map((option) => {
-            return (
-              <ListItemButton
-                selected={selectedOption === option}
-                onClick={() => setSelectedOption(option)}
-                sx={{
-                  borderRadius: "8px",
-                  py: 0.25,
-                  px: 2,
-                  "&.Mui-selected": {
-                    backgroundColor: "rgba(66, 133, 244, 0.12)",
-                    color: "#1a73e8",
-                    "& .MuiListItemIcon-root": { color: "#1a73e8" },
-                  },
-                  "&:hover": { backgroundColor: "rgba(66, 133, 244, 0.08)" },
-                }}
-              >
-                <ListItemText primary={option} primaryTypographyProps={{ fontSize: 14 }} />
-              </ListItemButton>
-            );
-          })}
-        </List>
-      </Paper>
+      {options.length === 0 || (
+        <Paper
+          elevation={3}
+          sx={{
+            borderRadius: "12px",
+            minWidth: 250,
+            overflow: "hidden",
+            backgroundColor: colors.primary[400],
+            border: `1px solid ${colors.grey[700]}`,
+          }}
+        >
+          <List sx={{ py: 1, px: 1 }}>
+            {options.map((option) => {
+              return (
+                <ListItemButton
+                  selected={selectedOption === option}
+                  onClick={() => setSelectedOption(option)}
+                  sx={{
+                    borderRadius: "8px",
+                    py: 0.25,
+                    px: 2,
+                    "&.Mui-selected": {
+                      backgroundColor: "rgba(66, 133, 244, 0.12)",
+                      color: "#1a73e8",
+                      "& .MuiListItemIcon-root": { color: "#1a73e8" },
+                    },
+                    "&:hover": { backgroundColor: "rgba(66, 133, 244, 0.08)" },
+                  }}
+                >
+                  <ListItemText primary={option} primaryTypographyProps={{ fontSize: 14 }} />
+                </ListItemButton>
+              );
+            })}
+          </List>
+        </Paper>
+      )}
     </Box>
   );
 }

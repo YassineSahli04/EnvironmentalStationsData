@@ -98,13 +98,8 @@ class StationDbObject:
             allowed = [e.value for e in StationDataGroup]
             raise ValueError(f"Invalid dataGroup '{dataGroup}'. Allowed: {allowed}")
 
-        queryParams = {
-            "step": dataGroup,
-            "start_dt": startDtUTC,
-            "end_dt": endDtUTC, 
-        }
         sensor = SensorDbObject(self, sensorId, isDataInDf=False)
-        sensor.setSensorData(queryParams)
+        sensor.setSensorData(dataGroup, startDtUTC, endDtUTC)
         return sensor.getSerializableObj()
         
 

@@ -1,6 +1,14 @@
 import axios from "axios";
 import type { StationObj, StationSensorObj } from "../Api/Objects/StationObj";
 
+export enum WeatherParam {
+  TEMPERATURE = "Temperature",
+  PRECIPITATION = "Precipitation",
+  RELATIVE_HUMIDITY = "Relative Humidity",
+  SOLAR_RADIATION = "Solar Radiation",
+  WIND_SPEED = "Wind Speed",
+}
+
 const typeFilter = [
   "Pyranometer",
   "Pluviometer",
