@@ -8,6 +8,8 @@ from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
 from enum import Enum
 import sqlalchemy.engine as _engine
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import  logging
 
 class WeatherParamAggregation(Enum):
     Temperature= ["avg","min","max"]
@@ -65,7 +67,7 @@ class SensorDbObject:
                 self.columnNames[elem] = col
 
 
-    def setSensorData(self, queryParams):
+    def setSensorData(self, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
         if len(self.columnNames) == 0:
             raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.")
     
@@ -85,7 +87,11 @@ class SensorDbObject:
                 ORDER BY "Date/Time";
             """)
 
-
+        queryParams = {
+            "step": dataGroup,
+            "start_dt": startDtUTC,
+            "end_dt": endDtUTC, 
+        }
         with self.engine.connect() as connection:
             df = pd.read_sql(sql, connection, params=queryParams)
 
@@ -96,6 +102,13 @@ class SensorDbObject:
         records = []
         for _, row in df.iterrows():
             values = {agg: row[agg] for agg in self.aggr}
+
+            nowUTC = datetime.now(timezone.utc)
+            is_today_utc = startDtUTC.date() == nowUTC.date()
+            if is_today_utc:
+                lastData = self.getLastSensorData(startDtUTC, endDtUTC)
+                values['last measured'] = lastData
+
             t = row["Date/Time"]
             if hasattr(t, "to_pydatetime"):
                 t = t.to_pydatetime()
@@ -118,6 +131,34 @@ class SensorDbObject:
             ORDER BY "Date/Time"
             DESC LIMIT 1;
         """)
+
+    def getLastSensorData(self, startDtUTC :datetime, endDtUTC:datetime):
+        if ("avg" in self.columnNames):
+            col = self.columnNames["avg"]
+        elif ("sum" in self.columnNames):
+            col = self.columnNames["sum"]
+        else:
+            raise Exception(f"Columns ({self.columnNames}) Not handeled for Last Sensor Data")
+        
+        query = text(f"""
+                SELECT "{col}"
+                FROM "{self.station.Id}"
+                WHERE "{col}" IS NOT NULL
+                ORDER BY "date_time" DESC
+                LIMIT 2;
+            """)
+        with self.engine.connect() as connection:
+            results = connection.execute(query).fetchall()
+            vals = [r[0] for r in results]
+
+        if self.sensor.lower() == "precipitation" and self.station.Manufacturer == "DeltaOHM":
+            if vals[0] is None:
+                return 0.0
+            else:
+                result = float(vals[0]) - float(vals[1])
+        else:
+            result = vals[0]
+        return result
 
 
     def getSerializableObj(self) -> SensorSerializable:

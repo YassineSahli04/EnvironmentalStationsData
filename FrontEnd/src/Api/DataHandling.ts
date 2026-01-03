@@ -4,11 +4,11 @@ import type { CfSensorDataRow } from "./Objects/StationObj";
 
 export async function getMapDataForParam(param: WeatherParam, date: Date) {
   const startOfDay = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0)
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0)
   );
 
   const endOfDay = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59)
   );
 
   const stations = await getStations();

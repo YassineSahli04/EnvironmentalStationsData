@@ -2,9 +2,8 @@ from fastapi import APIRouter, Query, HTTPException
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from datetime import datetime
-import traceback, logging
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse, PlainTextResponse
+import  logging
+from BackEnd.Utils.DateTimeHelper import DateTimeHelper
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +30,10 @@ def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]"
 def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)): 
     db = PostgreSQL()
     station = StationDbObject(db.engine, stationId)
-    station.set_station_metadata()
-    
+
+    startDtUTC = DateTimeHelper.to_utc(startDtUTC)
+    endDtUTC = DateTimeHelper.to_utc(endDtUTC)
+
     try:    
         return station.getSensorData(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
     except ValueError as e:
