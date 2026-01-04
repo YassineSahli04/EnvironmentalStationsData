@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography } from "@mui/material";
-import { getStations } from "../../Api/Api.ts";
+import { useAllStations } from "../../Api/Api.ts";
 import type { StationObj } from "../../Api/Objects/StationObj.ts";
 
 type SearchSidePanelProps = {
@@ -11,6 +11,7 @@ type SearchSidePanelProps = {
 type Option = { label: string; id: string };
 
 const SearchSidePanel = ({ colors, onViewData }: SearchSidePanelProps) => {
+  const { data: allLoadedStations, isLoading } = useAllStations();
   const [allStations, setAllStations] = useState<StationObj[]>([]);
 
   const [selectedManufacturer, setSelectedManufacturer] = useState<string[]>([]);
@@ -25,12 +26,8 @@ const SearchSidePanel = ({ colors, onViewData }: SearchSidePanelProps) => {
     useState<boolean>(false);
 
   useEffect(() => {
-    async function load() {
-      const stations = await getStations();
-      setAllStations(stations);
-    }
-    load();
-  }, []);
+    if (allLoadedStations) setAllStations(allLoadedStations);
+  }, [allLoadedStations]);
 
   useEffect(() => {
     const stationOptions: Option[] = [];

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import type { StationObj, StationSensorObj } from "../Api/Objects/StationObj";
 
@@ -19,11 +20,11 @@ const TypeFilter = [
 ];
 const url = "http://localhost:8000/api/stations";
 
-export async function getStations(typeFilter: string[] = TypeFilter): Promise<StationObj[]> {
+export async function getStations(): Promise<StationObj[]> {
   const allStationsUrl = `${url}/all`;
   try {
     const response = await axios.get<StationObj[]>(allStationsUrl, {
-      params: { type: typeFilter },
+      params: { type: TypeFilter },
     });
     return response.data;
   } catch (err) {
@@ -32,10 +33,17 @@ export async function getStations(typeFilter: string[] = TypeFilter): Promise<St
   }
 }
 
-export async function getStationsGeojson(typeFilter: string[] = TypeFilter) {
+export function useAllStations(): Promise<StationObj[]> {
+  return useQuery({
+    queryKey: ["allStationsObj"],
+    queryFn: getStations,
+  });
+}
+
+export async function getStationsGeojson() {
   const geojsonUrl = `${url}/geojson`;
   const res = await axios.get(geojsonUrl, {
-    params: { type: typeFilter },
+    params: { type: TypeFilter },
   });
   return res.data;
 }

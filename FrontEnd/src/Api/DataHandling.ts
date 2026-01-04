@@ -1,5 +1,6 @@
 import { getStations, getStationSensorData } from "./Api";
 import { WeatherParam } from "./Api.ts";
+import { queryClient } from "./AppQueryClient.ts";
 import type { CfSensorDataRow } from "./Objects/StationObj";
 
 export async function getMapDataForParam(param: WeatherParam, date: Date) {
@@ -11,7 +12,10 @@ export async function getMapDataForParam(param: WeatherParam, date: Date) {
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59)
   );
 
-  const stations = await getStations();
+  const stations = await queryClient.fetchQuery({
+    queryKey: ["allStationsObj"],
+    queryFn: getStations,
+  });
 
   const pairs = await getDataInBatches(stations, 8, async (st) => {
     const sensor = await getStationSensorData(st.Id, param, "day", startOfDay, endOfDay);
