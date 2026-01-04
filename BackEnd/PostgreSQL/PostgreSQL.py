@@ -8,8 +8,6 @@ from BackEnd.C2aiStations.Api.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
 from concurrent.futures import ThreadPoolExecutor
-import logging
-import time
 
 class PostgreSQL:
     engine: _engine.Engine;
