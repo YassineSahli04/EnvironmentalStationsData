@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import SatelliteAltIcon from "@mui/icons-material/SatelliteAlt";
 import { Box, IconButton } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import mapboxgl from "mapbox-gl";
 import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -225,6 +226,16 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     });
   }, []);
 
+  const {
+    data: geojson,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["allStationsGeojson"],
+    queryFn: () => getStationsGeojson(),
+    enabled: true,
+  });
+
   useEffect(() => {
     mapboxgl.accessToken =
       "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWkwZHhlamMwaWgxMmxweWloOWJ3YmdtIn0.dJtTsXAcQy2eErlpsMoUWA";
@@ -241,19 +252,29 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     map.setPadding({ top: 0, bottom: 0, left: 0, right: 250 });
     mapRef.current = map;
 
-    setLoading(true);
-    map.on("load", async () => {
-      geoDataRef.current = await getStationsGeojson();
-      addStationLayers();
-      addInteractions();
+    map.on("load", () => {
       setIsMapLoaded(true);
     });
-    setLoading(false);
 
     return () => {
       map.remove();
     };
   }, []);
+
+  useEffect(() => {
+    setLoading(!isMapLoaded || isLoading);
+
+    if (!isMapLoaded) return;
+    if (!geojson) return;
+    if (!mapRef.current) return;
+
+    geoDataRef.current = geojson;
+
+    if (!mapRef.current.getSource("stations")) {
+      addStationLayers();
+      addInteractions();
+    }
+  }, [isMapLoaded, geojson, isLoading]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const getParamColorScale = (): mapboxgl.ExpressionSpecification => {

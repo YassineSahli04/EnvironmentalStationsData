@@ -11,10 +11,10 @@ router = APIRouter(
     prefix="/api/stations",
     tags=["stations"],
 )
+db = PostgreSQL()
 
 @router.get('/all')
 def get_stations(typeFilter:list[str]= Query(None, alias="type[]")):
-    db = PostgreSQL()
     stations = db.get_all_station_objects(typeFilter)
     stsSerializable = []
     for st in stations:
@@ -23,12 +23,10 @@ def get_stations(typeFilter:list[str]= Query(None, alias="type[]")):
 
 @router.get('/geojson')
 def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]")):
-    db = PostgreSQL()
     return db.get_stations_Geojson_object(typeFilter)
 
 @router.get('/station/{stationId}/{sensorId}')
 def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)): 
-    db = PostgreSQL()
     station = StationDbObject(db.engine, stationId)
 
     startDtUTC = DateTimeHelper.to_utc(startDtUTC)

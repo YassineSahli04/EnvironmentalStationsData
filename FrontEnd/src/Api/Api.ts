@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import type { StationObj, StationSensorObj } from "../Api/Objects/StationObj";
 
@@ -9,7 +10,7 @@ export enum WeatherParam {
   WIND_SPEED = "Wind Speed",
 }
 
-const typeFilter = [
+const TypeFilter = [
   "Pyranometer",
   "Pluviometer",
   "Meteorological",
@@ -23,7 +24,7 @@ export async function getStations(): Promise<StationObj[]> {
   const allStationsUrl = `${url}/all`;
   try {
     const response = await axios.get<StationObj[]>(allStationsUrl, {
-      params: { type: typeFilter },
+      params: { type: TypeFilter },
     });
     return response.data;
   } catch (err) {
@@ -32,10 +33,17 @@ export async function getStations(): Promise<StationObj[]> {
   }
 }
 
+export function useAllStations(): Promise<StationObj[]> {
+  return useQuery({
+    queryKey: ["allStationsObj"],
+    queryFn: getStations,
+  });
+}
+
 export async function getStationsGeojson() {
   const geojsonUrl = `${url}/geojson`;
   const res = await axios.get(geojsonUrl, {
-    params: { type: typeFilter },
+    params: { type: TypeFilter },
   });
   return res.data;
 }
