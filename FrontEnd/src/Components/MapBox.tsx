@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import SatelliteAltIcon from "@mui/icons-material/SatelliteAlt";
 import { Box, IconButton } from "@mui/material";
+import * as turf from "@turf/turf";
 import mapboxgl from "mapbox-gl";
 import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -18,9 +19,11 @@ const STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
 
 type MapBoxProps = {
   isSideBarCollapsed: boolean;
+  locationFocus: LocationFocus | null;
 };
+type LocationFocus = { center: [number, number]; radiusKm: number };
 
-export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
+export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProps) {
   const [loading, setLoading] = useState(false);
 
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -34,6 +37,95 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   const prevParamRef = useRef<WeatherParam | undefined>(undefined);
   const prevDateRef = useRef<Date | undefined>(undefined);
   const paramDataRef = useRef<Record<string, CfSensorDataRow[]>>({});
+
+  const LOCATION_SOURCE_ID = "location-focus-source";
+  const LOCATION_FILL_LAYER_ID = "location-focus-fill";
+  const LOCATION_LINE_LAYER_ID = "location-focus-line";
+
+  function makeCircleGeoJSON(center: [number, number], radiusKm: number) {
+    // returns a Polygon feature
+    return turf.circle(center, radiusKm, { steps: 64, units: "kilometers" });
+  }
+  const upsertLocationCircle = useCallback(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+
+    const map = mapRef.current;
+
+    // If no focus -> remove circle if it exists
+    if (!locationFocus) {
+      if (map.getLayer(LOCATION_FILL_LAYER_ID)) map.removeLayer(LOCATION_FILL_LAYER_ID);
+      if (map.getLayer(LOCATION_LINE_LAYER_ID)) map.removeLayer(LOCATION_LINE_LAYER_ID);
+      if (map.getSource(LOCATION_SOURCE_ID)) map.removeSource(LOCATION_SOURCE_ID);
+      return;
+    }
+
+    const { center, radiusKm } = locationFocus;
+
+    const circleFeature = makeCircleGeoJSON(center, radiusKm);
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [circleFeature as any],
+    };
+
+    // Source
+    const existing = map.getSource(LOCATION_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
+    if (!existing) {
+      map.addSource(LOCATION_SOURCE_ID, {
+        type: "geojson",
+        data: fc as any,
+      });
+    } else {
+      existing.setData(fc as any);
+    }
+
+    // Fill layer (below stations so stations stay visible)
+    if (!map.getLayer(LOCATION_FILL_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: LOCATION_FILL_LAYER_ID,
+          type: "fill",
+          source: LOCATION_SOURCE_ID,
+          paint: {
+            "fill-color": "#3b82f6",
+            "fill-opacity": 0.15,
+          },
+        },
+        "unclustered-point" // ✅ insert below station points (if layer exists)
+      );
+    }
+
+    // Outline layer
+    if (!map.getLayer(LOCATION_LINE_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: LOCATION_LINE_LAYER_ID,
+          type: "line",
+          source: LOCATION_SOURCE_ID,
+          paint: {
+            "line-color": "#3b82f6",
+            "line-width": 2,
+          },
+        },
+        "unclustered-point"
+      );
+    }
+
+    // Zoom to circle bounds
+    const bbox = turf.bbox(circleFeature); // [minX, minY, maxX, maxY]
+    map.fitBounds(
+      [
+        [bbox[0], bbox[1]],
+        [bbox[2], bbox[3]],
+      ],
+      {
+        padding: { top: 40, bottom: 40, left: 40, right: 300 }, // right keeps it visible with side panel
+        duration: 800,
+      }
+    );
+  }, [locationFocus, isMapLoaded]);
+  useEffect(() => {
+    upsertLocationCircle();
+  }, [upsertLocationCircle]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -445,10 +537,18 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     mapRef.current.once("style.load", () => {
       addStationLayers();
       applyParamMode();
+      upsertLocationCircle();
     });
 
     mapRef.current.setStyle(mapStyle);
-  }, [mapStyle, isMapLoaded, addStationLayers, addInteractions, applyParamMode]);
+  }, [
+    mapStyle,
+    isMapLoaded,
+    addStationLayers,
+    addInteractions,
+    applyParamMode,
+    upsertLocationCircle,
+  ]);
 
   useEffect(() => {
     applyParamMode();

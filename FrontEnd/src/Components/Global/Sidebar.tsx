@@ -57,9 +57,15 @@ type SidebarProps = {
   isCollapsed: boolean;
   setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   onStationViewData: (stationId: string) => void;
+  onLocationSelected: (center: [number, number], radiusKm: number) => void;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onStationViewData }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  isCollapsed,
+  setIsCollapsed,
+  onStationViewData,
+  onLocationSelected,
+}) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [selected, setSelected] = useState<string>("Dashboard");
@@ -95,7 +101,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onStatio
         },
       }}
     >
-      {/* LEFT: main sidebar */}
       <ProSidebar
         collapsed={isCollapsed}
         style={{
@@ -105,7 +110,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onStatio
         }}
       >
         <Menu>
-          {/* LOGO AND MENU ICON */}
           <MenuItem
             onClick={() => setIsCollapsed(!isCollapsed)}
             icon={isCollapsed ? <MenuOutlinedIcon /> : undefined}
@@ -256,7 +260,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, onStatio
         </Menu>
       </ProSidebar>
 
-      {isFilterPanelOpen && <SearchSidePanel colors={colors} onViewData={onViewData} />}
+      {isFilterPanelOpen && (
+        <SearchSidePanel
+          colors={colors}
+          onViewData={onViewData}
+          onLocationSelected={onLocationSelected}
+        />
+      )}
     </Box>
   );
 };

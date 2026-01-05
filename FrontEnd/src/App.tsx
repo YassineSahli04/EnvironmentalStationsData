@@ -9,13 +9,21 @@ import MapBox from "./Components/MapBox";
 import StationDataPage from "./Pages/StationDataPage";
 import { ColorModeContext, useMode } from "./theme";
 
+type LocationFocus = { center: [number, number]; radiusKm: number };
+
 function App() {
   const [theme, colorMode] = useMode();
   const [isSideBarCollapsed, setIsSideBarCollapsed] = useState(false);
 
+  const [locationFocus, setLocationFocus] = useState<LocationFocus | null>(null);
+
   const navigate = useNavigate();
   const onStationViewData = (stationId: string) => {
     navigate(`/station/${stationId}`);
+  };
+
+  const handleLocationSelected = (center: [number, number], radiusKm: number) => {
+    setLocationFocus({ center, radiusKm });
   };
 
   return (
@@ -29,11 +37,17 @@ function App() {
               isCollapsed={isSideBarCollapsed}
               setIsCollapsed={setIsSideBarCollapsed}
               onStationViewData={onStationViewData}
+              onLocationSelected={handleLocationSelected}
             />
 
             <main className="content">
               <Routes>
-                <Route path="/" element={<MapBox isSideBarCollapsed={isSideBarCollapsed} />} />
+                <Route
+                  path="/"
+                  element={
+                    <MapBox isSideBarCollapsed={isSideBarCollapsed} locationFocus={locationFocus} />
+                  }
+                />
                 <Route path="/station/:stationId" element={<StationDataPage />} />
               </Routes>
             </main>
