@@ -1,11 +1,9 @@
 from datetime import datetime
-from logging import exception
 from BackEnd.Utils.TransformData import TransformData
 import pandas as pd
-from sqlalchemy import text, bindparam
+from sqlalchemy import text
 from BackEnd.C2aiStations.Api.C2aiStationsApiCalls import C2aiStationsApiCalls
 from BackEnd.C2aiStations.Api.QueryObject import QueryObject 
-from pathlib import Path
 import sqlalchemy.engine as _engine
 from enum import Enum
 
@@ -120,12 +118,8 @@ class C2aiTableCreator:
         new_df = new_df[kept_cols]
         new_df.columns = final_cols
 
-        # if(table_type == TableType.PluviometerTable):
-        #     new_df = self.transformPluviometerTableDf(df)
-
         return new_df
     
-    # def transformPluviometerTableDf(self, df) -> pd.DataFrame:
 
     
     def get_c2ai_table_type(self, tableName: str):
