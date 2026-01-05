@@ -1,6 +1,6 @@
 import json
 import sqlalchemy.engine as _engine
-from sqlalchemy import create_engine, text, bindparam, event
+from sqlalchemy import create_engine, text, bindparam
 import os
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject

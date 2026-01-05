@@ -1,11 +1,9 @@
 from datetime import datetime
-from logging import exception
 from BackEnd.Utils.TransformData import TransformData
 import pandas as pd
-from sqlalchemy import text, bindparam
+from sqlalchemy import text
 from BackEnd.C2aiStations.Api.C2aiStationsApiCalls import C2aiStationsApiCalls
 from BackEnd.C2aiStations.Api.QueryObject import QueryObject 
-from pathlib import Path
 import sqlalchemy.engine as _engine
 from enum import Enum
 
@@ -122,6 +120,8 @@ class C2aiTableCreator:
 
         return new_df
     
+
+    
     def get_c2ai_table_type(self, tableName: str):
         query = f"SELECT (CASE WHEN SUM(CASE WHEN MEAS_1 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_2 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_3 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_4 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_5 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_6 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_7 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_8 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_9 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_10 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_11 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END + CASE WHEN SUM(CASE WHEN MEAS_12 <> 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END) AS non_zero_meas_columns FROM {tableName}"
         queryObject = QueryObject(self.sourceDataId, query)
@@ -199,6 +199,37 @@ class C2aiTableCreator:
         else:
             return ["DATE_TIME", "MEAS_1", "MEAS_2", "MEAS_3", "MEAS_4", "MEAS_5", "MEAS_6", "MEAS_7", "MEAS_8", "MEAS_9"]
 
+    def transformPluviometerColumnsOnFinalDf(self, df):
+        colsToChange = list(TableColumnNameTransformer.MEAS_RENAME_BY_TYPE.get(TableType.PluviometerTable.value, {}).values())
+        df = df.sort_values("date_time")
+
+        df[colsToChange] = df[colsToChange].fillna(0)
+
+        lastTotalRainfallVal = 0.0
+        lastDailyRainfallVal = 0.0
+        for idx, row in df[colsToChange].iterrows():
+            cellTotalRainFall = float(row["total_rainfall_mm"])
+            cellDailyRainFall = float(row["daily_rainfall_mm"])
+            cellRainIntensity = float(row["rain_intensity_mm_h"])
+
+            if cellTotalRainFall != 0:
+                lastTotalRainfallVal = cellTotalRainFall
+            else:
+                df.at[idx, "total_rainfall_mm"] = lastTotalRainfallVal
+
+            if cellDailyRainFall > 0:
+                if cellDailyRainFall == lastDailyRainfallVal:  
+                    lastDailyRainfallVal = 0.0
+                    df.at[idx, "daily_rainfall_mm"] = 0.0
+                elif cellDailyRainFall > lastDailyRainfallVal and cellRainIntensity > 0:
+                    df.at[idx, "daily_rainfall_mm"] = cellDailyRainFall - lastDailyRainfallVal
+                    lastDailyRainfallVal = cellDailyRainFall
+                elif cellDailyRainFall > lastDailyRainfallVal and cellRainIntensity == 0.0:
+                    df.at[idx, "daily_rainfall_mm"] = 0.0
+                else:
+                    lastDailyRainfallVal = cellDailyRainFall
+
+    
     def getFullDataDf(self, startQueryTime : datetime | None = None):
         dfList = []
         unixStartTime = None
@@ -207,4 +238,5 @@ class C2aiTableCreator:
         if unixStartTime is None: unixStartTime = self.get_highest_starting_timestamp()
         for table in self.edTablesDict:
             dfList.append(self.get_table_data(table, unixStartTime))
-        return  TransformData.combine_dfs_with_diff_timestamp(dfList, "date_time")
+        combinedDf = TransformData.combine_dfs_with_diff_timestamp(dfList, "date_time")
+        return self.transformPluviometerColumnsOnFinalDf(combinedDf)
