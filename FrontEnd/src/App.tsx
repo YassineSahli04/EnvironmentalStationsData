@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Routes, Route, useNavigate } from "react-router-dom";
+import { PrefetchData } from "./Api/PrefetchData";
 import "./App.css";
 import Sidebar from "./Components/Global/Sidebar";
 import Topbar from "./Components/Global/Topbar";
@@ -41,6 +42,7 @@ function App() {
             />
 
             <main className="content">
+              <PrefetchData />
               <Routes>
                 <Route
                   path="/"

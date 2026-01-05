@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography, Slider } from "@mui/material";
-import { getStations } from "../../Api/Api.ts";
+import { useAllStations } from "../../Api/Api.ts";
 import type { StationObj } from "../../Api/Objects/StationObj.ts";
 
 type SearchSidePanelProps = {
@@ -32,6 +32,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
 }
 
 const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSidePanelProps) => {
+  const { data: allLoadedStations, isLoading } = useAllStations();
   const [allStations, setAllStations] = useState<StationObj[]>([]);
 
   const [selectedManufacturer, setSelectedManufacturer] = useState<string[]>([]);
@@ -107,12 +108,8 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
 
   // Load all stations
   useEffect(() => {
-    async function load() {
-      const stations = await getStations();
-      setAllStations(stations);
-    }
-    load();
-  }, []);
+    if (allLoadedStations) setAllStations(allLoadedStations);
+  }, [allLoadedStations]);
 
   // Debounced geocoding suggestions
   useEffect(() => {

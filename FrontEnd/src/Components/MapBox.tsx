@@ -90,7 +90,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
             "fill-opacity": 0.15,
           },
         },
-        "unclustered-point" // ✅ insert below station points (if layer exists)
+        "unclustered-point"
       );
     }
 
@@ -111,14 +111,14 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
     }
 
     // Zoom to circle bounds
-    const bbox = turf.bbox(circleFeature); // [minX, minY, maxX, maxY]
+    const bbox = turf.bbox(circleFeature);
     map.fitBounds(
       [
         [bbox[0], bbox[1]],
         [bbox[2], bbox[3]],
       ],
       {
-        padding: { top: 40, bottom: 40, left: 40, right: 300 }, // right keeps it visible with side panel
+        padding: { top: 40, bottom: 40, left: 40, right: 300 },
         duration: 800,
       }
     );
