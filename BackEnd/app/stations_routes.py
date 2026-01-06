@@ -33,7 +33,7 @@ def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None
     endDtUTC = DateTimeHelper.to_utc(endDtUTC)
 
     try:    
-        return station.getSensorData(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+        return station.getSensorAllDataColumns(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
     except ValueError as e:
         logger.warning(
             "%s FROM:%s - To:%s ", e, startDtUTC, endDtUTC
