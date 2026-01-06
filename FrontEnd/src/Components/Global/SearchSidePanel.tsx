@@ -35,12 +35,10 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
   const { data: allLoadedStations, isLoading } = useAllStations();
   const [allStations, setAllStations] = useState<StationObj[]>([]);
 
-  const [selectedManufacturer, setSelectedManufacturer] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedStation, setSelectedStation] = useState<Option>({ label: "", id: "" });
 
   const [stations, setStations] = useState<Option[]>([]);
-  const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
 
   const [unselectedStationErrorIsVisible, setUnselectedStationErrorIsVisible] =
@@ -66,6 +64,7 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
       `&limit=5` +
       `&country=tn` +
       `&types=place,locality,neighborhood,address,poi` +
+      `&language=fr` +
       `&access_token=${MAPBOX_TOKEN}`;
 
     const res = await fetch(url);
@@ -134,15 +133,9 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
     if (!selectedLocation) return allStations;
 
     return allStations.filter((station: any) => {
-      const lng =
-        station.Longitude ??
-        station.longitude ??
-        station.Lon ??
-        station.lon ??
-        station.lng ??
-        station.Lng;
+      const lng = station.Longitude;
 
-      const lat = station.Latitude ?? station.latitude ?? station.Lat ?? station.lat;
+      const lat = station.Latitude;
 
       if (lng == null || lat == null) return false;
 
@@ -153,34 +146,33 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
 
   useEffect(() => {
     const stationOptions: Option[] = [];
-    const manufacturerOptions = new Set<string>([]);
+    const typeOptions = new Set<string>([]);
 
     for (let station of stationsInRadius) {
       const name: string = station.Id + "-" + station.Name;
       const option: Option = { label: name, id: station.Id };
 
-      if (station.Manufacturer) manufacturerOptions.add(station.Manufacturer);
+      if (station.Type) typeOptions.add(station.Type);
 
-      if (selectedManufacturer.length === 0) {
+      if (selectedTypes.length == 0) {
         stationOptions.push(option);
         continue;
       }
 
-      const matchesManufacturer =
-        selectedManufacturer.length === 0 ||
-        (station.Manufacturer && selectedManufacturer.includes(station.Manufacturer));
+      const matchesType =
+        selectedTypes.length === 0 || (station.Type && selectedTypes.includes(station.Type));
 
-      if (matchesManufacturer) stationOptions.push(option);
+      if (matchesType) stationOptions.push(option);
     }
 
-    setManufacturers([...manufacturerOptions]);
+    setTypes([...typeOptions]);
     setStations(stationOptions);
-  }, [stationsInRadius, selectedManufacturer]);
+  }, [stationsInRadius, selectedTypes]);
 
   useEffect(() => {
     setSelectedStation({ label: "", id: "" });
     setUnselectedStationErrorIsVisible(false);
-  }, [selectedManufacturer, selectedLocation, radiusKm]);
+  }, [selectedLocation, radiusKm]);
 
   const handleViewData = () => {
     if (!selectedStation || selectedStation.id == "") {
@@ -280,20 +272,14 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
           </Box>
         </>
       )}
-
       <Autocomplete
         multiple
-        options={manufacturers}
-        value={selectedManufacturer}
-        onChange={(_, value) => setSelectedManufacturer(value)}
+        options={types}
+        value={selectedTypes}
+        onChange={(_, value) => setSelectedTypes(value)}
         getOptionLabel={(option) => option}
         renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Station Manufacturer"
-            placeholder="Select station manufacturer"
-            size="small"
-          />
+          <TextField {...params} label="Types" placeholder="Select types" size="small" />
         )}
       />
 

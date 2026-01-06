@@ -7,11 +7,11 @@ import mapboxgl from "mapbox-gl";
 import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../Api/Api";
+import { WeatherParam } from "../Api/Api";
 import { getMapDataForParam } from "../Api/DataHandling";
 import type { CfSensorDataRow } from "../Api/Objects/StationObj";
 import { OverlayLoader } from "./Global/OverlayLoader";
 import MapParamPanel from "./MapParamPanel";
-import { WeatherParam } from "./MapParamPanel";
 import "./SCSS/MapBox.scss";
 
 const STYLE_STREETS = "mapbox://styles/mapbox/streets-v12";
