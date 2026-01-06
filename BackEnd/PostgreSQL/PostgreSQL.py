@@ -86,14 +86,15 @@ class PostgreSQL:
                     method="multi",
                     chunksize=self.CHUNK_SIZE,
                 )
-            connection.execute(text(f"""
+            
+            query = text(f"""
                 DO $$
                 BEGIN
-                    IF to_regclass(:tbl) IS NOT NULL THEN
+                    IF to_regclass('public."{tableName}"') IS NOT NULL THEN
                         IF NOT EXISTS (
                             SELECT 1
                             FROM pg_constraint c
-                            WHERE c.conrelid = to_regclass(:tbl)
+                            WHERE c.conrelid = to_regclass('public."{tableName}"')
                             AND c.contype = 'p'
                         ) THEN
                             ALTER TABLE "{tableName}"
@@ -101,7 +102,8 @@ class PostgreSQL:
                         END IF;
                     END IF;
                 END $$;
-                """), {"tbl": tableName})
+                """)
+            connection.execute(query)
 
 
 
