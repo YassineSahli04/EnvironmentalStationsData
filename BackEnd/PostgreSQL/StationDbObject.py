@@ -125,7 +125,7 @@ class StationDbObject:
 
         df = SensorDbObject.getdfFromQueryResult(self.engine, self.Id, aggSelectDefaultSensorCol, dataGroup, startDtUTC, endDtUTC)
         data = SensorDbObject.dfToTimeValueRecords(df, sensorIdsList, startDtUTC)
-        return sensor.getSerializableObj(data)
+        return data
         
 
     def getSerializableObj(self) -> StationSerializable:
