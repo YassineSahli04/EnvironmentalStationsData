@@ -38,9 +38,8 @@ class SensorDbObject:
     station: StationDbObject;
     sensor: str;
     aggr: list;
-    data: pd.DataFrame | list;
     columnNames: dict
-    def __init__(self, station: StationDbObject, sensor, isDataInDf = True) -> None:
+    def __init__(self, station: StationDbObject, sensor :str, isDataInDf = True) -> None:
         self.engine = station.engine
         self.isDataInDf = isDataInDf
         self.sensor = sensor
@@ -67,7 +66,7 @@ class SensorDbObject:
                 self.columnNames[elem] = col
 
 
-    def setSensorData(self, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
+    def getSensorAllDataColumns(self, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
         if len(self.columnNames) == 0:
             raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.")
     
@@ -95,27 +94,78 @@ class SensorDbObject:
         with self.engine.connect() as connection:
             df = pd.read_sql(sql, connection, params=queryParams)
 
+        
+        # TODO:
+        # This should be used after this story is merged: 
+        # - Update the Pluviometer data handling logic #47
+        # 
+        # df = SensorDbObject.getdfFromQueryResult(self.engine, self.station.Id, aggSelects, dataGroup, startDtUTC, endDtUTC)
+        #
+        
         if self.isDataInDf:
-            self.data = df
-            return
+            return df
+        
+        lastSensorData = self.getLastSensorData()
+        return SensorDbObject.dfToTimeValueRecords(df, self.aggr, startDtUTC, lastSensorData)
+    
+    @staticmethod
+    def dfToTimeValueRecords(
+        df: pd.DataFrame,
+        cols: list[str],
+        startDtUTC: datetime,
+        lastSensorData: float | None = None,
+        dateTimeCol: str = "Date/Time",
+        lastMeasuredKey: str = "last measured",
+    ) -> list[dict]:
+        records: list[dict] = []
 
-        records = []
+        nowUTC = datetime.now(timezone.utc)
+        is_today_utc = startDtUTC.date() == nowUTC.date()
+
         for _, row in df.iterrows():
-            values = {agg: row[agg] for agg in self.aggr}
+            values = {a: row[a] for a in cols}
 
-            nowUTC = datetime.now(timezone.utc)
-            is_today_utc = startDtUTC.date() == nowUTC.date()
-            if is_today_utc:
-                lastData = self.getLastSensorData(startDtUTC, endDtUTC)
-                values['last measured'] = lastData
+            if is_today_utc and lastMeasuredKey is not None:
+                values[lastMeasuredKey] = lastSensorData
 
-            t = row["Date/Time"]
+            t = row[dateTimeCol]
             if hasattr(t, "to_pydatetime"):
                 t = t.to_pydatetime()
+
             records.append({"time": t, "values": values})
+        return records
 
-        self.data = records
+    def getDefaultSensorColumn(self):
+        if len(self.columnNames) == 0:
+            raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.")
+        if len(self.columnNames) == 1 :
+            (key,col), = self.columnNames.items()
+        if len(self.columnNames) > 1:
+            key = 'avg'
+            col = self.columnNames['avg']
+        return key, col   
 
+    @staticmethod
+    def getdfFromQueryResult(engine: _engine.Engine, table: str, aggSelects: str, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
+        sql = text(f"""
+                SELECT
+                    date_trunc(:step, "date_time") AS "Date/Time",
+                    {aggSelects}
+                FROM "{table}"
+                WHERE "date_time" >= :start_dt
+                AND "date_time" <  :end_dt
+                GROUP BY "Date/Time"
+                ORDER BY "Date/Time";
+            """)
+
+        queryParams = {
+            "step": dataGroup,
+            "start_dt": startDtUTC,
+            "end_dt": endDtUTC, 
+        }
+        with engine.connect() as connection:
+            return pd.read_sql(sql, connection, params=queryParams)
+    
     def getC2aiPrecipitationSensorQuery(self):
         colName = self.columnNames['sum']
         aggSelects = ",\n".join([f'"{colName}" AS "{elem}"' for elem in self.columnNames])
@@ -132,7 +182,7 @@ class SensorDbObject:
             DESC LIMIT 1;
         """)
 
-    def getLastSensorData(self, startDtUTC :datetime, endDtUTC:datetime):
+    def getLastSensorData(self):
         if ("avg" in self.columnNames):
             col = self.columnNames["avg"]
         elif ("sum" in self.columnNames):
@@ -160,11 +210,10 @@ class SensorDbObject:
             result = vals[0]
         return result
 
-
-    def getSerializableObj(self) -> SensorSerializable:
+    def getSerializableObj(self, data) -> SensorSerializable:
         return SensorSerializable(
             stationId = self.station.Id,
             sensor = self.sensor,
             aggregationsType = self.aggr,
-            data= self.data
+            data= data
         )

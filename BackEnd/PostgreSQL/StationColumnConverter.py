@@ -52,10 +52,18 @@ class StationColumnConverter:
                     raise NotImplementedError(f"Station {self.stId} is of type {self.stType} and code hasn't been implemented yet for that type.")
                 sensor = self.searchedTableColumn.strip().lower()
                 aggr = self.aggr.strip().lower()
+                
+                sensorMatch = []
                 for col in self.tableColumns:
-                    if sensor in col.lower() and aggr in col.lower():
-                        column = col
-                        break
+                    if sensor in col.lower():
+                        if aggr in col.lower():
+                            column = col
+                            break
+                        sensorMatch.append(col)
+                        
+                if column is None and len(sensorMatch) == 1:
+                    column = sensorMatch[0]
+
             case _:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
             
