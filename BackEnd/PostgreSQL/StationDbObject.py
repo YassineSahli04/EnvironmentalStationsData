@@ -11,6 +11,21 @@ class StationDataGroup(Enum):
     daily =  'day'
     monthly = 'month'
 
+    @classmethod
+    def parse(cls, raw: object) -> str:
+        if isinstance(raw, cls):
+            return raw.value
+        try:
+            return cls(raw).value  # type: ignore[arg-type]
+        except Exception:
+            pass
+            
+        allowed = [e.value for e in cls]
+        raise ValueError(f"Invalid dataGroup '{raw}'. Allowed: {allowed}")
+
+
+
+
 @dataclass
 class StationSerializable:
     Id: str
@@ -90,17 +105,27 @@ class StationDbObject:
                 self.LastDataPointTime = utcTime
                 return
             self.LastDataPointTime = None
-
-    def getSensorData(self, sensorId:str, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
-        try:
-            dataGroup = StationDataGroup(dataGroup).value # type: ignore 
-        except Exception as e:
-            allowed = [e.value for e in StationDataGroup]
-            raise ValueError(f"Invalid dataGroup '{dataGroup}'. Allowed: {allowed}")
-
+  
+    def getSensorAllDataColumns(self, sensorId:str, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
+        dataGroup = StationDataGroup.parse(dataGroup)
         sensor = SensorDbObject(self, sensorId, isDataInDf=False)
-        sensor.setSensorData(dataGroup, startDtUTC, endDtUTC)
-        return sensor.getSerializableObj()
+        data = sensor.getSensorAllDataColumns(dataGroup, startDtUTC, endDtUTC)
+        return sensor.getSerializableObj(data)
+    
+    def getSensonsDefaultDataColumns(self, sensorIdsList:list[str], dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
+        dataGroup = StationDataGroup.parse(dataGroup)
+
+        parts = []
+        for sensorId in sensorIdsList:
+            sensor = SensorDbObject(self, sensorId, isDataInDf=False)
+            key, col = sensor.getDefaultSensorColumn()
+            parts.append(f'{key}("{col}") AS "{sensorId}"')
+
+        aggSelectDefaultSensorCol = ",\n".join(parts)
+
+        df = SensorDbObject.getdfFromQueryResult(self.engine, self.Id, aggSelectDefaultSensorCol, dataGroup, startDtUTC, endDtUTC)
+        data = SensorDbObject.dfToTimeValueRecords(df, sensorIdsList, startDtUTC)
+        return data
         
 
     def getSerializableObj(self) -> StationSerializable:
