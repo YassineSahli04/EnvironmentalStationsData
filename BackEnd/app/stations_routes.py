@@ -25,15 +25,24 @@ def get_stations(typeFilter:list[str]= Query(None, alias="type[]")):
 def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]")):
     return db.get_stations_Geojson_object(typeFilter)
 
-@router.get('/station/{stationId}/{sensorId}')
-def get_station_sensor_data(stationId: str, sensorId: str, dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)): 
+    
+@router.get('/station/{stationId}/sensors')
+def get_station_sensons_data(stationId: str, sensorsId: list[str] | None = Query(None, alias="sensorsId[]"), dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)):     
     station = StationDbObject(db.engine, stationId)
 
     startDtUTC = DateTimeHelper.to_utc(startDtUTC)
     endDtUTC = DateTimeHelper.to_utc(endDtUTC)
 
-    try:    
-        return station.getSensorAllDataColumns(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+    try: 
+        
+        if sensorsId is None or len(sensorsId) == 0: 
+            raise Exception("Sensors are not defined.")  
+        if len(sensorsId) == 1:
+            sensorId = sensorsId[0]
+            return station.getSensorAllDataColumns(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+        if len(sensorsId) > 1:
+            return station.getSensonsDefaultDataColumns(sensorIdsList=sensorsId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+    
     except ValueError as e:
         logger.warning(
             "%s FROM:%s - To:%s ", e, startDtUTC, endDtUTC

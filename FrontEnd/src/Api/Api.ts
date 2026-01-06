@@ -50,16 +50,17 @@ export async function getStationsGeojson() {
 
 export async function getStationSensorData(
   stationId: string,
-  sensorId: string,
+  sensorsId: string[],
   dataGroup?: string,
   startDtUTC?: Date | string,
   endDtUTC?: Date | string
 ): Promise<StationSensorObj | null> {
-  const sensorUrl = `${url}/station/${stationId}/${sensorId}`;
+  const sensorsUrl = `${url}/station/${stationId}/sensors`;
 
   try {
-    const res = await axios.get<StationSensorObj>(sensorUrl, {
+    const res = await axios.get<StationSensorObj>(sensorsUrl, {
       params: {
+        sensorsId,
         dataGroup,
         startDtUTC: startDtUTC instanceof Date ? startDtUTC.toISOString() : startDtUTC,
         endDtUTC: endDtUTC instanceof Date ? endDtUTC.toISOString() : endDtUTC,
@@ -71,7 +72,7 @@ export async function getStationSensorData(
     if (axios.isAxiosError(err)) {
       console.error("Failed to fetch station sensor data:", {
         stationId,
-        sensorId,
+        sensorsId,
         status: err.response?.status,
         detail: err.response?.data?.detail ?? err.message,
       });
