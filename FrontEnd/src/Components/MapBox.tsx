@@ -9,7 +9,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../Api/Api";
 import { WeatherParam } from "../Api/Api.ts";
 import { getMapDataForParam } from "../Api/DataHandling";
-import type { CfSensorDataRow } from "../Api/Objects/StationObj";
+import type { SensorDataRow } from "../Api/Objects/StationObj";
 import { OverlayLoader } from "./Global/OverlayLoader";
 import MapParamPanel from "./MapParamPanel";
 import "./SCSS/MapBox.scss";
@@ -34,7 +34,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   const [selectedParam, setSelectedParam] = useState<WeatherParam | undefined>();
   const prevParamRef = useRef<WeatherParam | undefined>(undefined);
   const prevDateRef = useRef<Date | undefined>(undefined);
-  const paramDataRef = useRef<Record<string, CfSensorDataRow[]>>({});
+  const paramDataRef = useRef<Record<string, SensorDataRow[]>>({});
 
   useEffect(() => {
     if (!mapRef.current) return;

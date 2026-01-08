@@ -1,16 +1,9 @@
 import { useMemo } from "react";
 import ReactECharts from "echarts-for-react";
-
-type AmbiancePoint = {
-  // ISO string or epoch ms; ISO recommended
-  ts: string; // e.g. "2026-01-04T10:00:00Z"
-  T: number | null; // °C
-  HR: number | null; // %
-  Rg: number | null; // W/m²
-};
+import type { SensorDataRow } from "../../Api/Objects/StationObj";
 
 type Props = {
-  data: AmbiancePoint[];
+  data: SensorDataRow[];
   height?: number;
   title?: string;
 };
@@ -23,11 +16,11 @@ function toNumberOrNull(v: unknown): number | null {
 
 export default function AmbianceDualAxisChart({ data, height = 360, title = "Ambiance" }: Props) {
   const option = useMemo(() => {
-    const x = data.map((d) => d.ts);
+    const x = data.map((d) => d.time);
 
-    const seriesT = data.map((d) => toNumberOrNull(d.T));
-    const seriesHR = data.map((d) => toNumberOrNull(d.HR));
-    const seriesRg = data.map((d) => toNumberOrNull(d.Rg));
+    const seriesT = data.map((d) => toNumberOrNull(d.values["Temperature"]));
+    const seriesHR = data.map((d) => toNumberOrNull(d.values["Relative Humidity"]));
+    const seriesRg = data.map((d) => toNumberOrNull(d.values["Solar Radiation"]));
 
     return {
       backgroundColor: "transparent",
