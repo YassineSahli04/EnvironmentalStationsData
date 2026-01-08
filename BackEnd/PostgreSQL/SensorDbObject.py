@@ -38,9 +38,8 @@ class SensorDbObject:
     station: StationDbObject;
     sensor: str;
     aggr: list;
-    data: pd.DataFrame | list;
     columnNames: dict
-    def __init__(self, station: StationDbObject, sensor, isDataInDf = True) -> None:
+    def __init__(self, station: StationDbObject, sensor :str, isDataInDf = True) -> None:
         self.engine = station.engine
         self.isDataInDf = isDataInDf
         self.sensor = sensor
@@ -67,20 +66,64 @@ class SensorDbObject:
                 self.columnNames[elem] = col
 
 
-    def setSensorData(self, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
+    def getSensorAllDataColumns(self, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
         if len(self.columnNames) == 0:
             raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.")
     
         aggSelects = ",\n".join([f'{elem}("{self.columnNames[elem]}") AS "{elem}"' for elem in self.columnNames])
 
-        if(self.sensor == "Precipitation" and self.station.Manufacturer == "DeltaOHM"): 
-            sql = self.getC2aiPrecipitationSensorQuery()
-        else: 
-            sql = text(f"""
+        df = SensorDbObject.getdfFromQueryResult(self.engine, self.station.Id, aggSelects, dataGroup, startDtUTC, endDtUTC)
+        
+        if self.isDataInDf:
+            return df
+        
+        lastSensorData = self.getLastSensorData()
+        return SensorDbObject.dfToTimeValueRecords(df, self.aggr, startDtUTC, lastSensorData)
+    
+    @staticmethod
+    def dfToTimeValueRecords(
+        df: pd.DataFrame,
+        cols: list[str],
+        startDtUTC: datetime,
+        lastSensorData: float | None = None,
+        dateTimeCol: str = "Date/Time",
+        lastMeasuredKey: str = "last measured",
+    ) -> list[dict]:
+        records: list[dict] = []
+
+        nowUTC = datetime.now(timezone.utc)
+        is_today_utc = startDtUTC.date() == nowUTC.date()
+
+        for _, row in df.iterrows():
+            values = {a: row[a] for a in cols}
+
+            if is_today_utc and lastMeasuredKey is not None:
+                values[lastMeasuredKey] = lastSensorData
+
+            t = row[dateTimeCol]
+            if hasattr(t, "to_pydatetime"):
+                t = t.to_pydatetime()
+
+            records.append({"time": t, "values": values})
+        return records
+
+    def getDefaultSensorColumn(self):
+        if len(self.columnNames) == 0:
+            raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.")
+        if len(self.columnNames) == 1 :
+            (key,col), = self.columnNames.items()
+        if len(self.columnNames) > 1:
+            key = 'avg'
+            col = self.columnNames['avg']
+        return key, col   
+
+    @staticmethod
+    def getdfFromQueryResult(engine: _engine.Engine, table: str, aggSelects: str, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
+        sql = text(f"""
                 SELECT
                     date_trunc(:step, "date_time") AS "Date/Time",
                     {aggSelects}
-                FROM "{self.station.Id}"
+                FROM "{table}"
                 WHERE "date_time" >= :start_dt
                 AND "date_time" <  :end_dt
                 GROUP BY "Date/Time"
@@ -92,47 +135,10 @@ class SensorDbObject:
             "start_dt": startDtUTC,
             "end_dt": endDtUTC, 
         }
-        with self.engine.connect() as connection:
-            df = pd.read_sql(sql, connection, params=queryParams)
+        with engine.connect() as connection:
+            return pd.read_sql(sql, connection, params=queryParams)
 
-        if self.isDataInDf:
-            self.data = df
-            return
-
-        records = []
-        for _, row in df.iterrows():
-            values = {agg: row[agg] for agg in self.aggr}
-
-            nowUTC = datetime.now(timezone.utc)
-            is_today_utc = startDtUTC.date() == nowUTC.date()
-            if is_today_utc:
-                lastData = self.getLastSensorData(startDtUTC, endDtUTC)
-                values['last measured'] = lastData
-
-            t = row["Date/Time"]
-            if hasattr(t, "to_pydatetime"):
-                t = t.to_pydatetime()
-            records.append({"time": t, "values": values})
-
-        self.data = records
-
-    def getC2aiPrecipitationSensorQuery(self):
-        colName = self.columnNames['sum']
-        aggSelects = ",\n".join([f'"{colName}" AS "{elem}"' for elem in self.columnNames])
-
-        return text(f"""
-            SELECT
-                "date_time" AS "Date/Time",
-                {aggSelects}                
-            FROM "{self.station.Id}"
-            WHERE "date_time" >= :start_dt
-            AND "date_time" <  :end_dt
-            AND "{colName}" IS NOT NULL
-            ORDER BY "Date/Time"
-            DESC LIMIT 1;
-        """)
-
-    def getLastSensorData(self, startDtUTC :datetime, endDtUTC:datetime):
+    def getLastSensorData(self):
         if ("avg" in self.columnNames):
             col = self.columnNames["avg"]
         elif ("sum" in self.columnNames):
@@ -145,26 +151,17 @@ class SensorDbObject:
                 FROM "{self.station.Id}"
                 WHERE "{col}" IS NOT NULL
                 ORDER BY "date_time" DESC
-                LIMIT 2;
+                LIMIT 1;
             """)
         with self.engine.connect() as connection:
             results = connection.execute(query).fetchall()
             vals = [r[0] for r in results]
+        return vals[0]
 
-        if self.sensor.lower() == "precipitation" and self.station.Manufacturer == "DeltaOHM":
-            if vals[0] is None:
-                return 0.0
-            else:
-                result = float(vals[0]) - float(vals[1])
-        else:
-            result = vals[0]
-        return result
-
-
-    def getSerializableObj(self) -> SensorSerializable:
+    def getSerializableObj(self, data) -> SensorSerializable:
         return SensorSerializable(
             stationId = self.station.Id,
             sensor = self.sensor,
             aggregationsType = self.aggr,
-            data= self.data
+            data= data
         )
