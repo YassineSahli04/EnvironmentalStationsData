@@ -80,7 +80,7 @@ const SearchSidePanel = ({ colors, onViewData }: SearchSidePanelProps) => {
         flexDirection: "column",
         gap: 2,
         height: "90vh",
-        zIndex: 2,
+        zIndex: 4,
       }}
     >
       <Typography variant="h6" fontWeight={600}>

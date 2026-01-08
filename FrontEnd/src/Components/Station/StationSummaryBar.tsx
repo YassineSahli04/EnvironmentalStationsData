@@ -49,7 +49,7 @@ export default function StationSummaryBar({
         sx={{
           position: "sticky",
           top: 0,
-          zIndex: 100,
+          zIndex: 2,
           bgcolor: "#1F2A40",
           borderRadius: 2,
           p: 2,
@@ -75,7 +75,7 @@ export default function StationSummaryBar({
       sx={{
         position: "sticky",
         top: 0,
-        zIndex: 100,
+        zIndex: 2,
         bgcolor: "#1F2A40",
         borderRadius: 2,
         p: 2.5,
