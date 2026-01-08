@@ -72,35 +72,7 @@ class SensorDbObject:
     
         aggSelects = ",\n".join([f'{elem}("{self.columnNames[elem]}") AS "{elem}"' for elem in self.columnNames])
 
-        if(self.sensor == "Precipitation" and self.station.Manufacturer == "DeltaOHM"): 
-            sql = self.getC2aiPrecipitationSensorQuery()
-        else: 
-            sql = text(f"""
-                SELECT
-                    date_trunc(:step, "date_time") AS "Date/Time",
-                    {aggSelects}
-                FROM "{self.station.Id}"
-                WHERE "date_time" >= :start_dt
-                AND "date_time" <  :end_dt
-                GROUP BY "Date/Time"
-                ORDER BY "Date/Time";
-            """)
-
-        queryParams = {
-            "step": dataGroup,
-            "start_dt": startDtUTC,
-            "end_dt": endDtUTC, 
-        }
-        with self.engine.connect() as connection:
-            df = pd.read_sql(sql, connection, params=queryParams)
-
-        
-        # TODO:
-        # This should be used after this story is merged: 
-        # - Update the Pluviometer data handling logic #47
-        # 
-        # df = SensorDbObject.getdfFromQueryResult(self.engine, self.station.Id, aggSelects, dataGroup, startDtUTC, endDtUTC)
-        #
+        df = SensorDbObject.getdfFromQueryResult(self.engine, self.station.Id, aggSelects, dataGroup, startDtUTC, endDtUTC)
         
         if self.isDataInDf:
             return df
@@ -165,22 +137,6 @@ class SensorDbObject:
         }
         with engine.connect() as connection:
             return pd.read_sql(sql, connection, params=queryParams)
-    
-    def getC2aiPrecipitationSensorQuery(self):
-        colName = self.columnNames['sum']
-        aggSelects = ",\n".join([f'"{colName}" AS "{elem}"' for elem in self.columnNames])
-
-        return text(f"""
-            SELECT
-                "date_time" AS "Date/Time",
-                {aggSelects}                
-            FROM "{self.station.Id}"
-            WHERE "date_time" >= :start_dt
-            AND "date_time" <  :end_dt
-            AND "{colName}" IS NOT NULL
-            ORDER BY "Date/Time"
-            DESC LIMIT 1;
-        """)
 
     def getLastSensorData(self):
         if ("avg" in self.columnNames):
@@ -195,20 +151,12 @@ class SensorDbObject:
                 FROM "{self.station.Id}"
                 WHERE "{col}" IS NOT NULL
                 ORDER BY "date_time" DESC
-                LIMIT 2;
+                LIMIT 1;
             """)
         with self.engine.connect() as connection:
             results = connection.execute(query).fetchall()
             vals = [r[0] for r in results]
-
-        if self.sensor.lower() == "precipitation" and self.station.Manufacturer == "DeltaOHM":
-            if vals[0] is None:
-                return 0.0
-            else:
-                result = float(vals[0]) - float(vals[1])
-        else:
-            result = vals[0]
-        return result
+        return vals[0]
 
     def getSerializableObj(self, data) -> SensorSerializable:
         return SensorSerializable(
