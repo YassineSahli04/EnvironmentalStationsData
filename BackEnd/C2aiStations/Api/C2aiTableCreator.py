@@ -228,6 +228,7 @@ class C2aiTableCreator:
                     df.at[idx, "daily_rainfall_mm"] = 0.0
                 else:
                     lastDailyRainfallVal = cellDailyRainFall
+        return df
 
     
     def getFullDataDf(self, startQueryTime : datetime | None = None):
