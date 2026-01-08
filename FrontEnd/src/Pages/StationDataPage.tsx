@@ -1,12 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { getStationSensorsData } from "../Api/Api";
 import AmbianceDualAxisChart from "../Components/Charts/AmbianceDualAxisChart";
 
-export default function StationDataPage() {
-  const { stationId } = useParams<{ stationId: string }>();
+type StationDataPageProps = {
+  isSideBarCollapsed: boolean;
+};
 
-  const startOfDay = "2026-01-01T00:00:00Z";
+export default function StationDataPage({ isSideBarCollapsed }: StationDataPageProps) {
+  const { stationId } = useParams<{ stationId: string }>();
+  const chartRef = useRef<any>(null);
+
+  const startOfDay = "2025-12-01T00:00:00Z";
   const endOfDay = "2026-01-08T00:00:00Z";
 
   const [ambianceData, setAmbianceData] = useState<any[]>([]);
@@ -26,12 +31,18 @@ export default function StationDataPage() {
     })();
   }, [stationId]);
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (chartRef.current) {
+        chartRef.current.getEchartsInstance()?.resize();
+      }
+    }, 25);
+    return () => clearTimeout(timeoutId);
+  }, [isSideBarCollapsed]);
+
   return (
-    <>
-      <div style={{ backgroundColor: "#ee1111ff" }}>
-        <h1>Hello, this is station {stationId}</h1>
-      </div>
-      <AmbianceDualAxisChart data={ambianceData} />
-    </>
+    <div style={{ width: "100%", height: "100%" }}>
+      <AmbianceDualAxisChart ref={chartRef} data={ambianceData} />
+    </div>
   );
 }
