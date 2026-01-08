@@ -150,7 +150,7 @@ export default function StationDetailsAccordion({
         >
           {/* Left Column */}
           <Box>
-            <DetailRow label="Location" value={formatDate(station.Location)} />
+            <DetailRow label="Location" value={station.Location} />
             <DetailRow
               label="Coordinates"
               value={formatCoordinates(station.Latitude, station.Longitude, station.Altitude)}
@@ -161,7 +161,10 @@ export default function StationDetailsAccordion({
           {/* Right Column */}
           <Box>
             <DetailRow label="Station Type" value={station.Type} />
-            <DetailRow label="Last Mesured Data Point" value={station.LastDataTimestamp} />
+            <DetailRow
+              label="Last Mesured Data Point"
+              value={formatDate(station.LastDataPointTime)}
+            />
             <DetailRow label="Available Sensors" value={station.SensorList?.join(", ")} />
           </Box>
         </Box>

@@ -26,7 +26,7 @@ export interface StationObj {
   DataSourceId: number | null;
   DataTableName: string | null;
 
-  LastDataTimestamp: string;
+  LastDataPointTime: string;
   SensorList: StationSensorObj[];
   DataFrequency: string;
 

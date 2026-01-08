@@ -139,7 +139,7 @@ export default function StationSummaryBar({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <AccessTimeIcon sx={{ color: "#64748b", fontSize: 16 }} />
             <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-              {formatTimestamp(station.LastDataTimestamp)}
+              {formatTimestamp(station.LastDataPointTime)}
             </Typography>
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
