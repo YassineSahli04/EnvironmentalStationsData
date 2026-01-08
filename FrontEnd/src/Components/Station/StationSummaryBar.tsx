@@ -3,25 +3,23 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import SensorsIcon from "@mui/icons-material/Sensors";
 import { Box, Typography, Chip, Select, MenuItem, Skeleton } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material";
-import type { StationSummary, StationStatus } from "../../hooks/useStationSummary";
+import type { StationObj, StationStatus } from "../../Api/Objects/StationObj";
 
 type StationSummaryBarProps = {
-  station: StationSummary | null;
+  station: StationObj | null;
   isLoading: boolean;
   onStationChange?: (stationId: string) => void;
   availableStations?: { id: string; name: string }[];
 };
 
-const statusColors: Record<StationStatus, "success" | "error" | "warning"> = {
+const statusColors: Record<StationStatus, "success" | "error"> = {
   online: "success",
   offline: "error",
-  delayed: "warning",
 };
 
 const statusLabels: Record<StationStatus, string> = {
   online: "Online",
   offline: "Offline",
-  delayed: "Delayed",
 };
 
 function formatTimestamp(isoString: string): string {
@@ -108,18 +106,18 @@ export default function StationSummaryBar({
               mb: 0.5,
             }}
           >
-            {station.name}
+            {station.Name}
           </Typography>
           <Typography variant="caption" sx={{ color: "#94a3b8", fontFamily: "monospace" }}>
-            ID: {station.id}
+            ID: {station.Id}
           </Typography>
         </Box>
 
         {/* Status */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Chip
-            label={statusLabels[station.status]}
-            color={statusColors[station.status]}
+            label={statusLabels[station.Status]}
+            color={statusColors[station.Status]}
             size="small"
             sx={{
               fontWeight: 600,
@@ -132,7 +130,7 @@ export default function StationSummaryBar({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <LocationOnIcon sx={{ color: "#64748b", fontSize: 18 }} />
           <Typography variant="body2" sx={{ color: "#cbd5e1" }}>
-            {station.location || "—"}
+            {station.Location || "—"}
           </Typography>
         </Box>
 
@@ -141,13 +139,13 @@ export default function StationSummaryBar({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <AccessTimeIcon sx={{ color: "#64748b", fontSize: 16 }} />
             <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-              {formatTimestamp(station.lastDataTimestamp)}
+              {formatTimestamp(station.LastDataTimestamp)}
             </Typography>
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <SensorsIcon sx={{ color: "#64748b", fontSize: 16 }} />
             <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-              {station.sensorsCount} sensors
+              {station.SensorList?.length ?? 0} sensors
             </Typography>
           </Box>
         </Box>
@@ -155,7 +153,7 @@ export default function StationSummaryBar({
         {/* Change Station Dropdown */}
         {availableStations.length > 0 && (
           <Select
-            value={station.id}
+            value={station.Id}
             onChange={handleStationChange}
             size="small"
             sx={{

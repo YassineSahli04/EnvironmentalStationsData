@@ -7,10 +7,10 @@ import {
   Box,
   Skeleton,
 } from "@mui/material";
-import type { StationSummary } from "../../hooks/useStationSummary";
+import type { StationObj } from "../../Api/Objects/StationObj";
 
 type StationDetailsAccordionProps = {
-  station: StationSummary | null;
+  station: StationObj | null;
   isLoading: boolean;
 };
 
@@ -150,23 +150,19 @@ export default function StationDetailsAccordion({
         >
           {/* Left Column */}
           <Box>
+            <DetailRow label="Location" value={formatDate(station.Location)} />
             <DetailRow
               label="Coordinates"
-              value={formatCoordinates(
-                station.coordinates.latitude,
-                station.coordinates.longitude,
-                station.coordinates.altitude
-              )}
+              value={formatCoordinates(station.Latitude, station.Longitude, station.Altitude)}
             />
-            <DetailRow label="Installation Date" value={formatDate(station.installationDate)} />
-            <DetailRow label="Owner / Organization" value={station.owner} />
+            <DetailRow label="Manufacturer" value={station.Manufacturer} />
           </Box>
 
           {/* Right Column */}
           <Box>
-            <DetailRow label="Data Frequency" value={station.dataFrequency} />
-            <DetailRow label="Available Sensors" value={station.sensors.join(", ")} />
-            <DetailRow label="Notes" value={station.notes} />
+            <DetailRow label="Station Type" value={station.Type} />
+            <DetailRow label="Last Mesured Data Point" value={station.LastDataTimestamp} />
+            <DetailRow label="Available Sensors" value={station.SensorList?.join(", ")} />
           </Box>
         </Box>
       </AccordionDetails>

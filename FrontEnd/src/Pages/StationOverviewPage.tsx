@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
-import { getStationSensorsData } from "../Api/Api";
+import { useAllStations, getStationSensorsData } from "../Api/Api";
 import AmbianceDualAxisChart from "../Components/Charts/AmbianceDualAxisChart";
 import ChartCard from "../Components/Station/ChartCard";
 import StationDetailsAccordion from "../Components/Station/StationDetailsAccordion";
 import StationSummaryBar from "../Components/Station/StationSummaryBar";
-import { useStationSummary } from "../hooks/useStationSummary";
 
 type StationOverviewPageProps = {
   isSideBarCollapsed: boolean;
@@ -15,21 +14,18 @@ type StationOverviewPageProps = {
 export default function StationOverviewPage({ isSideBarCollapsed }: StationOverviewPageProps) {
   const { stationId } = useParams<{ stationId: string }>();
   const navigate = useNavigate();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef = useRef<any>(null);
 
-  // Station summary data
-  const { data: station, isLoading: isStationLoading } = useStationSummary(stationId);
+  const { data: stations, isStationLoading } = useAllStations();
 
-  // Chart data
+  const station = useMemo(() => stations.find((st) => st.Id === stationId), [stations, stationId]);
+
   const [ambianceData, setAmbianceData] = useState<any[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(true);
 
-  // Date range for chart (can be made dynamic later)
   const startOfDay = "2025-12-01T00:00:00Z";
   const endOfDay = "2026-01-08T00:00:00Z";
 
-  // Fetch chart data
   useEffect(() => {
     if (!stationId) return;
 
@@ -47,7 +43,6 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
     })();
   }, [stationId]);
 
-  // Resize chart when sidebar collapses/expands
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       chartRef.current?.getEchartsInstance?.()?.resize();
@@ -55,7 +50,6 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
     return () => clearTimeout(timeoutId);
   }, [isSideBarCollapsed]);
 
-  // Handle station change
   const handleStationChange = (newStationId: string) => {
     navigate(`/stations/${newStationId}`);
   };
