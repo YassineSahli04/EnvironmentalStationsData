@@ -48,7 +48,7 @@ export async function getStationsGeojson() {
   return res.data;
 }
 
-export async function getStationSensorData(
+export async function getStationSensorsData(
   stationId: string,
   sensorsId: string[],
   dataGroup?: string,
