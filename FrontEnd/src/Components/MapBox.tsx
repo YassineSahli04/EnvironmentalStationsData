@@ -21,6 +21,8 @@ type MapBoxProps = {
   isSideBarCollapsed: boolean;
 };
 
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
 export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   const [loading, setLoading] = useState(false);
 
@@ -237,8 +239,7 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   });
 
   useEffect(() => {
-    mapboxgl.accessToken =
-      "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWkwZHhlamMwaWgxMmxweWloOWJ3YmdtIn0.dJtTsXAcQy2eErlpsMoUWA";
+    mapboxgl.accessToken = MAPBOX_TOKEN;
 
     if (!mapContainerRef.current) return;
 
