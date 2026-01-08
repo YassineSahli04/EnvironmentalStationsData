@@ -1,0 +1,104 @@
+import { useState, useEffect, useRef } from "react";
+import { Box } from "@mui/material";
+import { useParams, useNavigate } from "react-router-dom";
+import { getStationSensorsData } from "../Api/Api";
+import AmbianceDualAxisChart from "../Components/Charts/AmbianceDualAxisChart";
+import ChartCard from "../Components/Station/ChartCard";
+import StationDetailsAccordion from "../Components/Station/StationDetailsAccordion";
+import StationSummaryBar from "../Components/Station/StationSummaryBar";
+import { useStationSummary } from "../hooks/useStationSummary";
+
+type StationOverviewPageProps = {
+  isSideBarCollapsed: boolean;
+};
+
+export default function StationOverviewPage({ isSideBarCollapsed }: StationOverviewPageProps) {
+  const { stationId } = useParams<{ stationId: string }>();
+  const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chartRef = useRef<any>(null);
+
+  // Station summary data
+  const { data: station, isLoading: isStationLoading } = useStationSummary(stationId);
+
+  // Chart data
+  const [ambianceData, setAmbianceData] = useState<any[]>([]);
+  const [isChartLoading, setIsChartLoading] = useState(true);
+
+  // Date range for chart (can be made dynamic later)
+  const startOfDay = "2025-12-01T00:00:00Z";
+  const endOfDay = "2026-01-08T00:00:00Z";
+
+  // Fetch chart data
+  useEffect(() => {
+    if (!stationId) return;
+
+    setIsChartLoading(true);
+    (async () => {
+      const res = await getStationSensorsData(
+        stationId,
+        ["Relative Humidity", "Solar Radiation", "Temperature"],
+        "hour",
+        startOfDay,
+        endOfDay
+      );
+      setAmbianceData(res || []);
+      setIsChartLoading(false);
+    })();
+  }, [stationId]);
+
+  // Resize chart when sidebar collapses/expands
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      chartRef.current?.getEchartsInstance?.()?.resize();
+    }, 250);
+    return () => clearTimeout(timeoutId);
+  }, [isSideBarCollapsed]);
+
+  // Handle station change
+  const handleStationChange = (newStationId: string) => {
+    navigate(`/stations/${newStationId}`);
+  };
+
+  return (
+    <Box
+      sx={{
+        width: "100%",
+        height: "100%",
+        overflow: "auto",
+        p: 2,
+        bgcolor: "#141b2d",
+      }}
+    >
+      {/* Sticky Station Summary Bar */}
+      <StationSummaryBar
+        station={station}
+        isLoading={isStationLoading}
+        onStationChange={handleStationChange}
+        availableStations={[]} // Can be populated from API
+      />
+
+      {/* Collapsible Station Details */}
+      <StationDetailsAccordion station={station} isLoading={isStationLoading} />
+
+      {/* Charts Area */}
+      <ChartCard title="Ambiance" subtitle="Temperature, Humidity & Solar Radiation">
+        {isChartLoading ? (
+          <Box
+            sx={{
+              height: 400,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#94a3b8",
+            }}
+          >
+            Loading chart data...
+          </Box>
+        ) : (
+          <AmbianceDualAxisChart ref={chartRef} data={ambianceData} height={400} title="" />
+        )}
+      </ChartCard>
+    </Box>
+  );
+}
