@@ -38,7 +38,7 @@ class TableColumnNameTransformer:
         "MicroClimateTable": {
             "MEAS_1": "microclimate_temperature",
             "MEAS_2": "microclimate_relative_humidity",
-            "MEAS_3": "microclimate_dew_point_c",
+            "MEAS_3": "microclimate_dew_point",
             "MEAS_4": "microclimate_absolute_humidity",
             "MEAS_5": "microclimate_upper_leaf_wetness",
             "MEAS_6": "microclimate_lower_leaf_wetness",
