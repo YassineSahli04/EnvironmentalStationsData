@@ -24,7 +24,7 @@ class TableColumnNameTransformer:
             "MEAS_2": "wind_direction",
             "MEAS_3": "air_temperature",
             "MEAS_4": "relative_humidity",
-            "MEAS_5": "dew_point_c",
+            "MEAS_5": "dew_point",
             "MEAS_6": "solar_radiation",
             "MEAS_7": "atmospheric_pressure",
             "MEAS_8": "hourly_evapotranspiration",
