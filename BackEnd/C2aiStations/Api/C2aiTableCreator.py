@@ -16,32 +16,32 @@ class TableType(Enum):
 class TableColumnNameTransformer:
     MEAS_RENAME_BY_TYPE = {
         "AlimentationTable": {
-            "MEAS_1": "battery_voltage_v",
-            "MEAS_2": "supply_voltage_v",
+            "MEAS_1": "battery_voltage",
+            "MEAS_2": "supply_voltage",
         },
         "MeteoTable": {
-            "MEAS_1": "wind_speed_ms",
-            "MEAS_2": "wind_direction_deg",
-            "MEAS_3": "air_temperature_c",
-            "MEAS_4": "relative_humidity_pct",
-            "MEAS_5": "dew_point_c",
-            "MEAS_6": "solar_radiation_w_m2",
-            "MEAS_7": "atmospheric_pressure_hpa",
-            "MEAS_8": "hourly_evapotranspiration_mm_h",
-            "MEAS_9": "daily_evapotranspiration_mm_d",
+            "MEAS_1": "wind_speed",
+            "MEAS_2": "wind_direction",
+            "MEAS_3": "air_temperature",
+            "MEAS_4": "relative_humidity",
+            "MEAS_5": "dew_point",
+            "MEAS_6": "solar_radiation",
+            "MEAS_7": "atmospheric_pressure",
+            "MEAS_8": "hourly_evapotranspiration",
+            "MEAS_9": "daily_evapotranspiration",
         },
         "PluviometerTable": {
-            "MEAS_1": "rain_intensity_mm_h",
-            "MEAS_2": "daily_rainfall_mm",
-            "MEAS_3": "total_rainfall_mm",
+            "MEAS_1": "rain_intensity",
+            "MEAS_2": "daily_rainfall",
+            "MEAS_3": "total_rainfall",
         },
         "MicroClimateTable": {
-            "MEAS_1": "microclimate_temperature_c",
-            "MEAS_2": "microclimate_relative_humidity_pct",
-            "MEAS_3": "microclimate_dew_point_c",
-            "MEAS_4": "microclimate_absolute_humidity_g_m3",
-            "MEAS_5": "microclimate_upper_leaf_wetness_pct",
-            "MEAS_6": "microclimate_lower_leaf_wetness_pct",
+            "MEAS_1": "microclimate_temperature",
+            "MEAS_2": "microclimate_relative_humidity",
+            "MEAS_3": "microclimate_dew_point",
+            "MEAS_4": "microclimate_absolute_humidity",
+            "MEAS_5": "microclimate_upper_leaf_wetness",
+            "MEAS_6": "microclimate_lower_leaf_wetness",
         },
     }
 
@@ -148,7 +148,39 @@ class C2aiTableCreator:
                 AND table_name = :table_name
             );
         """
-        query = f"CREATE TABLE IF NOT EXISTS \"{self.newTableName}\" (date_time TIMESTAMPTZ PRIMARY KEY, battery_voltage_v NUMERIC(10,3), supply_voltage_v NUMERIC(10,3), wind_speed_ms NUMERIC(10,3), wind_direction_deg NUMERIC(10,3), air_temperature_c NUMERIC(10,3), relative_humidity_pct NUMERIC(10,3), dew_point_c NUMERIC(10,3), solar_radiation_w_m2 NUMERIC(10,3), atmospheric_pressure_hpa NUMERIC(10,3), hourly_evapotranspiration_mm_h NUMERIC(10,3), daily_evapotranspiration_mm_d NUMERIC(10,3), rain_intensity_mm_h NUMERIC(10,3), daily_rainfall_mm NUMERIC(10,3), total_rainfall_mm NUMERIC(10,3), microclimate_temperature_c NUMERIC(10,3), microclimate_relative_humidity_pct NUMERIC(10,3), microclimate_dew_point_c NUMERIC(10,3), microclimate_absolute_humidity_g_m3 NUMERIC(10,3), microclimate_upper_leaf_wetness_pct NUMERIC(10,3), microclimate_lower_leaf_wetness_pct NUMERIC(10,3));"
+        query = f"""
+            CREATE TABLE IF NOT EXISTS "{self.newTableName}" (
+                date_time TIMESTAMPTZ PRIMARY KEY,
+
+                battery_voltage NUMERIC(10,3),
+                supply_voltage NUMERIC(10,3),
+
+                wind_speed NUMERIC(10,3),
+                wind_direction NUMERIC(10,3),
+
+                air_temperature NUMERIC(10,3),
+                relative_humidity NUMERIC(10,3),
+                dew_point NUMERIC(10,3),
+
+                solar_radiation NUMERIC(10,3),
+                atmospheric_pressure NUMERIC(10,3),
+
+                hourly_evapotranspiration NUMERIC(10,3),
+                daily_evapotranspiration NUMERIC(10,3),
+
+                rain_intensity NUMERIC(10,3),
+                daily_rainfall NUMERIC(10,3),
+                total_rainfall NUMERIC(10,3),
+
+                microclimate_temperature NUMERIC(10,3),
+                microclimate_relative_humidity NUMERIC(10,3),
+                microclimate_dew_point NUMERIC(10,3),
+                microclimate_absolute_humidity NUMERIC(10,3),
+                microclimate_upper_leaf_wetness NUMERIC(10,3),
+                microclimate_lower_leaf_wetness NUMERIC(10,3)
+            );
+        """
+        
         with self.engine.connect() as connection:
             alreadyExists = connection.execute(
                 text(already_exists_query),
@@ -158,7 +190,68 @@ class C2aiTableCreator:
                 return True
             connection.execute(text(query))
             connection.commit()
+
+            self.addStationColumnsToTable()
             return False
+    
+    def addStationColumnsToTable(self):
+        query = text("""
+            INSERT INTO "StationColumn"
+            ("station_id","column_name","data_type","unit","param","confidence","source")
+            VALUES
+            -- volt
+            (:station_id,'battery_voltage','NUMERIC(10,3)','V','battery',NULL,'manufacturer_template'),
+            (:station_id,'supply_voltage','NUMERIC(10,3)','V','supply',NULL,'manufacturer_template'),
+
+            -- wind
+            (:station_id,'wind_speed','NUMERIC(10,3)','m/s','wind speed',NULL,'manufacturer_template'),
+            (:station_id,'wind_direction','NUMERIC(10,3)','deg','wind direction',NULL,'manufacturer_template'),
+
+            -- air
+            (:station_id,'air_temperature','NUMERIC(10,3)','°C','temperature',NULL,'manufacturer_template'),
+            (:station_id,'relative_humidity','NUMERIC(10,3)','%','relative humidity',NULL,'manufacturer_template'),
+            (:station_id,'dew_point','NUMERIC(10,3)','°C','dew point',NULL,'manufacturer_template'),
+
+            -- radiation / pressure
+            (:station_id,'solar_radiation','NUMERIC(10,3)','W/m²','solar radiation',NULL,'manufacturer_template'),
+            (:station_id,'atmospheric_pressure','NUMERIC(10,3)','hPa','atmospheric pressure',NULL,'manufacturer_template'),
+
+            -- ET
+            (:station_id,'hourly_evapotranspiration','NUMERIC(10,3)','mm/h','evapotranspiration',NULL,'manufacturer_template'),
+            (:station_id,'daily_evapotranspiration','NUMERIC(10,3)','mm/d','daily evapotranspiration',NULL,'manufacturer_template'),
+
+            -- rain
+            (:station_id,'rain_intensity','NUMERIC(10,3)','mm/h','rain intensity',NULL,'manufacturer_template'),
+            (:station_id,'daily_rainfall','NUMERIC(10,3)','mm','precipitation',NULL,'manufacturer_template'),
+            (:station_id,'total_rainfall','NUMERIC(10,3)','mm','total rainfall',NULL,'manufacturer_template'),
+
+            -- microclimate
+            (:station_id,'microclimate_temperature','NUMERIC(10,3)','°C','microclimate temperature',NULL,'manufacturer_template'),
+            (:station_id,'microclimate_relative_humidity','NUMERIC(10,3)','%','microclimate relative humidity',NULL,'manufacturer_template'),
+            (:station_id,'microclimate_dew_point','NUMERIC(10,3)','°C','microclimate dew point',NULL,'manufacturer_template'),
+            (:station_id,'microclimate_absolute_humidity','NUMERIC(10,3)','g/m³','microclimate absolute humidity',NULL,'manufacturer_template'),
+            (:station_id,'microclimate_upper_leaf_wetness','NUMERIC(10,3)','%','microclimate upper leaf wetness',NULL,'manufacturer_template'),
+            (:station_id,'microclimate_lower_leaf_wetness','NUMERIC(10,3)','%','microclimate lower leaf wetness',NULL,'manufacturer_template')
+                     
+            ON CONFLICT ("station_id","column_name")
+                DO UPDATE SET
+                "data_type" = EXCLUDED."data_type",
+                "unit"      = EXCLUDED."unit",
+                "param"     = EXCLUDED."param",
+                "source"    = EXCLUDED."source",
+                "updated_at"= NOW()
+                WHERE
+                "StationColumn"."data_type" IS DISTINCT FROM EXCLUDED."data_type"
+                OR "StationColumn"."unit"   IS DISTINCT FROM EXCLUDED."unit"
+                OR "StationColumn"."param"  IS DISTINCT FROM EXCLUDED."param"
+                OR "StationColumn"."source" IS DISTINCT FROM EXCLUDED."source";
+        """)
+        with self.engine.begin() as connection:
+            connection.execute(
+                query,
+                {"station_id": self.newTableName}
+            )
+        
     
     def get_highest_starting_timestamp(self):
         """
