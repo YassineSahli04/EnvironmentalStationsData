@@ -301,24 +301,24 @@ class C2aiTableCreator:
         lastTotalRainfallVal = 0.0
         lastDailyRainfallVal = 0.0
         for idx, row in df[colsToChange].iterrows():
-            cellTotalRainFall = float(row["total_rainfall_mm"])
-            cellDailyRainFall = float(row["daily_rainfall_mm"])
-            cellRainIntensity = float(row["rain_intensity_mm_h"])
+            cellTotalRainFall = float(row["total_rainfall"])
+            cellDailyRainFall = float(row["daily_rainfall"])
+            cellRainIntensity = float(row["rain_intensity"])
 
             if cellTotalRainFall != 0:
                 lastTotalRainfallVal = cellTotalRainFall
             else:
-                df.at[idx, "total_rainfall_mm"] = lastTotalRainfallVal
+                df.at[idx, "total_rainfall"] = lastTotalRainfallVal
 
             if cellDailyRainFall > 0:
                 if cellDailyRainFall == lastDailyRainfallVal:  
                     lastDailyRainfallVal = 0.0
-                    df.at[idx, "daily_rainfall_mm"] = 0.0
+                    df.at[idx, "daily_rainfall"] = 0.0
                 elif cellDailyRainFall > lastDailyRainfallVal and cellRainIntensity > 0:
-                    df.at[idx, "daily_rainfall_mm"] = cellDailyRainFall - lastDailyRainfallVal
+                    df.at[idx, "daily_rainfall"] = cellDailyRainFall - lastDailyRainfallVal
                     lastDailyRainfallVal = cellDailyRainFall
                 elif cellDailyRainFall > lastDailyRainfallVal and cellRainIntensity == 0.0:
-                    df.at[idx, "daily_rainfall_mm"] = 0.0
+                    df.at[idx, "daily_rainfall"] = 0.0
                 else:
                     lastDailyRainfallVal = cellDailyRainFall
         return df
