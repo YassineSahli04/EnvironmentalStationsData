@@ -67,15 +67,19 @@ class CfSensorObject:
         self.data = self.getDataValues(data.get('values'), stationData)
 
     @staticmethod
-    def transform_data_to_df_or_csv(dataJsonObject, isColomnHeaderCombined = False) -> pd.DataFrame:
+    def transform_data_to_df_or_csv(dataJsonObject, isColomnHeaderCombined = False, withColsMetadata = False) -> pd.DataFrame | tuple[pd.DataFrame, list[tuple[str, str]]]:
         cols = [('date_time', "")]
         sensorsData = dataJsonObject["data"]
+
         
+        units = []
         for sensorData in sensorsData:
             if sensorData['type'] != 'Sensor':
                 break
             colP1 = sensorData['name']
             cols += [(colP1, v) for v in sensorData['values']]
+            colUnit = (colP1, sensorData['unit'])
+            units.append(colUnit)
 
         columns = pd.MultiIndex.from_tuples(cols, names=["sensor", "metric"])
 
@@ -109,6 +113,8 @@ class CfSensorObject:
                 return f"{sensor} - {metric_str}" if metric_str else str(sensor)
             df.columns = [combine_col(c) for c in df.columns]
         
+        if withColsMetadata:
+            return df, units
         return df 
 
     

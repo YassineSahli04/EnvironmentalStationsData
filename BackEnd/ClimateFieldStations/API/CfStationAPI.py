@@ -77,15 +77,18 @@ class CfStationAPI:
 
         return None
        
-    def get_station_data_df(self, dataGroup :CfStationAPIDataGroup, startDtUTC, endDtUTC):
+    def get_station_data_df(self, dataGroup :CfStationAPIDataGroup, startDtUTC, endDtUTC, withColsMetadata = False):
         startTimestamp = int(startDtUTC.astimezone(timezone.utc).timestamp())
         endTimestamp = int(endDtUTC.astimezone(timezone.utc).timestamp())
             
         st_dataJsonObject = self.get_station_data_in_timestamp_from_api(dataGroup.value, startTimestamp, endTimestamp) # type: ignore
+        print(st_dataJsonObject)
         if (st_dataJsonObject.get("message")): # type: ignore
             raise Exception(f"Error Occured for station [{id}]: "+ st_dataJsonObject.get("message")) # type: ignore
-        st_df = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True)
-
+        if withColsMetadata:
+            st_df, unitsList = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True, withColsMetadata=withColsMetadata)
+            return st_df, unitsList
+        st_df = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True, withColsMetadata=withColsMetadata)
         return st_df
         
 

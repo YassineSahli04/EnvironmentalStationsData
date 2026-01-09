@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 class CfTableCreator:
     station : CfStationAPI
+    unitsList: list[tuple[str, str]]
     def __init__(self,engine : _engine.Engine, stationId :str) -> None:
         self.station = CfStationAPI(stationId)
         self.newTableName = stationId
@@ -46,6 +47,7 @@ class CfTableCreator:
 
         dfDataBatches = []
         start = startQueryTime
+        requestMetadata = True
         while start <= max:
             end = start + timedelta(days=self.station.QUERY_DAYS_LIMIT_HOURLY)
             if (end > max):
@@ -53,7 +55,22 @@ class CfTableCreator:
             if (start == end):
                 break
             try: 
-                df = self.station.get_station_data_df(dataGroup, start, end)
+                if requestMetadata:
+                    df, self.unitsList = self.station.get_station_data_df(
+                        dataGroup,
+                        start,
+                        end,
+                        withColsMetadata=requestMetadata
+                    )
+                else:
+                    df = self.station.get_station_data_df(
+                        dataGroup,
+                        start,
+                        end,
+                        withColsMetadata=requestMetadata
+                    )
+                requestMetadata = False
+
                 if(self.station.Type != 'Aquachek' or self.station.Type != 'Drill and Drop'):
                     df = CfSensorObject.remove_duplicated_columns(df)
                 dfDataBatches.append(df)
@@ -62,6 +79,9 @@ class CfTableCreator:
             start = end 
         if len(dfDataBatches) == 0:
             return None
+        if not self.isStationColumnsDefinedInStationColumnTable():
+            self.addStationColumnInStationColumnTable()
+
         return TransformData.combine_df_batches_with_same_columns(dfDataBatches)
     
     def IsDataTableCreated(self) -> bool:
@@ -81,5 +101,27 @@ class CfTableCreator:
             if alreadyExists:
                 return True
             return False
+        
+    def isStationColumnsDefinedInStationColumnTable(self):
+        if not self.IsDataTableCreated():
+            raise Exception(f"Data Table {self.newTableName} is not created yet.")
+        query = text(f"""
+            SELECT COUNT(*) 
+            FROM "StationColumn"
+            WHERE "station_id" = '{self.newTableName}'
+            """)
+        with self.engine.begin() as connection:
+            res = connection.execute(query).scalar()
+            if res is None:
+                return False
+            return res > 0
+        
+    def addStationColumnInStationColumnTable(self):
+        if self.unitsList is None:
+            raise ValueError(f'No units defined in the Units List for Table {self.newTableName}.')
+        
+        
+        
 
-    
+
+
