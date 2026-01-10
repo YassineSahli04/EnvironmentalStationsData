@@ -1,12 +1,21 @@
+from dataclasses import dataclass
 from enum import Enum
 import pandas as pd
 import re
-from datetime import timezone
+import sys
+
 
 class CfDataType(Enum):
     Sensor=0
     Disease=1
     Calculation=2
+
+@dataclass
+class CfSensorDataInfo:
+    sensor: str
+    unit: str
+    aggregationsType: list[str];
+    dataRange: tuple
 
 class CfSensorObject:
     sensorName: str;
@@ -16,44 +25,65 @@ class CfSensorObject:
     unit: str;
     aggregationsType: list[str];
     data: pd.DataFrame | list;
-    def __init__(self, stationDataJson, sensorId, isDataInDf = True) -> None:
+    def __init__(self, stationDataJson, sensorId, isDataInDf = False) -> None:
         self.isDataInDf = isDataInDf
         self.sensorId = sensorId
+        self.min = None
+        self.max = None
         self.setDataObjectValues(stationDataJson)
 
     def getDataObjFromStationData(self, stationData):
         dataList = stationData.get("data") 
-        for data in dataList: # type: ignore
+        for data in dataList: 
             id = data.get('name_original')
             if self.sensorId == id:
                 return data
         return None
-    
-    def getDataValues(self, sensorFullData, stationData) -> pd.DataFrame | list:
-        if self.aggregationsType is None:
-           raise AttributeError('AggregationType Attribute is not defined.', self.aggregationsType)
-        df = pd.DataFrame()
-        df['Date/Time'] = stationData.get('dates')
-        for aggrType in self.aggregationsType:
-            values = sensorFullData.get(aggrType)
-            if len(values) != len(df["Date/Time"]):
-                raise ValueError(f"Aggregation '{aggrType}' length mismatch with dates.")
-            df[aggrType] = values
-
-        if(self.isDataInDf):
-            return df
         
-        records = []
-        for _, row in df.iterrows():
-            values = {aggr: row[aggr] for aggr in self.aggregationsType}
-            records.append({
-                "time": row["Date/Time"],
-                "values": values
-            })
-
-        return records
-        
-
+    def setSensorValuesRange(self):
+        if len(self.aggregationsType) == 0:
+            raise ValueError('No aggregations available')
+        elif len(self.aggregationsType) == 1:
+            data  = self.data.get(self.aggregationsType[0]) # type: ignore
+            self.min, self.max = self.getMinAndMaxVals(data) # type: ignore
+            return
+        if 'min' in self.aggregationsType:
+            data  = self.data.get('min') # type: ignore
+            self.min, _max = self.getMinAndMaxVals(data) # type: ignore
+        if 'max' in self.aggregationsType:
+           data  = self.data.get('max') # type: ignore
+           _min ,self.max = self.getMinAndMaxVals(data) # type: ignore
+        if self.min is not None and self.max is not None:
+            return
+        if 'avg' in self.aggregationsType:
+            data  = self.data.get('avg') # type: ignore
+            _min, _max = self.getMinAndMaxVals(data) # type: ignore
+            if self.min is None:
+                self.min = _min
+            if self.max is None:
+                self.max = _max
+        else:
+            raise ValueError("The data format is not expected.")  
+            
+    def getMinAndMaxVals(self,valList: list):
+        min = sys.maxsize
+        max = -min
+        for val in valList:
+            if val is None:
+                continue
+            if val < min:
+                min = val
+            if val > max:
+                max = val
+        return min, max
+ 
+    def getSensorDataInfo(self):
+        return CfSensorDataInfo(
+            sensor = self.sensorId,
+            unit= self.unit,
+            aggregationsType=self.aggregationsType,
+            dataRange=(self.min, self.max)
+        )
 
     def setDataObjectValues(self, stationData):
         data = self.getDataObjFromStationData(stationData) 
@@ -64,22 +94,20 @@ class CfSensorObject:
         self.decimals = data.get('decimals')
         self.unit = data.get('unit')
         self.aggregationsType = data.get('aggr') #type: ignore
-        self.data = self.getDataValues(data.get('values'), stationData)
+        self.data = data.get('values')
+        self.setSensorValuesRange()
 
     @staticmethod
-    def transform_data_to_df_or_csv(dataJsonObject, isColomnHeaderCombined = False, withColsMetadata = False) -> pd.DataFrame | tuple[pd.DataFrame, list[tuple[str, str]]]:
+    def transform_data_to_df_or_csv(dataJsonObject, isColomnHeaderCombined = False) -> pd.DataFrame :
         cols = [('date_time', "")]
         sensorsData = dataJsonObject["data"]
 
         
-        units = []
         for sensorData in sensorsData:
             if sensorData['type'] != 'Sensor':
                 break
             colP1 = sensorData['name']
             cols += [(colP1, v) for v in sensorData['values']]
-            colUnit = (colP1, sensorData['unit'])
-            units.append(colUnit)
 
         columns = pd.MultiIndex.from_tuples(cols, names=["sensor", "metric"])
 
@@ -113,8 +141,6 @@ class CfSensorObject:
                 return f"{sensor} - {metric_str}" if metric_str else str(sensor)
             df.columns = [combine_col(c) for c in df.columns]
         
-        if withColsMetadata:
-            return df, units
         return df 
 
     

@@ -1,5 +1,4 @@
 from BackEnd.ClimateFieldStations.API.ApiCalls import ApiCalls 
-import sqlalchemy.engine as _engine
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorObject
 from datetime import timezone, timedelta
 from enum import Enum
@@ -20,6 +19,8 @@ class CfStationAPI:
     ):
         self.Id = stationId
         info = self.get_station_info_from_api()
+        if (info.get("message")): # type: ignore
+            raise Exception(f"Error Occured for station [{id}]: "+ info.get("message")) # type: ignore
         self.Name = info.get("name").get("custom") # type: ignore
         self.Manufacturer = "Pessl" # type: ignore
         self.Longitude = info.get("position").get("geo").get("coordinates")[0] # type: ignore
@@ -77,19 +78,14 @@ class CfStationAPI:
 
         return None
        
-    def get_station_data_df(self, dataGroup :CfStationAPIDataGroup, startDtUTC, endDtUTC, withColsMetadata = False):
+    def get_station_data_df(self, dataGroup :CfStationAPIDataGroup, startDtUTC, endDtUTC):
         startTimestamp = int(startDtUTC.astimezone(timezone.utc).timestamp())
         endTimestamp = int(endDtUTC.astimezone(timezone.utc).timestamp())
             
         st_dataJsonObject = self.get_station_data_in_timestamp_from_api(dataGroup.value, startTimestamp, endTimestamp) # type: ignore
-        print(st_dataJsonObject)
         if (st_dataJsonObject.get("message")): # type: ignore
             raise Exception(f"Error Occured for station [{id}]: "+ st_dataJsonObject.get("message")) # type: ignore
-        if withColsMetadata:
-            st_df, unitsList = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True, withColsMetadata=withColsMetadata)
-            return st_df, unitsList
-        st_df = CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True, withColsMetadata=withColsMetadata)
-        return st_df
+        return CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True)
         
 
 
