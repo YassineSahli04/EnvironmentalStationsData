@@ -23,7 +23,14 @@ function App() {
     navigate(`/station/${stationId}`);
   };
 
-  const handleLocationSelected = (center: [number, number], radiusKm: number) => {
+  const handleLocationSelected = (
+    center: [number, number] | undefined,
+    radiusKm: number | undefined
+  ) => {
+    if (!center || !radiusKm) {
+      setLocationFocus(null);
+      return;
+    }
     setLocationFocus({ center, radiusKm });
   };
 

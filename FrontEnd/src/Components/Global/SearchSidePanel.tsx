@@ -3,14 +3,16 @@ import { Autocomplete, Box, Button, Divider, TextField, Typography, Slider } fro
 import { useAllStations } from "../../Api/Api.ts";
 import type { StationObj } from "../../Api/Objects/StationObj.ts";
 
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
 type SearchSidePanelProps = {
   colors: any;
   onViewData: (stationId: string) => void;
-  onLocationSelected?: (center: [number, number], radiusKm: number) => void;
+  onLocationSelected?: (center: [number, number] | undefined, radiusKm: number | undefined) => void;
 };
 
 type Option = { label: string; id: string };
-type GeoOption = { label: string; center: [number, number] }; // [lng, lat]
+type GeoOption = { label: string; center: [number, number] };
 
 const DEFAULT_RADIUS_KM = 7;
 
@@ -46,9 +48,6 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
 
   const [radiusKm, setRadiusKm] = useState<number>(DEFAULT_RADIUS_KM);
 
-  const MAPBOX_TOKEN =
-    "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWkwZHhlamMwaWgxMmxweWloOWJ3YmdtIn0.dJtTsXAcQy2eErlpsMoUWA";
-
   const [locationInput, setLocationInput] = useState<string>("");
   const [locationOptions, setLocationOptions] = useState<GeoOption[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<GeoOption | null>(null);
@@ -56,7 +55,6 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
 
   async function geocode(q: string): Promise<GeoOption[]> {
     if (!q.trim()) return [];
-    if (!MAPBOX_TOKEN) return [];
 
     const url =
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json` +
@@ -86,11 +84,6 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
       return;
     }
 
-    if (!MAPBOX_TOKEN) {
-      setLocationError("Missing Mapbox token (VITE_MAPBOX_TOKEN).");
-      return;
-    }
-
     try {
       const results = await geocode(q);
       if (results.length === 0) {
@@ -113,10 +106,6 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
   // Debounced geocoding suggestions
   useEffect(() => {
     const t = setTimeout(async () => {
-      if (!MAPBOX_TOKEN) {
-        setLocationOptions([]);
-        return;
-      }
       const opts = await geocode(locationInput);
       setLocationOptions(opts);
     }, 250);
@@ -125,7 +114,10 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
   }, [locationInput]);
 
   useEffect(() => {
-    if (!selectedLocation) return;
+    if (!selectedLocation) {
+      onLocationSelected?.(undefined, undefined);
+      return;
+    }
     onLocationSelected?.(selectedLocation.center, radiusKm);
   }, [selectedLocation, radiusKm, onLocationSelected]);
 

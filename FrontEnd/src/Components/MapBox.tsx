@@ -22,7 +22,7 @@ type MapBoxProps = {
   isSideBarCollapsed: boolean;
   locationFocus: LocationFocus | null;
 };
-type LocationFocus = { center: [number, number]; radiusKm: number };
+type LocationFocus = { center: [number, number] | undefined; radiusKm: number | undefined };
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -40,12 +40,14 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
   const prevParamRef = useRef<WeatherParam | undefined>(undefined);
   const prevDateRef = useRef<Date | undefined>(undefined);
   const paramDataRef = useRef<Record<string, SensorDataRow[]>>({});
+  const prevLocationCenterRef = useRef<[number, number] | null>(null);
 
   const LOCATION_SOURCE_ID = "location-focus-source";
   const LOCATION_FILL_LAYER_ID = "location-focus-fill";
   const LOCATION_LINE_LAYER_ID = "location-focus-line";
 
-  function makeCircleGeoJSON(center: [number, number], radiusKm: number) {
+  function makeCircleGeoJSON(center: [number, number] | undefined, radiusKm: number | undefined) {
+    if (!center || !radiusKm) return null;
     // returns a Polygon feature
     return turf.circle(center, radiusKm, { steps: 64, units: "kilometers" });
   }
@@ -59,6 +61,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
       if (map.getLayer(LOCATION_FILL_LAYER_ID)) map.removeLayer(LOCATION_FILL_LAYER_ID);
       if (map.getLayer(LOCATION_LINE_LAYER_ID)) map.removeLayer(LOCATION_LINE_LAYER_ID);
       if (map.getSource(LOCATION_SOURCE_ID)) map.removeSource(LOCATION_SOURCE_ID);
+      prevLocationCenterRef.current = null;
       return;
     }
 
@@ -113,19 +116,34 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
       );
     }
 
-    // Zoom to circle bounds
-    const bbox = turf.bbox(circleFeature);
-    map.fitBounds(
-      [
-        [bbox[0], bbox[1]],
-        [bbox[2], bbox[3]],
-      ],
-      {
-        padding: { top: 40, bottom: 40, left: 40, right: 300 },
-        duration: 800,
+    // Only fly to location if CENTER changed (not just radius)
+    if (center && radiusKm) {
+      const centerChanged =
+        !prevLocationCenterRef.current ||
+        prevLocationCenterRef.current[0] !== center[0] ||
+        prevLocationCenterRef.current[1] !== center[1];
+
+      if (centerChanged) {
+        const bbox = turf.bbox(circleFeature);
+        const centerLng = (bbox[0] + bbox[2]) / 2;
+        const centerLat = (bbox[1] + bbox[3]) / 2;
+
+        const zoom = Math.max(8, Math.min(13, 14 - Math.log2(radiusKm)));
+
+        map.flyTo({
+          center: [centerLng, centerLat],
+          zoom: zoom,
+          essential: true,
+          easing: (t) => 1 - Math.pow(1 - t, 2),
+          maxZoom: 11,
+          padding: { top: 80, bottom: 80, left: 300, right: 350 },
+        });
+
+        prevLocationCenterRef.current = center;
       }
-    );
+    }
   }, [locationFocus, isMapLoaded]);
+
   useEffect(() => {
     upsertLocationCircle();
   }, [upsertLocationCircle]);

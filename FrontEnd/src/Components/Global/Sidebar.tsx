@@ -57,7 +57,7 @@ type SidebarProps = {
   isCollapsed: boolean;
   setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   onStationViewData: (stationId: string) => void;
-  onLocationSelected: (center: [number, number], radiusKm: number) => void;
+  onLocationSelected: (center: [number, number] | undefined, radiusKm: number | undefined) => void;
 };
 
 const Sidebar: React.FC<SidebarProps> = ({
