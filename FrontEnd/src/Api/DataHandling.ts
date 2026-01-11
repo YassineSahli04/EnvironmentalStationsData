@@ -1,7 +1,7 @@
-import { getStations, getStationSensorData } from "./Api";
+import { getStations, getStationSensorsData } from "./Api";
 import { WeatherParam } from "./Api.ts";
 import { queryClient } from "./AppQueryClient.ts";
-import type { CfSensorDataRow } from "./Objects/StationObj";
+import type { SensorDataRow } from "./Objects/StationObj";
 
 export async function getMapDataForParam(param: WeatherParam, date: Date) {
   const startOfDay = new Date(
@@ -18,11 +18,11 @@ export async function getMapDataForParam(param: WeatherParam, date: Date) {
   });
 
   const pairs = await getDataInBatches(stations, 8, async (st) => {
-    const sensor = await getStationSensorData(st.Id, [param], "day", startOfDay, endOfDay);
+    const sensor = await getStationSensorsData(st.Id, [param], "day", startOfDay, endOfDay);
     return sensor ? ([st.Id, sensor.data] as const) : null;
   });
 
-  const sensorsData: Record<string, CfSensorDataRow[]> = {};
+  const sensorsData: Record<string, SensorDataRow[]> = {};
   for (const p of pairs) {
     if (!p) continue;
     const [stationId, data] = p;

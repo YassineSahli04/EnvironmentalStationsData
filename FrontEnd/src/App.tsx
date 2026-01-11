@@ -50,7 +50,10 @@ function App() {
                     <MapBox isSideBarCollapsed={isSideBarCollapsed} locationFocus={locationFocus} />
                   }
                 />
-                <Route path="/station/:stationId" element={<StationDataPage />} />
+                <Route
+                  path="/station/:stationId"
+                  element={<StationDataPage isSideBarCollapsed={isSideBarCollapsed} />}
+                />
               </Routes>
             </main>
           </div>

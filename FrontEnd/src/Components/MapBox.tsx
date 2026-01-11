@@ -10,7 +10,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../Api/Api";
 import { WeatherParam } from "../Api/Api";
 import { getMapDataForParam } from "../Api/DataHandling";
-import type { CfSensorDataRow } from "../Api/Objects/StationObj";
+import type { SensorDataRow } from "../Api/Objects/StationObj";
 import { OverlayLoader } from "./Global/OverlayLoader";
 import MapParamPanel from "./MapParamPanel";
 import "./SCSS/MapBox.scss";
@@ -23,6 +23,8 @@ type MapBoxProps = {
   locationFocus: LocationFocus | null;
 };
 type LocationFocus = { center: [number, number]; radiusKm: number };
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProps) {
   const [loading, setLoading] = useState(false);
@@ -37,7 +39,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
   const [selectedParam, setSelectedParam] = useState<WeatherParam | undefined>();
   const prevParamRef = useRef<WeatherParam | undefined>(undefined);
   const prevDateRef = useRef<Date | undefined>(undefined);
-  const paramDataRef = useRef<Record<string, CfSensorDataRow[]>>({});
+  const paramDataRef = useRef<Record<string, SensorDataRow[]>>({});
 
   const LOCATION_SOURCE_ID = "location-focus-source";
   const LOCATION_FILL_LAYER_ID = "location-focus-fill";
@@ -327,8 +329,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
     enabled: true,
   });
   useEffect(() => {
-    mapboxgl.accessToken =
-      "pk.eyJ1IjoieWFzc2luZS1zYWhsaSIsImEiOiJjbWkwZHhlamMwaWgxMmxweWloOWJ3YmdtIn0.dJtTsXAcQy2eErlpsMoUWA";
+    mapboxgl.accessToken = MAPBOX_TOKEN;
 
     if (!mapContainerRef.current) return;
 
