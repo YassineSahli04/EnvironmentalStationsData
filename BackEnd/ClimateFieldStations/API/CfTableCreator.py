@@ -5,7 +5,7 @@ from BackEnd.Utils.TransformData import TransformData
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorDataInfo, CfSensorObject, CfDataType
 from datetime import datetime, timedelta, timezone
 import pandas as pd
-from BackEnd.ClimateFieldStations.SemanticSearch.ColumnSemanticSearch import ColumnSemanticSearch
+# from BackEnd.ClimateFieldStations.SemanticSearch.ColumnSemanticSearch import ColumnSemanticSearch
 from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
 
 class CfTableCreator:

@@ -4,22 +4,21 @@ from sqlalchemy import text
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from BackEnd.PostgreSQL.StationDbObject import StationDbObject
-from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
 from enum import Enum
 import sqlalchemy.engine as _engine
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 class WeatherParamAggregation(Enum):
-    Temperature= ["avg","min","max"]
-    Precipitation= ["sum"]
-    Relative_Humidity= ["avg","min","max"]
-    Solar_Radiation= ["sum"]
-    Wind_Speed= ["avg","min","max"]
+    temperature= ["avg","min","max"]
+    precipitation= ["sum"]
+    relative_humidity= ["avg","min","max"]
+    solar_radiation= ["sum"]
+    wind_speed= ["avg","min","max"]
 
     @staticmethod
     def weatherParamToEnumKey(weatherParam):
-        return weatherParam.strip().replace(" ", "_")
+        return weatherParam.strip().replace(" ", "_").lower()
 
 
 
@@ -27,7 +26,7 @@ class WeatherParamAggregation(Enum):
 class SensorSerializable:
     stationId: str
     sensor: str
-    # unit: str    The UNITs are not got yet from the api, This will be added later
+    unit: str
     aggregationsType: list
     data: pd.DataFrame | list
 
@@ -37,11 +36,12 @@ class SensorDbObject:
     station: StationDbObject;
     sensor: str;
     aggr: list;
+    unit: str;
     columnNames: dict
     def __init__(self, station: StationDbObject, sensor :str, isDataInDf = True) -> None:
         self.engine = station.engine
         self.isDataInDf = isDataInDf
-        self.sensor = sensor
+        self.sensor = sensor.lower()
         self.station = station
         self.setAggr()
         self.setColumns()
@@ -58,11 +58,13 @@ class SensorDbObject:
         if self.aggr is None:
             raise ValueError(f"Aggregation is not set.")
         self.columnNames = {}
+        col, self.unit = self.getColumnMetadata()
         for elem in self.aggr:
-            converter = StationColumnConverter(self.engine, self.station.Id,self.station.Manufacturer, self.station.Type, self.sensor, elem)
-            col = converter.getActualSensorColumn()
-            if col is not None:
-                self.columnNames[elem] = col
+            if self.station.Manufacturer == "Pessl":
+                specificCol = f'{col} - {elem}'
+                self.columnNames[elem] = specificCol
+                continue
+            self.columnNames[elem] = col
 
 
     def getSensorAllDataColumns(self, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
@@ -162,5 +164,19 @@ class SensorDbObject:
             stationId = self.station.Id,
             sensor = self.sensor,
             aggregationsType = self.aggr,
+            unit=self.unit,
             data= data
         )
+    
+    def getColumnMetadata(self):
+        query = text(f"""
+            SELECT "column_name", "unit"
+            FROM "StationColumn"
+            WHERE "station_id" = '{self.station.Id}'
+            AND "param" = '{self.sensor}'
+        """)
+        print(query.text)
+        with self.engine.begin() as conn:
+            res = conn.execute(query).fetchone()
+        print(res)
+        return res[0], res[1] # type: ignore
