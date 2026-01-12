@@ -22,10 +22,11 @@ class StationColumnConverter:
         self.stType = stType
         self.searchedTableColumn = sensor
         self.aggr = aggr
-        self.setStationTableAvailableColumns()
+        self.tableColumns = StationColumnConverter.getStationTableAvailableColumns(engine, self.stId)
         
 
-    def setStationTableAvailableColumns(self):
+    @staticmethod
+    def getStationTableAvailableColumns(engine: _engine.Engine, stId: str):
         query = text("""
             SELECT column_name
             FROM information_schema.columns
@@ -33,9 +34,9 @@ class StationColumnConverter:
             AND table_name = :tableName
             ORDER BY ordinal_position;
         """)
-        with self.engine.connect() as connection:
-            results = connection.execute(query, {"tableName": self.stId})
-        self.tableColumns = [res[0] for res in results]
+        with engine.connect() as connection:
+            results = connection.execute(query, {"tableName": stId})
+        return [res[0] for res in results]
 
     def getActualSensorColumn(self):
         column = None

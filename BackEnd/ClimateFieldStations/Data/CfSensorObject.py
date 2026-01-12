@@ -77,7 +77,7 @@ class CfSensorObject:
                 max = val
         return min, max
  
-    def getSensorDataInfo(self):
+    def getSensorDataInfo(self) -> CfSensorDataInfo:
         return CfSensorDataInfo(
             sensor = self.sensorId,
             unit= self.unit,

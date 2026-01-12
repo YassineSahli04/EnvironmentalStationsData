@@ -59,15 +59,12 @@ class PostgreSQL:
         for station in stations:
             match station.Manufacturer:
                 case "DeltaOHM":
-                    continue
                     if station.DataSourceId is None:
                         raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
                     table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
                     alreadyExists = table_creator.create_postgre_table()
                     
                 case "Pessl":
-                    if station.Id != "032144A0":
-                        continue
                     table_creator = CfTableCreator(self.engine, station.Id)
                     alreadyExists = table_creator.IsDataTableCreated()
 
@@ -141,7 +138,6 @@ class PostgreSQL:
         with self.engine.begin() as connection:
             connection.execute(query)
         
-
     def get_stations_Geojson_object(self, typeFilter = None):
         stations = self.get_all_station_objects(typeFilter)
 

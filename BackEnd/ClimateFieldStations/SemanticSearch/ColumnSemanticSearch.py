@@ -1,12 +1,12 @@
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from BackEnd.ClimateFieldStations.SemanticSearch.ColumnSemanticSearch import CANONICAL, CANONICAL_META
+from BackEnd.ClimateFieldStations.SemanticSearch.TransformerData import CANONICAL, CANONICAL_META
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorDataInfo
 
 class ColumnSemanticSearch:
     def __init__(self) -> None:
         self.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-        self.label_texts, self.label_to_param = build_label_index_with_meta(CANONICAL, CANONICAL_META) # type: ignore
+        self.label_texts, self.label_to_param = self.build_label_index_with_meta(CANONICAL, CANONICAL_META) # type: ignore
         self.label_emb = np.array(self.model.encode(self.label_texts, normalize_embeddings=True))
 
     def normalize_token(self, s: str) -> str:
