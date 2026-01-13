@@ -47,6 +47,10 @@ class CfTableCreator:
         max = datetime.strptime(max_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.station.DataTimeZone)
 
         if startQueryTime >= max:
+            if not self.isStationColumnsDefinedInStationColumnTable():
+                cols = StationColumnConverter.getStationTableAvailableColumns(self.engine, self.station.Id)
+                cols.remove('date_time')
+                self.addStationColumnInStationColumnTable(cols)
             return None
 
         dfDataBatches = []
@@ -79,7 +83,7 @@ class CfTableCreator:
             self.addStationColumnInStationColumnTable(cols)
         elif not self.isStationColumnsDefinedInStationColumnTable():
             cols = StationColumnConverter.getStationTableAvailableColumns(self.engine, self.station.Id)
-            cols = self.getSpecificCols(cols)
+            cols.remove('date_time')
             self.addStationColumnInStationColumnTable(cols)
 
         return finalDf
@@ -104,10 +108,10 @@ class CfTableCreator:
         
     def getDfSpecificCols(self, df: pd.DataFrame):
         return [
-            c for c in df.columns.str.split(" - ").str[0]
+            c for c in df.columns
             if c != "date_time"
         ]
-    
+
     def getSpecificCols(self, columns: list[str]) -> set[str]:
         return {
             c.split(" - ")[0]
@@ -128,9 +132,9 @@ class CfTableCreator:
             if res is None:
                 return False
             return res > 0
-        
-        
+            
     def getColDataStats(self, allCols) -> dict[str, CfSensorDataInfo]:
+        allSpecificCols = self.getSpecificCols(allCols)
         minMaxTimeStamps = self.station.get_station_min_max_timestamps_from_api()
         max_str = minMaxTimeStamps["max_date"]  # type: ignore
       
@@ -160,7 +164,7 @@ class CfTableCreator:
                 continue
             
             dataSections = st_dataJsonObject.get('data') # type: ignore
-            sensorIds = [section.get("name_original") for section in dataSections if section.get("name_original") is not None]
+            sensorIds = [section.get("name") for section in dataSections if section.get("name") is not None]
 
             for id in sensorIds:
                 if id in colsData:
@@ -170,13 +174,10 @@ class CfTableCreator:
                     continue
                 colsData[id] = sensorObj.getSensorDataInfo()
 
-            if set(colsData.keys()) == set(allCols):
+            if set(colsData.keys()) == set(allSpecificCols):
                 break
             start += timedelta(days=1)
         return colsData
-
-
-    
     
     def addStationColumnInStationColumnTable(self, cols):
         if self.station.Type not in ('Aquachek', 'Drill and Drop'):
@@ -185,68 +186,68 @@ class CfTableCreator:
             colsData = self.getColDataStats(cols)
             query = text("""
                 INSERT INTO "StationColumn"
-                ("station_id","column_name","data_type","unit","param","confidence","source")
+                ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
                 VALUES
-                (:station_id,:column_name,'NUMERIC(10,3)',:unit,:param,:score,'inferred')
-         
+                (:station_id, :column_name, 'NUMERIC(10,3)', :unit, :aggregation, :param, :score, 'inferred')
+
                 ON CONFLICT ("station_id","column_name")
-                    DO UPDATE SET
-                    "data_type" = EXCLUDED."data_type",
-                    "unit"      = EXCLUDED."unit",
-                    "param"     = EXCLUDED."param",
-                    "source"    = EXCLUDED."source",
-                    "updated_at"= NOW()
-                    WHERE
-                    "StationColumn"."data_type" IS DISTINCT FROM EXCLUDED."data_type"
-                    OR "StationColumn"."unit"   IS DISTINCT FROM EXCLUDED."unit"
-                    OR "StationColumn"."param"  IS DISTINCT FROM EXCLUDED."param"
-                    OR "StationColumn"."source" IS DISTINCT FROM EXCLUDED."source";
+                DO UPDATE SET
+                    "data_type"    = EXCLUDED."data_type",
+                    "unit"         = EXCLUDED."unit",
+                    "aggregation"  = EXCLUDED."aggregation",
+                    "param"        = EXCLUDED."param",
+                    "confidence"   = EXCLUDED."confidence",
+                    "source"       = EXCLUDED."source",
+                    "updated_at"   = NOW()
+                WHERE
+                    "StationColumn"."data_type"   IS DISTINCT FROM EXCLUDED."data_type"
+                    OR "StationColumn"."unit"     IS DISTINCT FROM EXCLUDED."unit"
+                    OR "StationColumn"."aggregation" IS DISTINCT FROM EXCLUDED."aggregation"
+                    OR "StationColumn"."param"    IS DISTINCT FROM EXCLUDED."param"
+                    OR "StationColumn"."confidence" IS DISTINCT FROM EXCLUDED."confidence"
+                    OR "StationColumn"."source"   IS DISTINCT FROM EXCLUDED."source";
             """)
             with self.engine.begin() as connection:
-                for id in colsData:
-                    sensorData = colsData[id]
+                for col in cols:
+                    specificCol = col.split(" - ")[0]
+                    agg = col.split(" - ")[1]
+                    if self.station.Id == '032144A0':
+                        print(colsData)
+                    sensorData = colsData[specificCol]
                     param, score = semanticSearch.getPredictedParam(sensorData)
                     connection.execute(
                         query,
-                        {"station_id": self.newTableName, "column_name":id, "unit": sensorData.unit, "param":param, "score":score}
+                        {"station_id": self.newTableName, "column_name":col, "unit": sensorData.unit, "aggregation": [agg], "param":param, "score":score}
                     )
         else:
             colsData = self.getColDataStats(cols)
             query = text("""
                 INSERT INTO "StationColumn"
-                ("station_id","column_name","data_type","unit","param","confidence","source")
+                ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
                 VALUES
-                (:station_id,:column_name,'NUMERIC(10,3)',:unit,:param,NULL,'manufacturer_template')
+                (:station_id,:column_name,'NUMERIC(10,3)',:unit, :aggregation,:param,NULL,'manufacturer_template')
          
                 ON CONFLICT ("station_id","column_name")
-                    DO UPDATE SET
-                    "data_type" = EXCLUDED."data_type",
-                    "unit"      = EXCLUDED."unit",
-                    "param"     = EXCLUDED."param",
-                    "source"    = EXCLUDED."source",
-                    "updated_at"= NOW()
-                    WHERE
-                    "StationColumn"."data_type" IS DISTINCT FROM EXCLUDED."data_type"
-                    OR "StationColumn"."unit"   IS DISTINCT FROM EXCLUDED."unit"
-                    OR "StationColumn"."param"  IS DISTINCT FROM EXCLUDED."param"
-                    OR "StationColumn"."source" IS DISTINCT FROM EXCLUDED."source";
+                DO UPDATE SET
+                    "data_type"    = EXCLUDED."data_type",
+                    "unit"         = EXCLUDED."unit",
+                    "aggregation"  = EXCLUDED."aggregation",
+                    "param"        = EXCLUDED."param",
+                    "confidence"   = EXCLUDED."confidence",
+                    "source"       = EXCLUDED."source",
+                    "updated_at"   = NOW()
+                WHERE
+                    "StationColumn"."data_type"   IS DISTINCT FROM EXCLUDED."data_type"
+                    OR "StationColumn"."unit"     IS DISTINCT FROM EXCLUDED."unit"
+                    OR "StationColumn"."aggregation" IS DISTINCT FROM EXCLUDED."aggregation"
+                    OR "StationColumn"."param"    IS DISTINCT FROM EXCLUDED."param"
+                    OR "StationColumn"."confidence" IS DISTINCT FROM EXCLUDED."confidence"
+                    OR "StationColumn"."source"   IS DISTINCT FROM EXCLUDED."source";
             """)
             with self.engine.begin() as connection:
                 for id in colsData:
                     sensorData = colsData[id]
                     connection.execute(
                         query,
-                        {"station_id": self.newTableName, "column_name":id, "unit": sensorData.unit, "param":id}
+                        {"station_id": self.newTableName, "column_name":id, "unit": sensorData.unit, "aggregation": sensorData.aggregationsType, "param":id}
                     )
-
-
-
-
-
-        
-        
-        
-        
-
-
-
