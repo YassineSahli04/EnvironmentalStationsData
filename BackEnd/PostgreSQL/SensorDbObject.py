@@ -9,7 +9,6 @@ from enum import Enum
 import sqlalchemy.engine as _engine
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import  logging
 
 class WeatherParamAggregation(Enum):
     Temperature= ["avg","min","max"]

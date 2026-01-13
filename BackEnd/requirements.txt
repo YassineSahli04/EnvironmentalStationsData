@@ -7,3 +7,6 @@ requests
 pycryptodome
 sqlalchemy
 psycopg2-binary
+
+torch --index-url https://download.pytorch.org/whl/cpu
+sentence-transformers

@@ -3,11 +3,12 @@ import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import SatelliteAltIcon from "@mui/icons-material/SatelliteAlt";
 import { Box, IconButton } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import * as turf from "@turf/turf";
 import mapboxgl from "mapbox-gl";
 import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { getStationsGeojson } from "../Api/Api";
-import { WeatherParam } from "../Api/Api.ts";
+import { WeatherParam } from "../Api/Api";
 import { getMapDataForParam } from "../Api/DataHandling";
 import type { SensorDataRow } from "../Api/Objects/StationObj";
 import { OverlayLoader } from "./Global/OverlayLoader";
@@ -19,11 +20,13 @@ const STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
 
 type MapBoxProps = {
   isSideBarCollapsed: boolean;
+  locationFocus: LocationFocus | null;
 };
+type LocationFocus = { center: [number, number] | undefined; radiusKm: number | undefined };
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
+export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProps) {
   const [loading, setLoading] = useState(false);
 
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -37,6 +40,113 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
   const prevParamRef = useRef<WeatherParam | undefined>(undefined);
   const prevDateRef = useRef<Date | undefined>(undefined);
   const paramDataRef = useRef<Record<string, SensorDataRow[]>>({});
+  const prevLocationCenterRef = useRef<[number, number] | null>(null);
+
+  const LOCATION_SOURCE_ID = "location-focus-source";
+  const LOCATION_FILL_LAYER_ID = "location-focus-fill";
+  const LOCATION_LINE_LAYER_ID = "location-focus-line";
+
+  function makeCircleGeoJSON(center: [number, number] | undefined, radiusKm: number | undefined) {
+    if (!center || !radiusKm) return null;
+    // returns a Polygon feature
+    return turf.circle(center, radiusKm, { steps: 64, units: "kilometers" });
+  }
+  const upsertLocationCircle = useCallback(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+
+    const map = mapRef.current;
+
+    // If no focus -> remove circle if it exists
+    if (!locationFocus) {
+      if (map.getLayer(LOCATION_FILL_LAYER_ID)) map.removeLayer(LOCATION_FILL_LAYER_ID);
+      if (map.getLayer(LOCATION_LINE_LAYER_ID)) map.removeLayer(LOCATION_LINE_LAYER_ID);
+      if (map.getSource(LOCATION_SOURCE_ID)) map.removeSource(LOCATION_SOURCE_ID);
+      prevLocationCenterRef.current = null;
+      return;
+    }
+
+    const { center, radiusKm } = locationFocus;
+
+    const circleFeature = makeCircleGeoJSON(center, radiusKm);
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [circleFeature as any],
+    };
+
+    // Source
+    const existing = map.getSource(LOCATION_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
+    if (!existing) {
+      map.addSource(LOCATION_SOURCE_ID, {
+        type: "geojson",
+        data: fc as any,
+      });
+    } else {
+      existing.setData(fc as any);
+    }
+
+    // Fill layer (below stations so stations stay visible)
+    if (!map.getLayer(LOCATION_FILL_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: LOCATION_FILL_LAYER_ID,
+          type: "fill",
+          source: LOCATION_SOURCE_ID,
+          paint: {
+            "fill-color": "#3b82f6",
+            "fill-opacity": 0.15,
+          },
+        },
+        "unclustered-point"
+      );
+    }
+
+    // Outline layer
+    if (!map.getLayer(LOCATION_LINE_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: LOCATION_LINE_LAYER_ID,
+          type: "line",
+          source: LOCATION_SOURCE_ID,
+          paint: {
+            "line-color": "#3b82f6",
+            "line-width": 2,
+          },
+        },
+        "unclustered-point"
+      );
+    }
+
+    // Only fly to location if CENTER changed (not just radius)
+    if (center && radiusKm) {
+      const centerChanged =
+        !prevLocationCenterRef.current ||
+        prevLocationCenterRef.current[0] !== center[0] ||
+        prevLocationCenterRef.current[1] !== center[1];
+
+      if (centerChanged) {
+        const bbox = turf.bbox(circleFeature);
+        const centerLng = (bbox[0] + bbox[2]) / 2;
+        const centerLat = (bbox[1] + bbox[3]) / 2;
+
+        const zoom = Math.max(8, Math.min(13, 14 - Math.log2(radiusKm)));
+
+        map.flyTo({
+          center: [centerLng, centerLat],
+          zoom: zoom,
+          essential: true,
+          easing: (t) => 1 - Math.pow(1 - t, 2),
+          maxZoom: 11,
+          padding: { top: 80, bottom: 80, left: 300, right: 350 },
+        });
+
+        prevLocationCenterRef.current = center;
+      }
+    }
+  }, [locationFocus, isMapLoaded]);
+
+  useEffect(() => {
+    upsertLocationCircle();
+  }, [upsertLocationCircle]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -227,7 +337,6 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
       });
     });
   }, []);
-
   const {
     data: geojson,
     isLoading,
@@ -237,7 +346,6 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     queryFn: () => getStationsGeojson(),
     enabled: true,
   });
-
   useEffect(() => {
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -467,10 +575,18 @@ export default function MapBox({ isSideBarCollapsed }: MapBoxProps) {
     mapRef.current.once("style.load", () => {
       addStationLayers();
       applyParamMode();
+      upsertLocationCircle();
     });
 
     mapRef.current.setStyle(mapStyle);
-  }, [mapStyle, isMapLoaded, addStationLayers, addInteractions, applyParamMode]);
+  }, [
+    mapStyle,
+    isMapLoaded,
+    addStationLayers,
+    addInteractions,
+    applyParamMode,
+    upsertLocationCircle,
+  ]);
 
   useEffect(() => {
     applyParamMode();

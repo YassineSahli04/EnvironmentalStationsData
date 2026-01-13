@@ -10,13 +10,28 @@ import MapBox from "./Components/MapBox";
 import StationOverviewPage from "./Pages/StationOverviewPage";
 import { ColorModeContext, useMode } from "./theme";
 
+type LocationFocus = { center: [number, number]; radiusKm: number };
+
 function App() {
   const [theme, colorMode] = useMode();
   const [isSideBarCollapsed, setIsSideBarCollapsed] = useState(false);
 
+  const [locationFocus, setLocationFocus] = useState<LocationFocus | null>(null);
+
   const navigate = useNavigate();
   const onStationViewData = (stationId: string) => {
     navigate(`/station/${stationId}`);
+  };
+
+  const handleLocationSelected = (
+    center: [number, number] | undefined,
+    radiusKm: number | undefined
+  ) => {
+    if (!center || !radiusKm) {
+      setLocationFocus(null);
+      return;
+    }
+    setLocationFocus({ center, radiusKm });
   };
 
   return (
@@ -30,12 +45,18 @@ function App() {
               isCollapsed={isSideBarCollapsed}
               setIsCollapsed={setIsSideBarCollapsed}
               onStationViewData={onStationViewData}
+              onLocationSelected={handleLocationSelected}
             />
 
             <main className="content">
               <PrefetchData />
               <Routes>
-                <Route path="/" element={<MapBox isSideBarCollapsed={isSideBarCollapsed} />} />
+                <Route
+                  path="/"
+                  element={
+                    <MapBox isSideBarCollapsed={isSideBarCollapsed} locationFocus={locationFocus} />
+                  }
+                />
                 <Route
                   path="/station/:stationId"
                   element={<StationOverviewPage isSideBarCollapsed={isSideBarCollapsed} />}

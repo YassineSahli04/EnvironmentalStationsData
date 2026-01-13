@@ -61,7 +61,7 @@ class TransformData:
     
 
     @staticmethod
-    def combine_df_batches_with_same_columns(dfs, time_col="date_time"):
+    def combine_df_batches_with_same_columns(dfs, time_col="date_time") -> pd.DataFrame:
         if not dfs:
             raise ValueError("dfs list is empty")
         
