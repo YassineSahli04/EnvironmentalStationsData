@@ -3,11 +3,11 @@ import sqlalchemy.engine as _engine
 from enum import Enum
 
 class WeatherParamDeltaohmColumns(Enum):
-    Temperature= "air_temperature_c"
-    Precipitation= "daily_rainfall_mm"
-    Relative_Humidity = "relative_humidity_pct"
-    Solar_Radiation = "solar_radiation_w_m2"
-    Wind_Speed = "wind_speed_ms"
+    Temperature= "air_temperature"
+    Precipitation= "daily_rainfall"
+    Relative_Humidity = "relative_humidity"
+    Solar_Radiation = "solar_radiation"
+    Wind_Speed = "wind_speed"
 
     @staticmethod
     def weatherParamToEnumKey(weatherParam):

@@ -35,7 +35,7 @@ class CfSensorObject:
     def getDataObjFromStationData(self, stationData):
         dataList = stationData.get("data") 
         for data in dataList: 
-            id = data.get('name_original')
+            id = data.get('name')
             if self.sensorId == id:
                 return data
         return None
@@ -91,10 +91,13 @@ class CfSensorObject:
             raise Exception(f"Sensor {self.sensorId} has No Data.")
         self.sensorName = data.get('name')
         self.type = CfDataType[data.get('type')] # type: ignore
+        self.data = data.get('values')
+        if self.type != CfDataType.Sensor:
+            return
         self.decimals = data.get('decimals')
         self.unit = data.get('unit')
         self.aggregationsType = data.get('aggr') #type: ignore
-        self.data = data.get('values')
+        
         self.setSensorValuesRange()
 
     @staticmethod
@@ -143,7 +146,6 @@ class CfSensorObject:
         
         return df 
 
-    
     @staticmethod
     def remove_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
@@ -165,14 +167,3 @@ class CfSensorObject:
             df[base] = df[cols_list].apply(pd.to_numeric, errors="coerce").mean(axis=1)
 
         return df.drop(columns=duplicatedDfColumns)
-
-        
-                
-        
-
-
-    
-
-
-
-

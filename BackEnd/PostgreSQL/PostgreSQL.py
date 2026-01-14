@@ -16,7 +16,6 @@ class PostgreSQL:
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
        
-
     def initialize_postgres_connection(self):
         if self.SECRETJSONPATH is None:
             raise RuntimeError("DBINFO_PATH env var is not set")
@@ -118,6 +117,7 @@ class PostgreSQL:
 
                 "data_type"       TEXT NOT NULL,
                 "unit"            TEXT NULL,
+                "aggregation" TEXT[],
 
                 "param" TEXT NULL,
                 "confidence"      DOUBLE PRECISION NULL CHECK ("confidence" IS NULL OR ("confidence" >= 0 AND "confidence" <= 1)),

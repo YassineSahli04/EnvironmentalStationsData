@@ -5,7 +5,6 @@ import type { SensorDataRow } from "../../Api/Objects/StationObj";
 type AmbianceDualAxisChartProps = {
   data: SensorDataRow[];
   height?: number;
-  title?: string;
 };
 
 function toNumberOrNull(v: unknown): number | null {
@@ -15,7 +14,7 @@ function toNumberOrNull(v: unknown): number | null {
 }
 
 const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProps>(
-  function AmbianceDualAxisChart({ data, height = 360, title = "Ambiance" }, ref) {
+  function AmbianceDualAxisChart({ data, height = 360 }, ref) {
     const option = useMemo(() => {
       const x = data.map((d) => d.time);
 
@@ -28,13 +27,7 @@ const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProp
       const radiationColor = "#a3e635";
 
       return {
-        title: {
-          text: title,
-          left: "center",
-          top: 15,
-          textStyle: { fontSize: 22, fontWeight: 700, color: "#f1f5f9" },
-        },
-        grid: { left: 80, right: 120, top: 90, bottom: 90 },
+        grid: { left: 80, right: 120, top: 50, bottom: 100 },
         legend: {
           bottom: 5,
           textStyle: { fontSize: 12, color: "#cbd5e1" },
@@ -56,8 +49,8 @@ const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProp
           },
         },
         toolbox: {
-          left: 25,
-          top: 25,
+          left: 0,
+          top: -10,
           iconStyle: { borderColor: "#94a3b8" },
           emphasis: { iconStyle: { borderColor: "#f1f5f9" } },
           feature: {
@@ -208,7 +201,7 @@ const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProp
           },
         ],
       };
-    }, [data, title]);
+    }, [data]);
 
     return (
       <ReactECharts

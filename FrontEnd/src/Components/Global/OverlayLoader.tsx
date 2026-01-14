@@ -1,4 +1,3 @@
-import React from "react";
 import { useTheme } from "@mui/material";
 import { Pulsar } from "ldrs/react";
 import "ldrs/react/Pulsar.css";
