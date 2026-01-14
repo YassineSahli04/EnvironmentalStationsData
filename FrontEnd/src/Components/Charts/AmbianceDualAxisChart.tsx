@@ -5,7 +5,6 @@ import type { SensorDataRow } from "../../Api/Objects/StationObj";
 type AmbianceDualAxisChartProps = {
   data: SensorDataRow[];
   height?: number;
-  title?: string;
 };
 
 function toNumberOrNull(v: unknown): number | null {
@@ -15,7 +14,7 @@ function toNumberOrNull(v: unknown): number | null {
 }
 
 const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProps>(
-  function AmbianceDualAxisChart({ data, height = 360, title = "Ambiance" }, ref) {
+  function AmbianceDualAxisChart({ data, height = 360 }, ref) {
     const option = useMemo(() => {
       const x = data.map((d) => d.time);
 
@@ -202,7 +201,7 @@ const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProp
           },
         ],
       };
-    }, [data, title]);
+    }, [data]);
 
     return (
       <ReactECharts
