@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAllStations, getStationSensorsData } from "../Api/Api";
 import AmbianceDualAxisChart from "../Components/Charts/AmbianceDualAxisChart";
+import { OverlayLoader } from "../Components/Global/OverlayLoader";
 import ChartCard from "../Components/StationPageComponents/ChartCard";
 import StationDetailsAccordion from "../Components/StationPageComponents/StationDetailsAccordion";
 import StationSummaryBar from "../Components/StationPageComponents/StationSummaryBar";
@@ -77,18 +78,11 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
 
       {/* Charts Area */}
       <ChartCard title="Ambiance" subtitle="Temperature, Humidity & Solar Radiation">
-        {isChartLoading ? (
-          <Box
-            sx={{
-              height: 400,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#94a3b8",
-            }}
-          >
-            Loading chart data...
-          </Box>
+        <OverlayLoader show={isChartLoading} dim={0.2} blockInteraction={isChartLoading} />
+        {isChartLoading ? null : ambianceData.length === 0 ? (
+          <h1 style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            No Data Available
+          </h1>
         ) : (
           <AmbianceDualAxisChart ref={chartRef} data={ambianceData} height={400} title="" />
         )}
