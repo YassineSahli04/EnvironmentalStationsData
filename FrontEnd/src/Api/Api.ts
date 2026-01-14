@@ -33,8 +33,8 @@ export async function getStations(): Promise<StationObj[]> {
   }
 }
 
-export function useAllStations(): Promise<StationObj[]> {
-  return useQuery({
+export function useAllStations() {
+  return useQuery<StationObj[]>({
     queryKey: ["allStationsObj"],
     queryFn: getStations,
   });
