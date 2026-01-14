@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, HTTPException
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from datetime import datetime
-import  logging
+import  logging, traceback
 from BackEnd.Utils.DateTimeHelper import DateTimeHelper
 
 logger = logging.getLogger(__name__)
@@ -49,9 +49,15 @@ def get_station_sensons_data(stationId: str, sensorsId: list[str] | None = Query
         )
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        tb_last = traceback.extract_tb(e.__traceback__)[-1]
         logger.error(
-            "Error while getting sensor data: station=%s sensor=%s (%s)",
-            stationId, sensorId, e
+            "Error while getting sensor data: station=%s sensor=%s (%s) at %s:%s in %s",
+            stationId,
+            sensorId,
+            e,
+            tb_last.filename,
+            tb_last.lineno,
+            tb_last.name,
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
 

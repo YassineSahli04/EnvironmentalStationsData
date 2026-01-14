@@ -61,7 +61,7 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
       `?autocomplete=true` +
       `&limit=5` +
       `&country=tn` +
-      `&types=place,locality,neighborhood,address,poi` +
+      `&types=region,place,locality,district` +
       `&language=fr` +
       `&access_token=${MAPBOX_TOKEN}`;
 
