@@ -67,7 +67,7 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
     >
       {/* Sticky Station Summary Bar */}
       <StationSummaryBar
-        station={station}
+        station={{ ...station, Status: "online" }}
         isLoading={isStationLoading}
         onStationChange={handleStationChange}
         availableStations={[]} // Can be populated from API
@@ -84,7 +84,7 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
             No Data Available
           </h1>
         ) : (
-          <AmbianceDualAxisChart ref={chartRef} data={ambianceData} height={400} title="" />
+          <AmbianceDualAxisChart ref={chartRef} data={ambianceData} height={400} />
         )}
       </ChartCard>
     </Box>
