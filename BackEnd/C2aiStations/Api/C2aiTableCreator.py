@@ -195,57 +195,62 @@ class C2aiTableCreator:
             return False
     
     def addStationColumnsToTable(self):
-        query = text("""
+        query = text(""" 
             INSERT INTO "StationColumn"
-            ("station_id","column_name","data_type","unit","param","confidence","source")
+            ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
             VALUES
-            -- volt
-            (:station_id,'battery_voltage','NUMERIC(10,3)','V','battery',NULL,'manufacturer_template'),
-            (:station_id,'supply_voltage','NUMERIC(10,3)','V','supply',NULL,'manufacturer_template'),
+                -- volt
+                (:station_id,'battery_voltage','NUMERIC(10,3)','V',NULL,'battery',NULL,'manufacturer_template'),
+                (:station_id,'supply_voltage','NUMERIC(10,3)','V',NULL,'supply',NULL,'manufacturer_template'),
 
-            -- wind
-            (:station_id,'wind_speed','NUMERIC(10,3)','m/s','wind speed',NULL,'manufacturer_template'),
-            (:station_id,'wind_direction','NUMERIC(10,3)','deg','wind direction',NULL,'manufacturer_template'),
+                -- wind
+                (:station_id,'wind_speed','NUMERIC(10,3)','m/s',ARRAY['avg','min','max']::TEXT[],'wind speed',NULL,'manufacturer_template'),
+                (:station_id,'wind_direction','NUMERIC(10,3)','deg',NULL,'wind direction',NULL,'manufacturer_template'),
 
-            -- air
-            (:station_id,'air_temperature','NUMERIC(10,3)','°C','temperature',NULL,'manufacturer_template'),
-            (:station_id,'relative_humidity','NUMERIC(10,3)','%','relative humidity',NULL,'manufacturer_template'),
-            (:station_id,'dew_point','NUMERIC(10,3)','°C','dew point',NULL,'manufacturer_template'),
+                -- air
+                (:station_id,'air_temperature','NUMERIC(10,3)','°C',ARRAY['avg','min','max']::TEXT[],'temperature',NULL,'manufacturer_template'),
+                (:station_id,'relative_humidity','NUMERIC(10,3)','%',ARRAY['avg','min','max']::TEXT[],'relative humidity',NULL,'manufacturer_template'),
+                (:station_id,'dew_point','NUMERIC(10,3)','°C',NULL,'dew point',NULL,'manufacturer_template'),
 
-            -- radiation / pressure
-            (:station_id,'solar_radiation','NUMERIC(10,3)','W/m²','solar radiation',NULL,'manufacturer_template'),
-            (:station_id,'atmospheric_pressure','NUMERIC(10,3)','hPa','atmospheric pressure',NULL,'manufacturer_template'),
+                -- radiation / pressure
+                (:station_id,'solar_radiation','NUMERIC(10,3)','W/m²',ARRAY['sum']::TEXT[],'solar radiation',NULL,'manufacturer_template'),
+                (:station_id,'atmospheric_pressure','NUMERIC(10,3)','hPa',NULL,'atmospheric pressure',NULL,'manufacturer_template'),
 
-            -- ET
-            (:station_id,'hourly_evapotranspiration','NUMERIC(10,3)','mm/h','evapotranspiration',NULL,'manufacturer_template'),
-            (:station_id,'daily_evapotranspiration','NUMERIC(10,3)','mm/d','daily evapotranspiration',NULL,'manufacturer_template'),
+                -- ET
+                (:station_id,'hourly_evapotranspiration','NUMERIC(10,3)','mm/h',NULL,'evapotranspiration',NULL,'manufacturer_template'),
+                (:station_id,'daily_evapotranspiration','NUMERIC(10,3)','mm/d',NULL,'daily evapotranspiration',NULL,'manufacturer_template'),
 
-            -- rain
-            (:station_id,'rain_intensity','NUMERIC(10,3)','mm/h','rain intensity',NULL,'manufacturer_template'),
-            (:station_id,'daily_rainfall','NUMERIC(10,3)','mm','precipitation',NULL,'manufacturer_template'),
-            (:station_id,'total_rainfall','NUMERIC(10,3)','mm','total rainfall',NULL,'manufacturer_template'),
+                -- rain
+                (:station_id,'rain_intensity','NUMERIC(10,3)','mm/h',NULL,'rain intensity',NULL,'manufacturer_template'),
+                (:station_id,'daily_rainfall','NUMERIC(10,3)','mm',ARRAY['sum']::TEXT[],'precipitation',NULL,'manufacturer_template'),
+                (:station_id,'total_rainfall','NUMERIC(10,3)','mm',NULL,'total rainfall',NULL,'manufacturer_template'),
 
-            -- microclimate
-            (:station_id,'microclimate_temperature','NUMERIC(10,3)','°C','microclimate temperature',NULL,'manufacturer_template'),
-            (:station_id,'microclimate_relative_humidity','NUMERIC(10,3)','%','microclimate relative humidity',NULL,'manufacturer_template'),
-            (:station_id,'microclimate_dew_point','NUMERIC(10,3)','°C','microclimate dew point',NULL,'manufacturer_template'),
-            (:station_id,'microclimate_absolute_humidity','NUMERIC(10,3)','g/m³','microclimate absolute humidity',NULL,'manufacturer_template'),
-            (:station_id,'microclimate_upper_leaf_wetness','NUMERIC(10,3)','%','microclimate upper leaf wetness',NULL,'manufacturer_template'),
-            (:station_id,'microclimate_lower_leaf_wetness','NUMERIC(10,3)','%','microclimate lower leaf wetness',NULL,'manufacturer_template')
-                     
+                -- microclimate
+                (:station_id,'microclimate_temperature','NUMERIC(10,3)','°C',NULL,'microclimate temperature',NULL,'manufacturer_template'),
+                (:station_id,'microclimate_relative_humidity','NUMERIC(10,3)','%',NULL,'microclimate relative humidity',NULL,'manufacturer_template'),
+                (:station_id,'microclimate_dew_point','NUMERIC(10,3)','°C',NULL,'microclimate dew point',NULL,'manufacturer_template'),
+                (:station_id,'microclimate_absolute_humidity','NUMERIC(10,3)','g/m³',NULL,'microclimate absolute humidity',NULL,'manufacturer_template'),
+                (:station_id,'microclimate_upper_leaf_wetness','NUMERIC(10,3)','%',NULL,'microclimate upper leaf wetness',NULL,'manufacturer_template'),
+                (:station_id,'microclimate_lower_leaf_wetness','NUMERIC(10,3)','%',NULL,'microclimate lower leaf wetness',NULL,'manufacturer_template')
+
             ON CONFLICT ("station_id","column_name")
-                DO UPDATE SET
-                "data_type" = EXCLUDED."data_type",
-                "unit"      = EXCLUDED."unit",
-                "param"     = EXCLUDED."param",
-                "source"    = EXCLUDED."source",
-                "updated_at"= NOW()
-                WHERE
-                "StationColumn"."data_type" IS DISTINCT FROM EXCLUDED."data_type"
-                OR "StationColumn"."unit"   IS DISTINCT FROM EXCLUDED."unit"
-                OR "StationColumn"."param"  IS DISTINCT FROM EXCLUDED."param"
-                OR "StationColumn"."source" IS DISTINCT FROM EXCLUDED."source";
+            DO UPDATE SET
+                "data_type"    = EXCLUDED."data_type",
+                "unit"         = EXCLUDED."unit",
+                "aggregation"  = EXCLUDED."aggregation",
+                "param"        = EXCLUDED."param",
+                "confidence"   = EXCLUDED."confidence",
+                "source"       = EXCLUDED."source",
+                "updated_at"   = NOW()
+            WHERE
+                "StationColumn"."data_type"    IS DISTINCT FROM EXCLUDED."data_type"
+                OR "StationColumn"."unit"      IS DISTINCT FROM EXCLUDED."unit"
+                OR "StationColumn"."aggregation" IS DISTINCT FROM EXCLUDED."aggregation"
+                OR "StationColumn"."param"     IS DISTINCT FROM EXCLUDED."param"
+                OR "StationColumn"."confidence" IS DISTINCT FROM EXCLUDED."confidence"
+                OR "StationColumn"."source"    IS DISTINCT FROM EXCLUDED."source";
         """)
+
         with self.engine.begin() as connection:
             connection.execute(
                 query,
