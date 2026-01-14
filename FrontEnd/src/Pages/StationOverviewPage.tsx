@@ -3,9 +3,9 @@ import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAllStations, getStationSensorsData } from "../Api/Api";
 import AmbianceDualAxisChart from "../Components/Charts/AmbianceDualAxisChart";
-import ChartCard from "../Components/Station/ChartCard";
-import StationDetailsAccordion from "../Components/Station/StationDetailsAccordion";
-import StationSummaryBar from "../Components/Station/StationSummaryBar";
+import ChartCard from "../Components/StationPageComponents/ChartCard";
+import StationDetailsAccordion from "../Components/StationPageComponents/StationDetailsAccordion";
+import StationSummaryBar from "../Components/StationPageComponents/StationSummaryBar";
 
 type StationOverviewPageProps = {
   isSideBarCollapsed: boolean;
