@@ -4,30 +4,16 @@ from sqlalchemy import text
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from BackEnd.PostgreSQL.StationDbObject import StationDbObject
-from enum import Enum
 import sqlalchemy.engine as _engine
 from dataclasses import dataclass
 from datetime import datetime, timezone
-
-class WeatherParamAggregation(Enum):
-    temperature= ["avg","min","max"]
-    precipitation= ["sum"]
-    relative_humidity= ["avg","min","max"]
-    solar_radiation= ["sum"]
-    wind_speed= ["avg","min","max"]
-
-    @staticmethod
-    def weatherParamToEnumKey(weatherParam):
-        return weatherParam.strip().replace(" ", "_").lower()
-
-
 
 @dataclass
 class SensorSerializable:
     stationId: str
     sensor: str
     unit: str
-    aggregationsType: list
+    aggregationsType: set
     data: pd.DataFrame | list
 
 
@@ -35,7 +21,7 @@ class SensorDbObject:
     engine: _engine.Engine
     station: StationDbObject;
     sensor: str;
-    aggr: list;
+    aggregationsType: set;
     unit: str;
     columnNames: dict
     def __init__(self, station: StationDbObject, sensor :str, isDataInDf = True) -> None:
@@ -43,28 +29,7 @@ class SensorDbObject:
         self.isDataInDf = isDataInDf
         self.sensor = sensor.lower()
         self.station = station
-        self.setAggr()
-        self.setColumns()
-
-    def setAggr(self):
-        try:
-            weatherParamKey = WeatherParamAggregation.weatherParamToEnumKey(self.sensor)
-            self.aggr = WeatherParamAggregation[weatherParamKey].value
-        except KeyError:
-            allowed = [e.name.replace("_", " ") for e in WeatherParamAggregation]
-            raise ValueError(f"Invalid Sensor '{self.sensor}'. Allowed: {allowed}")
-        
-    def setColumns(self):
-        if self.aggr is None:
-            raise ValueError(f"Aggregation is not set.")
-        self.columnNames = {}
-        col, self.unit = self.getColumnMetadata()
-        for elem in self.aggr:
-            if self.station.Manufacturer == "Pessl":
-                specificCol = f'{col} - {elem}'
-                self.columnNames[elem] = specificCol
-                continue
-            self.columnNames[elem] = col
+        self.setColumnsMetadata()
 
 
     def getSensorAllDataColumns(self, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
@@ -79,12 +44,12 @@ class SensorDbObject:
             return df
         
         lastSensorData = self.getLastSensorData()
-        return SensorDbObject.dfToTimeValueRecords(df, self.aggr, startDtUTC, lastSensorData)
+        return SensorDbObject.dfToTimeValueRecords(df, self.aggregationsType, startDtUTC, lastSensorData)
     
     @staticmethod
     def dfToTimeValueRecords(
         df: pd.DataFrame,
-        cols: list[str],
+        cols: list[str] | set,
         startDtUTC: datetime,
         lastSensorData: float | None = None,
         dateTimeCol: str = "Date/Time",
@@ -163,20 +128,29 @@ class SensorDbObject:
         return SensorSerializable(
             stationId = self.station.Id,
             sensor = self.sensor,
-            aggregationsType = self.aggr,
+            aggregationsType = self.aggregationsType,
             unit=self.unit,
             data= data
         )
     
-    def getColumnMetadata(self):
+    def setColumnsMetadata(self):
         query = text(f"""
-            SELECT "column_name", "unit"
+            SELECT "column_name", "unit", "aggregation"
             FROM "StationColumn"
             WHERE "station_id" = '{self.station.Id}'
             AND "param" = '{self.sensor}'
         """)
-        print(query.text)
         with self.engine.begin() as conn:
-            res = conn.execute(query).fetchone()
-        print(res)
-        return res[0], res[1] # type: ignore
+            res = conn.execute(query).fetchall()
+
+        if len(res) == 0:
+            raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.") 
+        self.aggregationsType = set()
+        self.columnNames = {}
+        for colRow in res:
+            colName, unit, aggrList = colRow
+            for aggr in aggrList:
+                self.aggregationsType.add(aggr)
+                self.columnNames[aggr] = colName
+        self.unit = unit
+
