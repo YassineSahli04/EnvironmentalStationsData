@@ -55,30 +55,23 @@ class PostgreSQL:
     
     def create_update_all_stations_data_tables(self):
         stations = self.get_all_station_objects()
-        try:
-            for station in stations:
-                match station.Manufacturer:
-                    case "DeltaOHM":
-                        continue
-                        if station.DataSourceId is None:
-                            raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-                        table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
-                        alreadyExists = table_creator.create_postgre_table()
-                        
-                    case "Pessl":
-                        if station.Id != '032144A0':
-                            continue
-                        table_creator = CfTableCreator(self.engine, station.Id)
-                        alreadyExists = table_creator.IsDataTableCreated()
+        for station in stations:
+            match station.Manufacturer:
+                case "DeltaOHM":
+                    if station.DataSourceId is None:
+                        raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
+                    table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+                    alreadyExists = table_creator.create_postgre_table()
+                    
+                case "Pessl":
+                    table_creator = CfTableCreator(self.engine, station.Id)
+                    alreadyExists = table_creator.IsDataTableCreated()
 
-                if not alreadyExists:
-                    dataDf = table_creator.getFullDataDf()
-                    self.insert_create_data_df(dataDf, table_creator.newTableName)
-                else:
-                    self.update_db_table(station)
-        except Exception as e:
-            print(station.Id)
-            print(e)
+            if not alreadyExists:
+                dataDf = table_creator.getFullDataDf()
+                self.insert_create_data_df(dataDf, table_creator.newTableName)
+            else:
+                self.update_db_table(station)
 
     def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:

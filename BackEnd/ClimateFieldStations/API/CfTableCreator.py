@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 from BackEnd.ClimateFieldStations.SemanticSearch.ColumnSemanticSearch import ColumnSemanticSearch
 from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
+from BackEnd.ClimateFieldStations.API.CfAggregationCorrector import CfAggregationCorrector
 
 class CfTableCreator:
     station : CfStationAPI
@@ -211,13 +212,12 @@ class CfTableCreator:
                 for col in cols:
                     specificCol = col.split(" - ")[0]
                     agg = col.split(" - ")[1]
-                    if self.station.Id == '032144A0':
-                        print(colsData)
                     sensorData = colsData[specificCol]
                     param, score = semanticSearch.getPredictedParam(sensorData)
+                    aggCorrected = CfAggregationCorrector.correctAggregation(param, agg)
                     connection.execute(
                         query,
-                        {"station_id": self.newTableName, "column_name":col, "unit": sensorData.unit, "aggregation": [agg], "param":param, "score":score}
+                        {"station_id": self.newTableName, "column_name":col, "unit": sensorData.unit, "aggregation": [aggCorrected], "param":param, "score":score}
                     )
         else:
             colsData = self.getColDataStats(cols)
