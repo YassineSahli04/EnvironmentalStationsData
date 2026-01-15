@@ -15,7 +15,12 @@ class PostgreSQL:
     def __init__(self):
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
-       
+    
+    def update_station_state(self, station_id, state):
+        query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
+        with self.engine.begin() as connection:
+            connection.execute(query, {"station_id": station_id, "state": state})
+
     def initialize_postgres_connection(self):
         if self.SECRETJSONPATH is None:
             raise RuntimeError("DBINFO_PATH env var is not set")
@@ -56,22 +61,28 @@ class PostgreSQL:
     def create_update_all_stations_data_tables(self):
         stations = self.get_all_station_objects()
         for station in stations:
-            match station.Manufacturer:
-                case "DeltaOHM":
-                    if station.DataSourceId is None:
-                        raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-                    table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
-                    alreadyExists = table_creator.create_postgre_table()
+            try:
+                match station.Manufacturer:
+                    case "DeltaOHM":
+                        if station.DataSourceId is None:
+                            raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
+                        table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+                        alreadyExists = table_creator.create_postgre_table()
                     
-                case "Pessl":
-                    table_creator = CfTableCreator(self.engine, station.Id)
-                    alreadyExists = table_creator.IsDataTableCreated()
+                    case "Pessl":
+                        table_creator = CfTableCreator(self.engine, station.Id)
+                        alreadyExists = table_creator.IsDataTableCreated()
 
-            if not alreadyExists:
-                dataDf = table_creator.getFullDataDf()
-                self.insert_create_data_df(dataDf, table_creator.newTableName)
-            else:
-                self.update_db_table(station)
+                if not alreadyExists:
+                    dataDf = table_creator.getFullDataDf()
+                    self.insert_create_data_df(dataDf, table_creator.newTableName)
+                else:
+                    self.update_db_table(station)
+                
+                self.update_station_state(station.Id, "Online")
+            except Exception as e:
+                self.update_station_state(station.Id, "Offline")
+                print(f"Station {station.Id} failed: {e}")
 
     def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:
