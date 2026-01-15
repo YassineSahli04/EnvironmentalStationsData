@@ -44,6 +44,7 @@ class StationSerializable:
     Altitude: float | None
     SensorsList: list[SensorSerializable] | None
     LastDataPointTime: datetime | None
+    State: str | None
 
 class StationDbObject:
     Id: str
@@ -61,7 +62,9 @@ class StationDbObject:
     DataSourceId: int | None
     DataTableName: str | None
     HasDataTable: bool
-    
+    LastDataPointTime: datetime | None
+    State: str | None
+
     def __init__(
         self,
         engine:_engine.Engine,
@@ -92,6 +95,7 @@ class StationDbObject:
         self.DataTableName = row.get("DataTableName")
         self.set_has_data_table()
         self.set_last_data_point_time()
+        self.State = row.get("State")
         self.setAvailableSensors()
 
     def set_has_data_table(self):
@@ -240,6 +244,7 @@ class StationDbObject:
             Longitude = self.Longitude,
             Altitude = self.Altitude,
             SensorsList=self.serializedSensors,
-            LastDataPointTime = self.LastDataPointTime
+            LastDataPointTime = self.LastDataPointTime,
+            State = self.State
         )
     
