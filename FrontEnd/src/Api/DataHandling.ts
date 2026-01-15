@@ -18,7 +18,7 @@ export async function getMapDataForParam(param: WeatherParam, date: Date) {
   });
 
   const pairs = await getDataInBatches(stations, 8, async (st) => {
-    const sensor = await getStationSensorsData(st.Id, [param], "day", startOfDay, endOfDay);
+    const sensor = await getStationSensorsData(st.Id, [param], "daily", startOfDay, endOfDay);
     return sensor ? ([st.Id, sensor.data] as const) : null;
   });
 
