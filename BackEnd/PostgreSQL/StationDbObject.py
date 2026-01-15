@@ -9,19 +9,29 @@ from dataclasses import dataclass
 class StationDataGroup(Enum):
     hourly= 'hour'
     daily =  'day'
+    weekly= 'week'
     monthly = 'month'
 
     @classmethod
     def parse(cls, raw: object) -> str:
         if isinstance(raw, cls):
             return raw.value
-        try:
-            return cls(raw).value  # type: ignore[arg-type]
-        except Exception:
-            pass
+        if isinstance(raw, str):
+            s = raw.strip().lower()
+
+            if s in cls.__members__:
+                return cls.__members__[s].value
+
+            for e in cls:
+                if e.value == s:
+                    return e.value
             
-        allowed = [e.value for e in cls]
-        raise ValueError(f"Invalid dataGroup '{raw}'. Allowed: {allowed}")
+        allowed_names = list(cls.__members__.keys())
+        allowed_values = [e.value for e in cls]
+        raise ValueError(
+            f"Invalid dataGroup {raw!r}. "
+            f"Allowed names: {allowed_names}. Allowed values: {allowed_values}."
+        )
 
 
 
