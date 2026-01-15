@@ -1,5 +1,5 @@
 import numpy as np
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer
 from BackEnd.ClimateFieldStations.SemanticSearch.TransformerData import CANONICAL, CANONICAL_META
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorDataInfo
 

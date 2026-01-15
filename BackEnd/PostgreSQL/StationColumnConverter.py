@@ -69,4 +69,49 @@ class StationColumnConverter:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
             
         return column
+
+    @staticmethod
+    def build_vpd_expression(temp_col: str, rh_col: str) -> str:
+        t = f'"{temp_col}"'
+        rh = f'"{rh_col}"'
+
+        raw_expr = (
+            f'(1.0 - ({rh} / 100.0)) * 0.6108 * '
+            f'EXP((17.27 * {t}) / ({t} + 237.3))'
+        )
+
+        return f'ROUND(({raw_expr})::numeric, 1)'
+
     
+    def get_vpd_expression_for_aggr(self, aggr: str) -> str | None:
+        try:
+            temp_col = self.getActualSensorColumn()
+        except (ValueError, NotImplementedError):
+            temp_col = None
+        if temp_col is None:
+            return None
+
+        rh_col = None
+        for rh_sensor in ("Relative Humidity", "RH", "Humidity"):
+            rh_converter = StationColumnConverter(
+                self.engine,
+                self.stId,
+                self.stManufacturer,
+                self.stType,
+                rh_sensor,
+                aggr,
+            )
+            try:
+                rh_col = rh_converter.getActualSensorColumn()
+            except (ValueError, NotImplementedError):
+                rh_col = None
+            if rh_col is not None:
+                break
+        if rh_col is None:
+            return None
+
+        cols_lower = {c.lower() for c in self.tableColumns}
+        if temp_col.lower() not in cols_lower or rh_col.lower() not in cols_lower:
+            return None
+
+        return StationColumnConverter.build_vpd_expression(temp_col, rh_col)
