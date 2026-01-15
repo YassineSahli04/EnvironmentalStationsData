@@ -37,6 +37,7 @@ class StationSerializable:
     Longitude: float | None
     Altitude: float | None
     LastDataPointTime: datetime | None
+    State: str | None
 
 class StationDbObject:
     Id: str
@@ -51,6 +52,7 @@ class StationDbObject:
     DataTableName: str | None
     HasDataTable: bool
     LastDataPointTime: datetime | None
+    State: str | None
 
     def __init__(
         self,
@@ -82,6 +84,7 @@ class StationDbObject:
         self.DataTableName = row.get("DataTableName")
         self.set_has_data_table()
         self.set_last_data_point_time()
+        self.State = row.get("State")
 
     def set_has_data_table(self):
         query = text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = :dataTableName);")
@@ -138,7 +141,8 @@ class StationDbObject:
             Latitude = self.Latitude,
             Longitude = self.Longitude,
             Altitude = self.Altitude,
-            LastDataPointTime = self.LastDataPointTime
+            LastDataPointTime = self.LastDataPointTime,
+            State = self.State
         )
     
 
