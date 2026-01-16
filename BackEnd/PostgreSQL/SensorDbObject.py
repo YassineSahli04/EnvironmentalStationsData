@@ -13,8 +13,8 @@ class SensorSerializable:
     stationId: str
     sensor: str
     unit: str
-    aggregationsType: set
-    data: pd.DataFrame | list
+    aggregationsType: list
+    data: list | None
 
 
 class SensorDbObject:
@@ -123,15 +123,6 @@ class SensorDbObject:
             results = connection.execute(query).fetchall()
             vals = [r[0] for r in results]
         return vals[0]
-
-    def getSerializableObj(self, data) -> SensorSerializable:
-        return SensorSerializable(
-            stationId = self.station.Id,
-            sensor = self.sensor,
-            aggregationsType = self.aggregationsType,
-            unit=self.unit,
-            data= data
-        )
     
     def setColumnsMetadata(self):
         query = text(f"""
@@ -149,8 +140,21 @@ class SensorDbObject:
         self.columnNames = {}
         for colRow in res:
             colName, unit, aggrList = colRow
+            if aggrList is None:
+                self.aggregationsType.add('avg')
+                self.columnNames['avg'] = colName
+                continue
             for aggr in aggrList:
                 self.aggregationsType.add(aggr)
                 self.columnNames[aggr] = colName
         self.unit = unit
+
+    def getSerializableObj(self, data:  list | None) -> SensorSerializable:
+        return SensorSerializable(
+            stationId = self.station.Id,
+            sensor = self.sensor,
+            aggregationsType = list(self.aggregationsType),
+            unit=self.unit,
+            data= data
+        )
 

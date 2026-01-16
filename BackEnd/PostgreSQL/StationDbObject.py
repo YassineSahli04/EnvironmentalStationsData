@@ -2,7 +2,7 @@ import sqlalchemy.engine as _engine
 from sqlalchemy import text
 from datetime import datetime, timezone
 from enum import Enum
-from BackEnd.PostgreSQL.SensorDbObject import SensorDbObject
+from BackEnd.PostgreSQL.SensorDbObject import SensorDbObject, SensorSerializable
 from dataclasses import dataclass
 
 
@@ -32,10 +32,6 @@ class StationDataGroup(Enum):
             f"Invalid dataGroup {raw!r}. "
             f"Allowed names: {allowed_names}. Allowed values: {allowed_values}."
         )
-
-
-
-
 @dataclass
 class StationSerializable:
     Id: str
@@ -46,6 +42,7 @@ class StationSerializable:
     Latitude: float | None
     Longitude: float | None
     Altitude: float | None
+    SensorsList: list[SensorSerializable] | None
     LastDataPointTime: datetime | None
 
 class StationDbObject:
@@ -57,11 +54,14 @@ class StationDbObject:
     Latitude: float | None
     Longitude: float | None
     Altitude: float | None
+    LastDataPointTime: datetime | None
+    Sensors: list[SensorDbObject] | None
+    serializedSensors: list[SensorSerializable] | None
+
     DataSourceId: int | None
     DataTableName: str | None
     HasDataTable: bool
-    LastDataPointTime: datetime | None
-
+    
     def __init__(
         self,
         engine:_engine.Engine,
@@ -92,13 +92,13 @@ class StationDbObject:
         self.DataTableName = row.get("DataTableName")
         self.set_has_data_table()
         self.set_last_data_point_time()
+        self.setAvailableSensors()
 
     def set_has_data_table(self):
         query = text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = :dataTableName);")
         with self.engine.connect() as connection:
             result = connection.execute(query, {"dataTableName":self.Id}).fetchone()
-        self.HasDataTable = result[0] # type: ignore
-    
+        self.HasDataTable = result[0] # type: ignore    
 
     def set_last_data_point_time(self):
         if self.Manufacturer is None or not self.HasDataTable: self.LastDataPointTime = None; return;
@@ -116,6 +116,25 @@ class StationDbObject:
                 return
             self.LastDataPointTime = None
   
+    def setAvailableSensors(self):
+        if not self.HasDataTable: self.Sensors = None; self.serializedSensors = None; return;
+        
+        self.Sensors = []
+        self.serializedSensors = []
+        query = text("""
+            SELECT "param"
+            FROM "StationColumn"
+            WHERE "station_id" = :stationId
+        """)
+        with self.engine.begin() as connection:
+            res = connection.execute(query, {"stationId": self.Id}).fetchall()
+        sensorsList = set([elem[0] for elem in res])
+        for sensor in sensorsList:
+            sensorObj = SensorDbObject(self, sensor, isDataInDf=False)
+            self.Sensors.append(sensorObj)
+            serializedSensor = sensorObj.getSerializableObj(data=None)
+            self.serializedSensors.append(serializedSensor)
+    
     def getSensorAllDataColumns(self, sensorId:str, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
         dataGroup = StationDataGroup.parse(dataGroup)
         sensor = SensorDbObject(self, sensorId, isDataInDf=False)
@@ -137,7 +156,6 @@ class StationDbObject:
         data = SensorDbObject.dfToTimeValueRecords(df, sensorIdsList, startDtUTC)
         return data
         
-
     def getSerializableObj(self) -> StationSerializable:
         return StationSerializable(
             Id = self.Id,
@@ -148,8 +166,7 @@ class StationDbObject:
             Latitude = self.Latitude,
             Longitude = self.Longitude,
             Altitude = self.Altitude,
+            SensorsList=self.serializedSensors,
             LastDataPointTime = self.LastDataPointTime
         )
-    
-
     
