@@ -145,7 +145,7 @@ export default function StationSummaryBar({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <SensorsIcon sx={{ color: "#64748b", fontSize: 16 }} />
             <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-              {station.SensorList?.length ?? 0} sensors
+              {station.SensorsList?.length ?? 0} sensors
             </Typography>
           </Box>
         </Box>

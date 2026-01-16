@@ -3,10 +3,7 @@ export interface SensorDataRow {
   values: Record<string, number | null>;
 }
 export interface StationSensorObj {
-  sensorName: string;
-  sensorId: string;
-  type: string;
-  decimals: number;
+  sensor: string;
   unit: string;
   aggregationsType: string[];
   data: SensorDataRow[];
@@ -27,7 +24,7 @@ export interface StationObj {
   DataTableName: string | null;
 
   LastDataPointTime: string;
-  SensorList: StationSensorObj[];
+  SensorsList: StationSensorObj[];
   DataFrequency: string;
 
   // UI Only
