@@ -73,6 +73,7 @@ class PostgreSQL:
                 self.insert_create_data_df(dataDf, table_creator.newTableName)
             else:
                 self.update_db_table(station)
+            station.addVpdColOrUpdate()
 
     def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:
@@ -162,58 +163,3 @@ class PostgreSQL:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
         dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)
-   
-    def add_vpd_columns_and_backfill(self): #
-        stations = self.get_all_station_objects()
-        for station in stations:
-            if not station.HasDataTable:
-                continue
-            if station.Type in ("Aquachek", "Drill and Drop"):
-                continue
-            self.add_vpd_columns_and_backfill_station(station)
-
-    def add_vpd_columns_and_backfill_station(self, station: StationDbObject):
-        with self.engine.begin() as connection:
-            connection.execute(
-                text(f'ALTER TABLE "{station.Id}" ADD COLUMN IF NOT EXISTS "vpd_avg" DOUBLE PRECISION;')
-            )
-
-            if station.Manufacturer not in ("DeltaOHM", "Pessl"):
-                return
-            column_query = text(
-                """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_schema = 'public'
-                AND table_name = :tableName;
-                """
-            )
-            results = connection.execute(column_query, {"tableName": station.Id})
-            columns = [row[0].lower() for row in results]
-            has_temp = any("temperature" in name for name in columns)
-            has_humidity = any("humidity" in name or "rh" in name for name in columns)
-            if not (has_temp and has_humidity):
-                return
-
-            converter = StationColumnConverter(
-                self.engine,
-                station.Id,
-                station.Manufacturer,
-                station.Type,
-                "Temperature",
-                "avg",
-            )
-            expr = converter.get_vpd_expression_for_aggr("avg") # get col for temp and RH
-            if expr is None:
-                return
-            connection.execute(
-                text(
-                    f"""
-                    UPDATE "{station.Id}"
-                    SET "vpd_avg" = ({expr})
-                    WHERE ({expr}) IS NOT NULL
-                    AND ("vpd_avg" IS NULL OR "vpd_avg" != ({expr}));
-                    """
-                )
-            )
-    

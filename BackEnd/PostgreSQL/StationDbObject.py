@@ -1,6 +1,6 @@
 import sqlalchemy.engine as _engine
 from sqlalchemy import text
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from BackEnd.PostgreSQL.SensorDbObject import SensorDbObject, SensorSerializable
 from dataclasses import dataclass
@@ -55,7 +55,7 @@ class StationDbObject:
     Longitude: float | None
     Altitude: float | None
     LastDataPointTime: datetime | None
-    Sensors: list[SensorDbObject] | None
+    Sensors: dict[str, SensorDbObject] | None
     serializedSensors: list[SensorSerializable] | None
 
     DataSourceId: int | None
@@ -119,7 +119,7 @@ class StationDbObject:
     def setAvailableSensors(self):
         if not self.HasDataTable: self.Sensors = None; self.serializedSensors = None; return;
         
-        self.Sensors = []
+        self.Sensors = {}
         self.serializedSensors = []
         query = text("""
             SELECT "param"
@@ -131,7 +131,7 @@ class StationDbObject:
         sensorsList = set([elem[0] for elem in res])
         for sensor in sensorsList:
             sensorObj = SensorDbObject(self, sensor, isDataInDf=False)
-            self.Sensors.append(sensorObj)
+            self.Sensors[sensor] = sensorObj
             serializedSensor = sensorObj.getSerializableObj(data=None)
             self.serializedSensors.append(serializedSensor)
     
@@ -155,7 +155,80 @@ class StationDbObject:
         df = SensorDbObject.getdfFromQueryResult(self.engine, self.Id, aggSelectDefaultSensorCol, dataGroup, startDtUTC, endDtUTC)
         data = SensorDbObject.dfToTimeValueRecords(df, sensorIdsList, startDtUTC)
         return data
+    
+    def addVpdColOrUpdate(self):
+        if self.Sensors is None: 
+            return
+        if self.Type in ('Aquachek', 'Drill and Drop'):
+            return
         
+        updateVpd = False
+        isTempAv = False
+        isRhAv = False
+        for sensorParam in self.Sensors:
+            if sensorParam == 'vpd':
+                updateVpd = True
+                break
+            elif sensorParam == 'temperature':
+                isTempAv = True
+            elif sensorParam == 'relative humidity':
+                isRhAv = True
+            else:
+                continue
+        if (not updateVpd) and isTempAv and isRhAv:
+            with self.engine.begin() as connection:
+                connection.execute(
+                    text(f'ALTER TABLE "{self.Id}" ADD COLUMN IF NOT EXISTS "vpd" DOUBLE PRECISION;')
+                )
+                insertVpd = text("""
+                    INSERT INTO "StationColumn"
+                    ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
+                    VALUES
+                    (:stationId, 'vpd', 'NUMERIC(10,3)', 'kPa', ARRAY['avg'], 'vpd', NULL, 'manual')
+
+                """)
+                connection.execute(insertVpd, {'stationId': self.Id})
+        if isTempAv and isRhAv:
+            self.insertVpdData(updateVpd)
+
+    def insertVpdData(self, isUpdate: bool):
+        startDt = datetime.min.replace(tzinfo=timezone.utc)
+        vpdSensorObj = SensorDbObject(self, 'vpd', isDataInDf=False)
+        if isUpdate:
+            lastSensorDt, lastSensorData = vpdSensorObj.getLastSensorData()
+            if lastSensorDt is not None:
+                startDt = lastSensorDt + timedelta(minutes=1)
+        with self.engine.begin() as connection:
+            temp_col = self.Sensors["temperature"].columnNames["avg"] # type: ignore
+            rh_col   = self.Sensors["relative humidity"].columnNames["avg"] # type: ignore
+
+            t  = f'"{temp_col}"'
+            rh = f'"{rh_col}"'
+
+            raw_expr = (
+                f'(1.0 - ({rh} / 100.0)) * 0.6108 * '
+                f'EXP((17.27 * {t}) / ({t} + 237.3))'
+            )
+            expr = f'ROUND(({raw_expr})::numeric, 2)'
+
+            connection.execute(
+                text(f"""
+                    UPDATE "{self.Id}" AS t
+                    SET "{vpdSensorObj.columnNames['avg']}" = v.calc
+                    FROM (
+                        SELECT
+                            "date_time",
+                            ({expr}) AS calc
+                        FROM "{self.Id}"
+                        WHERE "date_time" >= :start_dt
+                    ) AS v
+                    WHERE t."date_time" = v."date_time"
+                    AND v.calc IS NOT NULL
+                    AND t."{vpdSensorObj.columnNames['avg']}" IS NULL;
+                """),
+                {"start_dt": startDt},
+            )   
+
     def getSerializableObj(self) -> StationSerializable:
         return StationSerializable(
             Id = self.Id,

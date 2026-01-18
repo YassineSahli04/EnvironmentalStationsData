@@ -249,5 +249,5 @@ class CfTableCreator:
                     sensorData = colsData[id]
                     connection.execute(
                         query,
-                        {"station_id": self.newTableName, "column_name":id, "unit": sensorData.unit, "aggregation": sensorData.aggregationsType, "param":id}
+                        {"station_id": self.newTableName, "column_name":id, "unit": sensorData.unit, "aggregation": sensorData.aggregationsType, "param":id.lower()}
                     )
