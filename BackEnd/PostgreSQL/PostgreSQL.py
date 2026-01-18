@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, text, bindparam
 import os
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
+from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
 from BackEnd.C2aiStations.Api.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
@@ -72,6 +73,7 @@ class PostgreSQL:
                 self.insert_create_data_df(dataDf, table_creator.newTableName)
             else:
                 self.update_db_table(station)
+            station.addVpdColOrUpdate()
 
     def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:

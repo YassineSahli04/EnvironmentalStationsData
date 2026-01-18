@@ -69,4 +69,4 @@ class StationColumnConverter:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
             
         return column
-    
+
