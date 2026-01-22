@@ -8,9 +8,6 @@ FrontEnd/.DS_Store
 
 .vscode/
 
-Scheduler/*
-docker-compose.scheduler.yml
-
 Secrets/*
 !Secrets/.gitignore
 !Secrets/*.example
