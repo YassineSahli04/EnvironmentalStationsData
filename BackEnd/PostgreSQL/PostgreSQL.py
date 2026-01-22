@@ -17,10 +17,6 @@ class PostgreSQL:
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
         self.initialize_postgres_connection()
     
-    def update_station_state(self, station_id, state):
-        query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
-        with self.engine.begin() as connection:
-            connection.execute(query, {"station_id": station_id, "state": state})
 
     def initialize_postgres_connection(self):
         if self.SECRETJSONPATH is None:
@@ -31,6 +27,7 @@ class PostgreSQL:
         with open(self.SECRETJSONPATH, "r") as f:
             data = json.load(f)
 
+        
         userName = data.get("userName")
         password = data.get("password")
         host = data.get("host")
@@ -42,6 +39,7 @@ class PostgreSQL:
             connection_string,
             connect_args={"options": "-c timezone=UTC"},
         )
+        self.check_and_update_schema()
 
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
         query = text("SELECT \"Id\" FROM \"Stations\";")
@@ -169,3 +167,23 @@ class PostgreSQL:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
         dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)
+
+    def update_station_state(self, station_id, state):
+        query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
+        with self.engine.begin() as connection:
+            connection.execute(query, {"station_id": station_id, "state": state})
+
+    def check_and_update_schema(self):
+        '''
+        Checks if the 'State' column exists in the 'Stations' table and adds it if it doesn't.
+        '''
+        try:
+            query = text("SELECT column_name FROM information_schema.columns WHERE table_name='Stations' AND column_name='State';")
+            with self.engine.connect() as connection:
+                result = connection.execute(query).fetchone()
+                if not result:
+                    print("Adding 'State' column to Stations table...")
+                    connection.execute(text('ALTER TABLE "Stations" ADD COLUMN "State" TEXT DEFAULT \'Unknown\';'))
+                    connection.commit()
+        except Exception as e:
+            print(f"Schema Check Warning: {e}")
