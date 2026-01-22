@@ -10,3 +10,7 @@ FrontEnd/.DS_Store
 
 Scheduler/*
 docker-compose.scheduler.yml
+
+Secrets/*
+!Secrets/.gitignore
+!Secrets/*.example

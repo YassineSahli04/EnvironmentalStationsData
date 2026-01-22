@@ -1,7 +1,7 @@
 class CfAggregationCorrector:
 
     @staticmethod
-    def correctAggregation(param: str, agg: str):
-        if param == 'solar radiation':
+    def correctAggregation(specificCol: str, agg: str):
+        if "solar radiation" in specificCol.lower():
             return 'sum'
         return agg
