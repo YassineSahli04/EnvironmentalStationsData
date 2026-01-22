@@ -5,9 +5,11 @@ from BackEnd.Utils.TransformData import TransformData
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorDataInfo, CfSensorObject, CfDataType
 from datetime import datetime, timedelta, timezone
 import pandas as pd
-from BackEnd.ClimateFieldStations.SemanticSearch.ColumnSemanticSearch import ColumnSemanticSearch
 from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
 from BackEnd.ClimateFieldStations.API.CfAggregationCorrector import CfAggregationCorrector
+import os
+from redis import Redis
+from rq import Queue
 
 class CfTableCreator:
     station : CfStationAPI
@@ -15,6 +17,12 @@ class CfTableCreator:
         self.station = CfStationAPI(stationId)
         self.newTableName = stationId
         self.engine = engine
+
+        redisUrl = os.environ.get("REDIS_URL")
+        if redisUrl is None:
+            raise ValueError("Redis Url is not defined")
+        redisConn = Redis.from_url(redisUrl)
+        self.workerQueue = Queue(name="SemanticSearchQueue", connection=redisConn)
 
     def add_station_to_stations_table(self):
         query = f"INSERT INTO \"Stations\" (\"Id\", \"Name\", \"Manufacturer\", \"Type\", \"Latitude\", \"Longitude\", \"Altitude\", \"DataTableName\") VALUES (:id, :name, :manufacturer, :type, :latitude, :longitude, :altitude, :tablename)"
@@ -182,14 +190,13 @@ class CfTableCreator:
     
     def addStationColumnInStationColumnTable(self, cols):
         if self.station.Type not in ('Aquachek', 'Drill and Drop'):
-            semanticSearch  = ColumnSemanticSearch()
 
             colsData = self.getColDataStats(cols)
             query = text("""
                 INSERT INTO "StationColumn"
                 ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
                 VALUES
-                (:station_id, :column_name, 'NUMERIC(10,3)', :unit, :aggregation, :param, :score, 'inferred')
+                (:station_id, :column_name, 'NUMERIC(10,3)', :unit, :aggregation, 'In Process', NULL, 'inferred')
 
                 ON CONFLICT ("station_id","column_name")
                 DO UPDATE SET
@@ -213,8 +220,8 @@ class CfTableCreator:
                     specificCol = col.split(" - ")[0]
                     agg = col.split(" - ")[1]
                     sensorData = colsData[specificCol]
-                    param, score = semanticSearch.getPredictedParam(sensorData)
-                    aggCorrected = CfAggregationCorrector.correctAggregation(param, agg)
+                    self.enqueueSemanticSearchJob(col, sensorData)
+                    aggCorrected = CfAggregationCorrector.correctAggregation(specificCol, agg)
                     connection.execute(
                         query,
                         {"station_id": self.newTableName, "column_name":col, "unit": sensorData.unit, "aggregation": [aggCorrected], "param":param, "score":score}
@@ -251,3 +258,19 @@ class CfTableCreator:
                         query,
                         {"station_id": self.newTableName, "column_name":id, "unit": sensorData.unit, "aggregation": sensorData.aggregationsType, "param":id.lower()}
                     )
+    def enqueueSemanticSearchJob(self, columnName, sensorData: CfSensorDataInfo):
+        payload = {
+            "sensor": sensorData.sensor,
+            "unit": sensorData.unit,
+            "aggregationsType": sensorData.aggregationsType,
+            "dataRange": sensorData.dataRange,
+        }
+
+        self.workerQueue.enqueue(
+            "Worker.jobs.setColumParam",
+            self.station.Id,
+            columnName,
+            payload,
+            job_timeout=600,
+        )
+

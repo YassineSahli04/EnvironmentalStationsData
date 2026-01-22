@@ -1,7 +1,6 @@
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from BackEnd.ClimateFieldStations.SemanticSearch.TransformerData import CANONICAL, CANONICAL_META
-from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorDataInfo
+from SemanticSearch.TransformerData import CANONICAL, CANONICAL_META
 
 class ColumnSemanticSearch:
     def __init__(self) -> None:
@@ -92,6 +91,6 @@ class ColumnSemanticSearch:
             return final_param, 1 - best_score
         return final_param, best_score
 
-    def getPredictedParam(self, sensorDataInfo: CfSensorDataInfo):
-        query  = self.build_query(sensorDataInfo.sensor, sensorDataInfo.unit, sensorDataInfo.aggregationsType)
+    def getPredictedParam(self, sensorDataInfo: dict):
+        query  = self.build_query(sensorDataInfo.get("sensor"), sensorDataInfo.get("unit"), sensorDataInfo.get("aggregationsType")) # type: ignore
         return self.predict_param_from_text(query)

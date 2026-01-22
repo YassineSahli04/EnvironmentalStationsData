@@ -9,8 +9,9 @@ services:
     volumes:
       - ./PlaygroundFile.ipynb:/app/PlaygroundFile.ipynb
       - ./BackEnd:/app/BackEnd
-      - ./BackEnd/Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
-      - ./BackEnd/Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
+      - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
+      - ./Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
     environment:
       - DBINFO_PATH=/run/secrets/DbInfo.json
       - C2AIINFO_PATH=/run/secrets/C2aiInfo.json
+      - REDIS_URL=redis://redis:6379/0

@@ -1,0 +1,17 @@
+services:
+  redis:
+    image: redis:8.2-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  worker:
+    build: ./SemanticSearchWorker
+    restart: unless-stopped
+    depends_on:
+      - redis
+    volumes:
+      - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DBINFO_PATH=/run/secrets/DbInfo.json
