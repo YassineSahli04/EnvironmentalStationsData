@@ -224,7 +224,7 @@ class CfTableCreator:
                     aggCorrected = CfAggregationCorrector.correctAggregation(specificCol, agg)
                     connection.execute(
                         query,
-                        {"station_id": self.newTableName, "column_name":col, "unit": sensorData.unit, "aggregation": [aggCorrected], "param":param, "score":score}
+                        {"station_id": self.newTableName, "column_name":col, "unit": sensorData.unit, "aggregation": [aggCorrected]}
                     )
         else:
             colsData = self.getColDataStats(cols)
