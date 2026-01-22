@@ -13,8 +13,8 @@ class SensorSerializable:
     stationId: str
     sensor: str
     unit: str
-    aggregationsType: set
-    data: pd.DataFrame | list
+    aggregationsType: list
+    data: list | None
 
 
 class SensorDbObject:
@@ -43,7 +43,7 @@ class SensorDbObject:
         if self.isDataInDf:
             return df
         
-        lastSensorData = self.getLastSensorData()
+        lastSensorDt, lastSensorData = self.getLastSensorData()
         return SensorDbObject.dfToTimeValueRecords(df, self.aggregationsType, startDtUTC, lastSensorData)
     
     @staticmethod
@@ -113,25 +113,17 @@ class SensorDbObject:
             raise Exception(f"Columns ({self.columnNames}) Not handeled for Last Sensor Data")
         
         query = text(f"""
-                SELECT "{col}"
+                SELECT "date_time", "{col}"
                 FROM "{self.station.Id}"
                 WHERE "{col}" IS NOT NULL
                 ORDER BY "date_time" DESC
                 LIMIT 1;
             """)
         with self.engine.connect() as connection:
-            results = connection.execute(query).fetchall()
-            vals = [r[0] for r in results]
-        return vals[0]
-
-    def getSerializableObj(self, data) -> SensorSerializable:
-        return SensorSerializable(
-            stationId = self.station.Id,
-            sensor = self.sensor,
-            aggregationsType = self.aggregationsType,
-            unit=self.unit,
-            data= data
-        )
+            results = connection.execute(query).fetchone()
+        if results is None:
+            return None, None
+        return results[0], results[1]
     
     def setColumnsMetadata(self):
         query = text(f"""
@@ -142,15 +134,27 @@ class SensorDbObject:
         """)
         with self.engine.begin() as conn:
             res = conn.execute(query).fetchall()
-
         if len(res) == 0:
             raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.") 
         self.aggregationsType = set()
         self.columnNames = {}
         for colRow in res:
             colName, unit, aggrList = colRow
+            if aggrList is None:
+                self.aggregationsType.add('avg')
+                self.columnNames['avg'] = colName
+                continue
             for aggr in aggrList:
                 self.aggregationsType.add(aggr)
                 self.columnNames[aggr] = colName
         self.unit = unit
+    
+    def getSerializableObj(self, data:  list | None) -> SensorSerializable:
+        return SensorSerializable(
+            stationId = self.station.Id,
+            sensor = self.sensor,
+            aggregationsType = list(self.aggregationsType),
+            unit=self.unit,
+            data= data
+        )
 

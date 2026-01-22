@@ -5,6 +5,7 @@ import { useAllStations, getStationSensorsData } from "../Api/Api";
 import AmbianceDualAxisChart from "../Components/Charts/AmbianceDualAxisChart";
 import { OverlayLoader } from "../Components/Global/OverlayLoader";
 import ChartCard from "../Components/StationPageComponents/ChartCard";
+import DataQueryCard from "../Components/StationPageComponents/DataQueryCard";
 import StationDetailsAccordion from "../Components/StationPageComponents/StationDetailsAccordion";
 import StationSummaryBar from "../Components/StationPageComponents/StationSummaryBar";
 
@@ -19,15 +20,12 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
 
   const { data: stations, isStationLoading } = useAllStations();
 
-  const station = useMemo(() => stations.find((st) => st.Id === stationId), [stations, stationId]);
+  const station = useMemo(() => stations?.find((st) => st.Id === stationId), [stations, stationId]);
 
   const [ambianceData, setAmbianceData] = useState<any[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(true);
 
-  const startOfDay = "2025-12-01T00:00:00Z";
-  const endOfDay = "2026-01-08T00:00:00Z";
-
-  useEffect(() => {
+  const onDataQueryChange = (startDate: string, endDate: string, aggregationType: string) => {
     if (!stationId) return;
 
     setIsChartLoading(true);
@@ -35,14 +33,14 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
       const res = await getStationSensorsData(
         stationId,
         ["Relative Humidity", "Solar Radiation", "Temperature"],
-        "hour",
-        startOfDay,
-        endOfDay
+        aggregationType,
+        startDate,
+        endDate
       );
       setAmbianceData(res || []);
       setIsChartLoading(false);
     })();
-  }, [stationId]);
+  };
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -75,6 +73,9 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
 
       {/* Collapsible Station Details */}
       <StationDetailsAccordion station={station} isLoading={isStationLoading} />
+
+      {/* Data Query Settings */}
+      <DataQueryCard stationId={stationId} onDataQueryChange={onDataQueryChange} />
 
       {/* Charts Area */}
       <ChartCard title="Ambiance" subtitle="Temperature, Humidity & Solar Radiation">
