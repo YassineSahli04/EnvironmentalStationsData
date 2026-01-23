@@ -25,14 +25,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase repo name
+        run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
       - name: Build & Push backend
         uses: docker/build-push-action@v6
         with:
           context: ./BackEnd
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ghcr.io/${{ github.repository }}-backend:latest
-            ghcr.io/${{ github.repository }}-backend:${{ github.sha }}
+            ghcr.io/${{ env.REPO_LC }}-backend:latest
+            ghcr.io/${{ env.REPO_LC }}-backend:${{ github.sha }}
 
       - name: Build & Push worker
         uses: docker/build-push-action@v6
@@ -40,8 +43,8 @@ jobs:
           context: ./SemanticSearchWorker
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ghcr.io/${{ github.repository }}-worker:latest
-            ghcr.io/${{ github.repository }}-worker:${{ github.sha }}
+            ghcr.io/${{ env.REPO_LC }}-worker:latest
+            ghcr.io/${{ env.REPO_LC }}-worker:${{ github.sha }}
 
       - name: Build & Push scheduler
         uses: docker/build-push-action@v6
@@ -49,5 +52,5 @@ jobs:
           context: ./Scheduler
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ghcr.io/${{ github.repository }}-scheduler:latest
-            ghcr.io/${{ github.repository }}-scheduler:${{ github.sha }}
+            ghcr.io/${{ env.REPO_LC }}-scheduler:latest
+            ghcr.io/${{ env.REPO_LC }}-scheduler:${{ github.sha }}
