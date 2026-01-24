@@ -23,11 +23,32 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-      - name: Deploy to Windows Server
+
+      - name: Prepare GHCR auth config on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
-          script: 'powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:DOCKER_CONFIG=''C:\Users\Administrator\.docker-ci''; cd ''C:\Users\Administrator\Desktop\AGRODATA\Deploy''; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml pull; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml up -d --remove-orphans; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml ps"'
+          script: >
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $cfg='C:\Users\Administrator\.docker-ci'; New-Item -ItemType Directory -Force -Path $cfg | Out-Null; $u='${{ secrets.GHCR_USER }}'; $p='${{ secrets.GHCR_PAT }}'; $auth=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($u + ':' + $p)); $obj=@{auths=@{'ghcr.io'=@{auth=$auth}}}; $json=($obj | ConvertTo-Json -Compress); Set-Content -Path (Join-Path $cfg 'config.json') -Value $json -Encoding ascii -NoNewline"
+
+      - name: Deploy (pull + up + ps)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script: >
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $env:DOCKER_CONFIG='C:\Users\Administrator\.docker-ci'; cd 'C:\Users\Administrator\Desktop\AGRODATA\Deploy'; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml pull; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml up -d --remove-orphans; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml ps"
+      - name: Save deploy logs on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script: >
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $env:DOCKER_CONFIG='C:\Users\Administrator\.docker-ci'; cd 'C:\Users\Administrator\Desktop\AGRODATA\Deploy'; New-Item -ItemType Directory -Force -Path 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs' | Out-Null; $ts=Get-Date -Format 'yyyyMMdd-HHmmss'; $logPath='C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs\deploy-' + $ts + '.log'; $logs=docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml logs --no-color --tail 500; Set-Content -Path $logPath -Value $logs -Encoding utf8"
