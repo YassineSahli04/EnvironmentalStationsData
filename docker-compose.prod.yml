@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/prod/agrodata-backend:${BACKEND_TAG:-latest}
+    image: ghcr.io/yassinesahli04/environmentalstationsdata-backend:${BACKEND_TAG:-latest}
     pull_policy: always
     build: !reset null
     volumes: !override
@@ -8,14 +8,14 @@ services:
       - ./Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
 
   worker:
-    image: ghcr.io/prod/agrodata-worker:${WORKER_TAG:-latest}
+    image: ghcr.io/yassinesahli04/environmentalstationsdata-worker:${WORKER_TAG:-latest}
     pull_policy: always
     build: !reset null
     volumes: !override
       - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
 
   scheduler:
-    image: ghcr.io/prod/agrodata-scheduler:${SCHEDULER_TAG:-latest}
+    image: ghcr.io/yassinesahli04/environmentalstationsdata-scheduler:${SCHEDULER_TAG:-latest}
     pull_policy: always
     build: !reset null
 
