@@ -61,6 +61,11 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
+      - name: Connect runner to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
       - name: Deploy to Windows Server
         uses: appleboy/ssh-action@v1.0.3
         with:
