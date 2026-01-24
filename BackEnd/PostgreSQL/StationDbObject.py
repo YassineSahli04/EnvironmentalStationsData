@@ -246,6 +246,7 @@ class StationDbObject:
             LastDataPointTime = self.LastDataPointTime,
             State = self.State
             SensorsList=self.serializedSensors,
-            LastDataPointTime = self.LastDataPointTime
+            LastDataPointTime = self.LastDataPointTime,
+            State = self.State
         )
     

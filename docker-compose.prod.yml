@@ -1,0 +1,23 @@
+services:
+  backend:
+    image: ghcr.io/OWNER/REPO-backend:${BACKEND_TAG:-latest}
+    pull_policy: always
+    build: !reset null
+    volumes: !override
+      - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
+      - ./Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
+
+  worker:
+    image: ghcr.io/OWNER/REPO-worker:${WORKER_TAG:-latest}
+    pull_policy: always
+    build: !reset null
+    volumes: !override
+      - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
+
+  scheduler:
+    image: ghcr.io/OWNER/REPO-scheduler:${SCHEDULER_TAG:-latest}
+    pull_policy: always
+    build: !reset null
+
+  frontend:
+    profiles: ["dev"]

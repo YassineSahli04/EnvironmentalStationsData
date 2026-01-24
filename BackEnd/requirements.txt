@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 #torch --index-url https://download.pytorch.org/whl/cpu
+=======
+>>>>>>> 77bbdec5bf0515c0f63de8fbe2129ca8ab1c20d3
 fastapi
 uvicorn[standard]
 python-dotenv
@@ -8,6 +11,10 @@ requests
 pycryptodome
 sqlalchemy
 psycopg2-binary
+<<<<<<< HEAD
 
 
 # sentence-transformers
+=======
+rq
+>>>>>>> 77bbdec5bf0515c0f63de8fbe2129ca8ab1c20d3

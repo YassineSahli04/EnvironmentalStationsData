@@ -1,0 +1,9 @@
+services:
+  scheduler:
+    build: ./Scheduler
+    depends_on:
+      - backend
+    restart: unless-stopped
+    environment:
+      - UPDATE_URL=http://backend:8000/api/stations/server/update-db
+      - PYTHONUNBUFFERED=1

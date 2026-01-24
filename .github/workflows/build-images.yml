@@ -1,0 +1,56 @@
+name: Build & Push Images
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase repo name
+        run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Build & Push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./BackEnd
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ env.REPO_LC }}-backend:latest
+            ghcr.io/${{ env.REPO_LC }}-backend:${{ github.sha }}
+
+      - name: Build & Push worker
+        uses: docker/build-push-action@v6
+        with:
+          context: ./SemanticSearchWorker
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ env.REPO_LC }}-worker:latest
+            ghcr.io/${{ env.REPO_LC }}-worker:${{ github.sha }}
+
+      - name: Build & Push scheduler
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Scheduler
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ env.REPO_LC }}-scheduler:latest
+            ghcr.io/${{ env.REPO_LC }}-scheduler:${{ github.sha }}
