@@ -79,23 +79,18 @@ jobs:
           port: 22
           request_pty: true
           script: |
-            powershell -NoProfile -ExecutionPolicy Bypass -Command "& {
-              $ErrorActionPreference = 'Stop'
-
-              whoami
-              hostname
-
-              docker version
-              docker compose version
-
-              Set-Location 'C:\Users\Administrator\Desktop\AGRODATA\Deploy'
-              dir
-
-              New-Item -ItemType Directory -Force -Path 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs' | Out-Null
-              'proof' | Out-File -Encoding utf8 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs\proof.txt'
-
-              dir 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs'
-            }"
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "
+              $ErrorActionPreference = 'Stop';
+              whoami;
+              hostname;
+              docker version;
+              docker compose version;
+              Set-Location 'C:\Users\Administrator\Desktop\AGRODATA\Deploy';
+              dir;
+              New-Item -ItemType Directory -Force -Path 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs' | Out-Null;
+              'proof' | Out-File -Encoding utf8 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs\proof.txt';
+              dir 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs';
+            "
       - name: Deploy to Windows Server
         uses: appleboy/ssh-action@v1.0.3
         with:
