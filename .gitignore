@@ -6,6 +6,7 @@
 BackEnd/.DS_Store
 FrontEnd/.DS_Store
 
+remote.dump
 .vscode/
 
 Secrets/*
