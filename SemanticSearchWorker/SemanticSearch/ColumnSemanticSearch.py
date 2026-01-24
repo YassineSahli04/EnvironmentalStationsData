@@ -1,12 +1,6 @@
 import numpy as np
-<<<<<<< HEAD:BackEnd/ClimateFieldStations/SemanticSearch/ColumnSemanticSearch.py
-#from sentence_transformers import SentenceTransformer
-from BackEnd.ClimateFieldStations.SemanticSearch.TransformerData import CANONICAL, CANONICAL_META
-from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorDataInfo
-=======
 from sentence_transformers import SentenceTransformer
 from SemanticSearch.TransformerData import CANONICAL, CANONICAL_META
->>>>>>> 77bbdec5bf0515c0f63de8fbe2129ca8ab1c20d3:SemanticSearchWorker/SemanticSearch/ColumnSemanticSearch.py
 
 class ColumnSemanticSearch:
     def __init__(self) -> None:
