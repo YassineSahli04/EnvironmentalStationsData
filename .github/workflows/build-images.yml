@@ -77,6 +77,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 22
+          request_pty: true
           script: |
             powershell -NoProfile -ExecutionPolicy Bypass -Command "
               $ErrorActionPreference='Stop';
