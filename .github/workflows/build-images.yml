@@ -30,7 +30,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
-          script: powershell -NoProfile -ExecutionPolicy Bypass -Command "$cfg = 'C:\Users\Administrator\.docker-ci'; New-Item -ItemType Directory -Force -Path $cfg; Set-Content -Path (Join-Path $cfg 'config.json') -Value '{\"credsStore\":\"\",\"auths\":{}}'; echo '${{ secrets.GHCR_PAT }}' | docker --config $cfg login ghcr.io -u '${{ github.actor }}' --password-stdin"
+          script: powershell -NoProfile -ExecutionPolicy Bypass -Command "$cfg='C:\Users\Administrator\.docker-ci'; New-Item -ItemType Directory -Force -Path $cfg | Out-Null; Set-Content -Path (Join-Path $cfg 'config.json') -Value '{ ""auths"": {} }' -Encoding ascii; $env:DOCKER_CONFIG=$cfg; echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
 
       - name: Deploy to Windows Server
         uses: appleboy/ssh-action@v1.0.3
@@ -39,4 +39,4 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
-          script: powershell -NoProfile -ExecutionPolicy Bypass -Command "cd 'C:\Users\Administrator\Desktop\AGRODATA\Deploy'; docker --config 'C:\Users\Administrator\.docker-ci' compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml pull; docker --config 'C:\Users\Administrator\.docker-ci' compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml up -d --remove-orphans; docker --config 'C:\Users\Administrator\.docker-ci' compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml ps"
+          script: powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:DOCKER_CONFIG='C:\Users\Administrator\.docker-ci'; cd 'C:\Users\Administrator\Desktop\AGRODATA\Deploy'; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml pull; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml up -d --remove-orphans; docker compose -f docker-compose.yml -f docker-compose.worker.yml -f docker-compose.scheduler.yml -f docker-compose.prod.yml ps"
