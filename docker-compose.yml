@@ -20,7 +20,6 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./BackEnd:/app/BackEnd
       - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
       - ./Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
     environment:
