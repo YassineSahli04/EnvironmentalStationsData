@@ -30,17 +30,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lowercase repo name
-        run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
       - name: Build & Push backend
         uses: docker/build-push-action@v6
         with:
           context: ./BackEnd
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ghcr.io/${{ env.REPO_LC }}-backend:latest
-            ghcr.io/${{ env.REPO_LC }}-backend:${{ github.sha }}
+            ghcr.io/prod/agrodata-backend:latest
+            ghcr.io/prod/agrodata-backend:${{ github.sha }}
 
       - name: Build & Push worker
         uses: docker/build-push-action@v6
@@ -48,8 +45,8 @@ jobs:
           context: ./SemanticSearchWorker
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ghcr.io/${{ env.REPO_LC }}-worker:latest
-            ghcr.io/${{ env.REPO_LC }}-worker:${{ github.sha }}
+            ghcr.io/prod/agrodata-worker:latest
+            ghcr.io/prod/agrodata-worker:${{ github.sha }}
 
       - name: Build & Push scheduler
         uses: docker/build-push-action@v6
@@ -57,8 +54,8 @@ jobs:
           context: ./Scheduler
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ghcr.io/${{ env.REPO_LC }}-scheduler:latest
-            ghcr.io/${{ env.REPO_LC }}-scheduler:${{ github.sha }}
+            ghcr.io/prod/agrodata-scheduler:latest
+            ghcr.io/prod/agrodata-scheduler:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
