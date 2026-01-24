@@ -16,23 +16,59 @@ permissions:
   packages: write
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase repo name
+        run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Build & Push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./BackEnd
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ env.REPO_LC }}-backend:latest
+            ghcr.io/${{ env.REPO_LC }}-backend:${{ github.sha }}
+
+      - name: Build & Push worker
+        uses: docker/build-push-action@v6
+        with:
+          context: ./SemanticSearchWorker
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ env.REPO_LC }}-worker:latest
+            ghcr.io/${{ env.REPO_LC }}-worker:${{ github.sha }}
+
+      - name: Build & Push scheduler
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Scheduler
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ env.REPO_LC }}-scheduler:latest
+            ghcr.io/${{ env.REPO_LC }}-scheduler:${{ github.sha }}
+
   deploy:
     runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
     steps:
       - name: Connect runner to Tailscale
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-      - name: Debug remote context
-        if: ${{ inputs.debug == true }}
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: 22
-          request_pty: true
-          script: powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; whoami; hostname; docker version; docker compose version; Set-Location 'C:\Users\Administrator\Desktop\AGRODATA\Deploy'; dir; $null = New-Item -ItemType Directory -Force -Path 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs'; Set-Content -Path 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs\proof.txt' -Value 'proof' -Encoding utf8; dir 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs'"
       - name: Deploy to Windows Server
         uses: appleboy/ssh-action@v1.0.3
         with:
