@@ -5,6 +5,11 @@ on:
     branches: ["main"]
   push:
     branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      debug:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -65,7 +70,25 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-
+      - name: Debug remote context
+        if: ${{ inputs.debug == true }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          script: |
+            powershell -NoProfile -ExecutionPolicy Bypass -Command "
+              $ErrorActionPreference='Stop';
+              whoami; hostname;
+              docker version;
+              docker compose version;
+              dir 'C:\Users\Administrator\Desktop\AGRODATA\Deploy';
+              New-Item -ItemType Directory -Force -Path 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs' | Out-Null;
+              'proof' | Out-File -Encoding utf8 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs\proof.txt';
+              dir 'C:\Users\Administrator\Desktop\AGRODATA\Deploy\logs';
+            "
       - name: Deploy to Windows Server
         uses: appleboy/ssh-action@v1.0.3
         with:
