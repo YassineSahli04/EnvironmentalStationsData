@@ -244,9 +244,7 @@ class StationDbObject:
             Longitude = self.Longitude,
             Altitude = self.Altitude,
             LastDataPointTime = self.LastDataPointTime,
-            State = self.State
             SensorsList=self.serializedSensors,
-            LastDataPointTime = self.LastDataPointTime,
             State = self.State
         )
     

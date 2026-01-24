@@ -2,6 +2,7 @@ import json
 import sqlalchemy.engine as _engine
 from sqlalchemy import create_engine, text, bindparam
 import os
+from datetime import datetime, timezone
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
@@ -60,29 +61,41 @@ class PostgreSQL:
     def create_update_all_stations_data_tables(self):
         stations = self.get_all_station_objects()
         for station in stations:
-            try:
-                match station.Manufacturer:
-                    case "DeltaOHM":
-                        if station.DataSourceId is None:
-                            raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-                        table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
-                        alreadyExists = table_creator.create_postgre_table()
+            match station.Manufacturer:
+                case "DeltaOHM":
+                    if station.DataSourceId is None:
+                        raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
+                    table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+                    alreadyExists = table_creator.create_postgre_table()
                     
-                    case "Pessl":
-                        table_creator = CfTableCreator(self.engine, station.Id)
-                        alreadyExists = table_creator.IsDataTableCreated()
+                case "Pessl":
+                    table_creator = CfTableCreator(self.engine, station.Id)
+                    alreadyExists = table_creator.IsDataTableCreated()
 
-                if not alreadyExists:
-                    dataDf = table_creator.getFullDataDf()
-                    self.insert_create_data_df(dataDf, table_creator.newTableName)
-                else:
-                    self.update_db_table(station)
+            if not alreadyExists:
+                dataDf = table_creator.getFullDataDf()
+                self.insert_create_data_df(dataDf, table_creator.newTableName)
+            else:
+                self.update_db_table(station)
+
                 station.addVpdColOrUpdate()
-            # choose online or offline status depending on the success of the update    
-                self.update_station_state(station.Id, "Online")
-            except Exception as e:
-                self.update_station_state(station.Id, "Offline")
-                print(f"Station {station.Id} failed: {e}")
+
+            query = text(f'SELECT MAX("date_time") FROM "{table_creator.newTableName}";')
+            with self.engine.connect() as conn:
+                last_db_time = conn.execute(query).scalar()
+            state = "Offline"
+            if last_db_time:
+                if last_db_time.tzinfo is None:
+                    last_db_time = last_db_time.replace(tzinfo=timezone.utc)
+                
+                current_utc = datetime.now(timezone.utc)
+                seconds_diff = (current_utc - last_db_time).total_seconds()
+                
+                if seconds_diff < 3600:
+                    state = "Online"
+            self.update_station_state(station.Id, state)
+
+                
                
 
     def insert_create_data_df(self, df, tableName):
