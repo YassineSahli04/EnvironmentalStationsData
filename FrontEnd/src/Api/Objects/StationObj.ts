@@ -28,5 +28,5 @@ export interface StationObj {
   DataFrequency: string;
 
   // UI Only
-  Status: StationStatus;
+  State: StationStatus;
 }
