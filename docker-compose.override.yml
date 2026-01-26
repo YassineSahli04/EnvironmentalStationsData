@@ -1,8 +1,37 @@
 services:
+  frontend:
+    depends_on:
+      - api
+    restart: unless-stopped
+    image: node:24-slim
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./FrontEnd:/app
+      - vite_node_modules:/app/node_modules
+    command: sh -lc "npm ci && npm run dev -- --host 0.0.0.0"
+  api:
+    build:
+      context: ./BackEnd
+      dockerfile: Dockerfile.dev
+    command: uvicorn BackEnd.app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - 8000:8000
+    volumes:
+      - ./BackEnd:/app/BackEnd
+      - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
+      - ./Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
+    environment:
+      - DBINFO_PATH=/run/secrets/DbInfo.json
+      - C2AIINFO_PATH=/run/secrets/C2aiInfo.json
+      - REDIS_URL=redis://redis:6379/0
+
   backend-dev:
     build:
       context: ./BackEnd
       dockerfile: Dockerfile.dev
+    command: jupyter lab --ip=0.0.0.0 --port 8888 --no-browser --allow-root
     ports:
       - 8888:8888
       - 5678:5678
@@ -15,3 +44,6 @@ services:
       - DBINFO_PATH=/run/secrets/DbInfo.json
       - C2AIINFO_PATH=/run/secrets/C2aiInfo.json
       - REDIS_URL=redis://redis:6379/0
+
+volumes:
+  vite_node_modules:
