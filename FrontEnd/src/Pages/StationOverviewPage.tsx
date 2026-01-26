@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAllStations, getStationSensorsData } from "../Api/Api";
-import AmbianceDualAxisChart from "../Components/Charts/AmbianceDualAxisChart";
+import AmbianceChart from "../Components/Charts/AmbianceChart";
+import StressChart from "../Components/Charts/StressChart";
 import { OverlayLoader } from "../Components/Global/OverlayLoader";
 import ChartCard from "../Components/StationPageComponents/ChartCard";
 import DataQueryCard from "../Components/StationPageComponents/DataQueryCard";
@@ -23,21 +24,32 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
   const station = useMemo(() => stations?.find((st) => st.Id === stationId), [stations, stationId]);
 
   const [ambianceData, setAmbianceData] = useState<any[]>([]);
+  const [stressData, setStressData] = useState<any[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(true);
+  const [expandedChart, setExpandedChart] = useState<"ambiance" | "stress" | null>("ambiance");
 
   const onDataQueryChange = (startDate: string, endDate: string, aggregationType: string) => {
     if (!stationId) return;
 
     setIsChartLoading(true);
     (async () => {
-      const res = await getStationSensorsData(
+      const resAmbianceData = await getStationSensorsData(
         stationId,
         ["Relative Humidity", "Solar Radiation", "Temperature"],
         aggregationType,
         startDate,
         endDate
       );
-      setAmbianceData(res || []);
+      const resStressData = await getStationSensorsData(
+        stationId,
+        ["Relative Humidity", "vpd"],
+        aggregationType,
+        startDate,
+        endDate
+      );
+
+      setAmbianceData(resAmbianceData || []);
+      setStressData(resStressData || []);
       setIsChartLoading(false);
     })();
   };
@@ -78,14 +90,36 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
       <DataQueryCard stationId={stationId} onDataQueryChange={onDataQueryChange} />
 
       {/* Charts Area */}
-      <ChartCard title="Ambiance" subtitle="Temperature, Humidity & Solar Radiation">
+      <ChartCard
+        title="Ambiance"
+        subtitle="Temperature, Relative Humidity & Solar Radiation"
+        expanded={expandedChart === "ambiance"}
+        onToggle={() => setExpandedChart(expandedChart === "ambiance" ? null : "ambiance")}
+        accentColor="#f97316"
+      >
         <OverlayLoader show={isChartLoading} dim={0.2} blockInteraction={isChartLoading} />
         {isChartLoading ? null : ambianceData.length === 0 ? (
           <h1 style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
             No Data Available
           </h1>
         ) : (
-          <AmbianceDualAxisChart ref={chartRef} data={ambianceData} height={400} />
+          <AmbianceChart ref={chartRef} data={ambianceData} height={400} />
+        )}
+      </ChartCard>
+      <ChartCard
+        title="Stress"
+        subtitle="VPD & Relative Humidity"
+        expanded={expandedChart === "stress"}
+        onToggle={() => setExpandedChart(expandedChart === "stress" ? null : "stress")}
+        accentColor="#f472b6"
+      >
+        <OverlayLoader show={isChartLoading} dim={0.2} blockInteraction={isChartLoading} />
+        {isChartLoading ? null : stressData.length === 0 ? (
+          <h1 style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            No Data Available
+          </h1>
+        ) : (
+          <StressChart ref={chartRef} data={stressData} height={400} />
         )}
       </ChartCard>
     </Box>
