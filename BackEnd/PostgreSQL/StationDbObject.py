@@ -143,6 +143,8 @@ class StationDbObject:
         dataGroup = StationDataGroup.parse(dataGroup)
         sensor = SensorDbObject(self, sensorId, isDataInDf=False)
         data = sensor.getSensorAllDataColumns(dataGroup, startDtUTC, endDtUTC)
+        if type(data) != list:
+            return
         return sensor.getSerializableObj(data)
     
     def getSensonsDefaultDataColumns(self, sensorIdsList:list[str], dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
