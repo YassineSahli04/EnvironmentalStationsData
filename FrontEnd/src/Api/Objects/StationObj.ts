@@ -9,7 +9,7 @@ export interface StationSensorObj {
   data: SensorDataRow[];
 }
 
-export type StationStatus = "online" | "offline";
+export type StationStatus = "Online" | "Offline";
 
 export interface StationObj {
   Id: string;

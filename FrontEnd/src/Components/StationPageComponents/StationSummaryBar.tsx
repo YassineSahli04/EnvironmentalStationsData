@@ -13,13 +13,13 @@ type StationSummaryBarProps = {
 };
 
 const statusColors: Record<StationStatus, "success" | "error"> = {
-  online: "success",
-  offline: "error",
+  Online: "success",
+  Offline: "error",
 };
 
 const statusLabels: Record<StationStatus, string> = {
-  online: "Online",
-  offline: "Offline",
+  Online: "Online",
+  Offline: "Offline",
 };
 
 function formatTimestamp(isoString: string): string {
