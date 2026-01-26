@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAllStations, getStationSensorsData } from "../Api/Api";
 import AmbianceDualAxisChart from "../Components/Charts/AmbianceDualAxisChart";
+import VpdHumidityChart from "../Components/Charts/VpdHumidityChart";
 import { OverlayLoader } from "../Components/Global/OverlayLoader";
 import ChartCard from "../Components/StationPageComponents/ChartCard";
 import DataQueryCard from "../Components/StationPageComponents/DataQueryCard";
@@ -23,6 +24,7 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
   const station = useMemo(() => stations?.find((st) => st.Id === stationId), [stations, stationId]);
 
   const [ambianceData, setAmbianceData] = useState<any[]>([]);
+  const [stressData, setStressData] = useState<any[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(true);
 
   const onDataQueryChange = (startDate: string, endDate: string, aggregationType: string) => {
@@ -30,14 +32,22 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
 
     setIsChartLoading(true);
     (async () => {
-      const res = await getStationSensorsData(
+      const resAmbianceData = await getStationSensorsData(
         stationId,
         ["Relative Humidity", "Solar Radiation", "Temperature"],
         aggregationType,
         startDate,
         endDate
       );
-      setAmbianceData(res || []);
+      const resStressData = await getStationSensorsData(
+        stationId,
+        ["Relative Humidity", "vpd"],
+        aggregationType,
+        startDate,
+        endDate
+      );
+      setAmbianceData(resAmbianceData || []);
+      setStressData(resStressData || []);
       setIsChartLoading(false);
     })();
   };
@@ -86,6 +96,16 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
           </h1>
         ) : (
           <AmbianceDualAxisChart ref={chartRef} data={ambianceData} height={400} />
+        )}
+      </ChartCard>
+      <ChartCard title="Stress" subtitle="VPD & Relative Humidity">
+        <OverlayLoader show={isChartLoading} dim={0.2} blockInteraction={isChartLoading} />
+        {isChartLoading ? null : stressData.length === 0 ? (
+          <h1 style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            No Data Available
+          </h1>
+        ) : (
+          <VpdHumidityChart ref={chartRef} data={stressData} height={400} />
         )}
       </ChartCard>
     </Box>
