@@ -65,7 +65,6 @@ def get_station_sensons_data(stationId: str, sensorsId: list[str] | None = Query
 
         startDtUTC = DateTimeHelper.to_utc(startDtUTC)
         endDtUTC = DateTimeHelper.to_utc(endDtUTC)
-        logger.info( "Station: %s, Sensors:%s", stationId, sensorsId)
 
         if sensorsId is None or len(sensorsId) == 0: 
             raise Exception("Sensors are not defined.")  
