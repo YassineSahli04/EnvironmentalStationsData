@@ -95,7 +95,7 @@ class StationDbObject:
         self.DataTableName = row.get("DataTableName")
         self.set_has_data_table()
         self.set_last_data_point_time()
-        self.State = row.get("State")
+        self.setStationState()
         self.setAvailableSensors()
 
     def set_has_data_table(self):
@@ -120,6 +120,18 @@ class StationDbObject:
                 return
             self.LastDataPointTime = None
   
+    def setStationState(self):
+        state = 'Offline'
+        if self.LastDataPointTime is not None:
+            current_utc = datetime.now(timezone.utc)
+            seconds_diff = (current_utc - self.LastDataPointTime).total_seconds()
+            
+            if seconds_diff < 3600:
+                state = "Online"
+        self.State = state
+        
+        
+
     def setAvailableSensors(self):
         if not self.HasDataTable: self.Sensors = None; self.serializedSensors = None; return;
         

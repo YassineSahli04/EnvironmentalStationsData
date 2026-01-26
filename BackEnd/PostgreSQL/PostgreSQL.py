@@ -40,7 +40,6 @@ class PostgreSQL:
             connection_string,
             connect_args={"options": "-c timezone=UTC"},
         )
-        self.check_and_update_schema()
 
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
         query = text("SELECT \"Id\" FROM \"Stations\";")
@@ -78,22 +77,8 @@ class PostgreSQL:
             else:
                 self.update_db_table(station)
 
-                station.addVpdColOrUpdate()
-
-            query = text(f'SELECT MAX("date_time") FROM "{table_creator.newTableName}";')
-            with self.engine.connect() as conn:
-                last_db_time = conn.execute(query).scalar()
-            state = "Offline"
-            if last_db_time:
-                if last_db_time.tzinfo is None:
-                    last_db_time = last_db_time.replace(tzinfo=timezone.utc)
-                
-                current_utc = datetime.now(timezone.utc)
-                seconds_diff = (current_utc - last_db_time).total_seconds()
-                
-                if seconds_diff < 3600:
-                    state = "Online"
-            self.update_station_state(station.Id, state)
+            station.addVpdColOrUpdate()
+            self.update_station_state(station.Id, station.State)
 
                 
                
@@ -191,18 +176,3 @@ class PostgreSQL:
         query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
         with self.engine.begin() as connection:
             connection.execute(query, {"station_id": station_id, "state": state})
-
-    def check_and_update_schema(self):
-        '''
-        Checks if the 'State' column exists in the 'Stations' table and adds it if it doesn't.
-        '''
-        try:
-            query = text("SELECT column_name FROM information_schema.columns WHERE table_name='Stations' AND column_name='State';")
-            with self.engine.connect() as connection:
-                result = connection.execute(query).fetchone()
-                if not result:
-                    print("Adding 'State' column to Stations table...")
-                    connection.execute(text('ALTER TABLE "Stations" ADD COLUMN "State" TEXT DEFAULT \'Unknown\';'))
-                    connection.commit()
-        except Exception as e:
-            print(f"Schema Check Warning: {e}")
