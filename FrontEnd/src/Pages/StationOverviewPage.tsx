@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAllStations, getStationSensorsData } from "../Api/Api";
 import AmbianceChart from "../Components/Charts/AmbianceChart";
+import EventsChart from "../Components/Charts/EventsChart";
 import StressChart from "../Components/Charts/StressChart";
 import { OverlayLoader } from "../Components/Global/OverlayLoader";
 import ChartCard from "../Components/StationPageComponents/ChartCard";
@@ -25,8 +26,11 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
 
   const [ambianceData, setAmbianceData] = useState<any[]>([]);
   const [stressData, setStressData] = useState<any[]>([]);
+  const [eventsData, setEventsData] = useState<any[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(true);
-  const [expandedChart, setExpandedChart] = useState<"ambiance" | "stress" | null>("ambiance");
+  const [expandedChart, setExpandedChart] = useState<"ambiance" | "stress" | "events" | null>(
+    "ambiance"
+  );
 
   const onDataQueryChange = (startDate: string, endDate: string, aggregationType: string) => {
     if (!stationId) return;
@@ -47,9 +51,17 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
         startDate,
         endDate
       );
-
+      const resEventsData = await getStationSensorsData(
+        stationId,
+        ["Precipitation", "wind speed"],
+        aggregationType,
+        startDate,
+        endDate
+      );
+      console.log(resEventsData);
       setAmbianceData(resAmbianceData || []);
       setStressData(resStressData || []);
+      setEventsData(resEventsData || []);
       setIsChartLoading(false);
     })();
   };
@@ -120,6 +132,22 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
           </h1>
         ) : (
           <StressChart ref={chartRef} data={stressData} height={400} />
+        )}
+      </ChartCard>
+      <ChartCard
+        title="Events"
+        subtitle="Precipitation & Wind Speed"
+        expanded={expandedChart === "events"}
+        onToggle={() => setExpandedChart(expandedChart === "events" ? null : "events")}
+        accentColor="#38bdf8"
+      >
+        <OverlayLoader show={isChartLoading} dim={0.2} blockInteraction={isChartLoading} />
+        {isChartLoading ? null : eventsData.length === 0 ? (
+          <h1 style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            No Data Available
+          </h1>
+        ) : (
+          <EventsChart ref={chartRef} data={eventsData} height={400} />
         )}
       </ChartCard>
     </Box>
