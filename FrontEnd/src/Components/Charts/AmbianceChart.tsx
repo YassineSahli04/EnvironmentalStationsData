@@ -9,13 +9,13 @@ import {
   getBaseChartOptions,
 } from "./chartUtils";
 
-type AmbianceDualAxisChartProps = {
+type AmbianceChartProps = {
   data: SensorDataRow[];
   height?: number;
 };
 
-const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProps>(
-  function AmbianceDualAxisChart({ data, height = 360 }, ref) {
+const AmbianceChart = forwardRef<ReactECharts, AmbianceChartProps>(
+  function AmbianceChart({ data, height = 360 }, ref) {
     const option = useMemo(() => {
       const timestamps = extractTimeSeries(data);
 
@@ -63,7 +63,7 @@ const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProp
         ],
         series: [
           {
-            name: "Température (T)",
+            name: "Temperature (T)",
             type: "line",
             yAxisIndex: 0,
             data: buildSeriesData(timestamps, seriesT),
@@ -75,7 +75,7 @@ const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProp
             z: 3,
           },
           {
-            name: "Humidité (HR)",
+            name: "Relative Humidity (HR)",
             type: "line",
             yAxisIndex: 1,
             data: buildSeriesData(timestamps, seriesHR),
@@ -87,7 +87,7 @@ const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProp
             z: 2,
           },
           {
-            name: "Rayonnement (Rg)",
+            name: "Solar Radiation (Rg)",
             type: "line",
             yAxisIndex: 2,
             data: buildSeriesData(timestamps, seriesRg),
@@ -128,4 +128,5 @@ const AmbianceDualAxisChart = forwardRef<ReactECharts, AmbianceDualAxisChartProp
   }
 );
 
-export default AmbianceDualAxisChart;
+export default AmbianceChart;
+
