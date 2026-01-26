@@ -2,14 +2,13 @@ import json
 import sqlalchemy.engine as _engine
 from sqlalchemy import create_engine, text, bindparam
 import os
-from datetime import datetime, timezone
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
-from BackEnd.PostgreSQL.StationDbObject import StationDbObject
-from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject, StationState
 from BackEnd.C2aiStations.Api.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
 from concurrent.futures import ThreadPoolExecutor
+from BackEnd.Utils.EmailNotifier import EmailNotifier
 
 class PostgreSQL:
     engine: _engine.Engine;
@@ -78,7 +77,8 @@ class PostgreSQL:
                 self.update_db_table(station)
 
             station.addVpdColOrUpdate()
-            self.update_station_state(station.Id, station.State)
+            if station.HasStateChanged:
+                self.update_station_state(station)
 
                 
                
@@ -172,7 +172,15 @@ class PostgreSQL:
         dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)
 
-    def update_station_state(self, station_id, state):
+    def update_station_state(self, station: StationDbObject):
+        """Update station state in database and send email notification."""
         query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
         with self.engine.begin() as connection:
-            connection.execute(query, {"station_id": station_id, "state": state})
+            connection.execute(query, {"station_id": station.Id, "state": station.State.value})
+
+        self._send_state_change_notification(station)
+
+    def _send_state_change_notification(self, station: StationDbObject):
+        """Send email notification for station state change."""
+        notifier = EmailNotifier()
+        notifier.send_station_state_change_email(station)
