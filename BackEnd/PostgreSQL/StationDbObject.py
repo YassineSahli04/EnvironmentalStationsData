@@ -142,7 +142,7 @@ class StationDbObject:
                 self.HasStateChanged = None
                 return
             oldState = res[0]
-        if oldState == state:
+        if oldState == state.value:
             self.HasStateChanged = False
             return
         self.HasStateChanged = True   

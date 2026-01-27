@@ -9,14 +9,14 @@ from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
 from concurrent.futures import ThreadPoolExecutor
 from BackEnd.Utils.EmailNotifier import EmailNotifier
+from BackEnd.PostgreSQL.User import User
 
 class PostgreSQL:
     engine: _engine.Engine;
     CHUNK_SIZE = 25
     def __init__(self):
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
-        self.initialize_postgres_connection()
-    
+        self.initialize_postgres_connection()   
 
     def initialize_postgres_connection(self):
         if self.SECRETJSONPATH is None:
@@ -56,8 +56,21 @@ class PostgreSQL:
                 stations.append(station)
         return stations
     
+    def get_all_user_objects(self) -> list[User]:
+        query = text("SELECT \"Name\" FROM \"Users\";")
+        users = []
+        with self.engine.connect() as connection:
+            result = connection.execute(query).fetchall()
+            for res in result:
+                userName = res[0]
+                user = User(self.engine, userName)
+                users.append(user)
+        return users
+    
     def create_update_all_stations_data_tables(self):
         stations = self.get_all_station_objects()
+        users = self.get_all_user_objects()
+        userEmailsToAlert = [user.Email for user in users if user.IsSubscribedToStationAlerts]
         for station in stations:
             match station.Manufacturer:
                 case "DeltaOHM":
@@ -78,10 +91,7 @@ class PostgreSQL:
 
             station.addVpdColOrUpdate()
             if station.HasStateChanged:
-                self.update_station_state(station)
-
-                
-               
+                self.update_station_state(station, userEmailsToAlert)
 
     def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:
@@ -172,15 +182,12 @@ class PostgreSQL:
         dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)
 
-    def update_station_state(self, station: StationDbObject):
-        """Update station state in database and send email notification."""
+    def update_station_state(self, station: StationDbObject, userEmailsToAlert: list[str]):
         query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
         with self.engine.begin() as connection:
             connection.execute(query, {"station_id": station.Id, "state": station.State.value})
+        self._send_state_change_notification(station, userEmailsToAlert)
 
-        self._send_state_change_notification(station)
-
-    def _send_state_change_notification(self, station: StationDbObject):
-        """Send email notification for station state change."""
-        notifier = EmailNotifier()
+    def _send_state_change_notification(self, station: StationDbObject, userEmailsToAlert: list[str]):
+        notifier = EmailNotifier(userEmailsToAlert)
         notifier.send_station_state_change_email(station)
