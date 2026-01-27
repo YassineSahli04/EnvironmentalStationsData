@@ -90,6 +90,8 @@ class PostgreSQL:
                 self.update_db_table(station)
 
             station.addVpdColOrUpdate()
+            
+            station.updateStationState()
             if station.HasStateChanged:
                 self.update_station_state(station, userEmailsToAlert)
 
