@@ -89,7 +89,7 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
     >
       {/* Sticky Station Summary Bar */}
       <StationSummaryBar
-        station={{ ...station, Status: "online" }}
+        station={station}
         isLoading={isStationLoading}
         onStationChange={handleStationChange}
         availableStations={[]} // Can be populated from API
