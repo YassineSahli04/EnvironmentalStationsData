@@ -5,7 +5,6 @@ import os
 from datetime import datetime, timezone
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
-from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
 from BackEnd.C2aiStations.Api.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
