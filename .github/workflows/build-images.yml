@@ -64,6 +64,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          args: --ephemeral
 
       - name: Prepare GHCR auth config on server
         uses: appleboy/ssh-action@v1.0.3
