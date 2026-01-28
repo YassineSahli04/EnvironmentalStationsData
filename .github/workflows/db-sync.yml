@@ -33,14 +33,18 @@ jobs:
           PGPASSWORD: ${{ secrets.SERVER_DB_PASSWORD }}
         run: |
           pg_dump \
-          -h ${{ secrets.SERVER_DB_IP }} \
-          -p ${{ secrets.SERVER_DB_PORT }} \
-          -U postgres \
-          -Fc AGRODATA  \
-          -f remote.dump
+            -h ${{ secrets.SERVER_DB_IP }} \
+            -p ${{ secrets.SERVER_DB_PORT }} \
+            -U postgres \
+            -Fc AGRODATA \
+            -f remote.dump
 
-      - name: Upload DB dump
-        uses: actions/upload-artifact@v4
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          name: remote-db-dump
-          path: remote.dump
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Copy dump to server
+        run: |
+          scp -o StrictHostKeyChecking=no remote.dump \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:"C:/Users/Administrator/Desktop/AGRODATA/DbDumpFiles/latest.dump"
