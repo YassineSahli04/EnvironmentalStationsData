@@ -16,7 +16,7 @@ jobs:
       - name: Connect runner to Tailscale
         uses: tailscale/github-action@v2
         with:
-          authKey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
 
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
