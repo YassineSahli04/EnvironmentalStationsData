@@ -1,0 +1,41 @@
+name: Database Sync
+
+on:
+  push:
+    branches: ["main"]
+
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 7 * * *"
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect runner to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+
+      - name: Dump remote DB
+        env:
+          PGPASSWORD: ${{ secrets.SERVER_DB_PASSWORD }}
+        run: |
+          pg_dump \
+          -h ${{ secrets.SERVER_DB_IP }} \
+          -p ${{ secrets.SERVER_DB_PORT }} \
+          -U postgres \
+          -Fc AGRODATA  \
+          -f remote.dump
+
+      - name: Upload DB dump
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-db-dump
+          path: remote.dump
