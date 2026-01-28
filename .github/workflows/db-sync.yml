@@ -10,7 +10,7 @@ on:
     - cron: "0 7 * * *"
 
 jobs:
-  snapshot:
+  Db-Snapshot:
     runs-on: ubuntu-latest
     steps:
       - name: Connect runner to Tailscale
