@@ -14,8 +14,8 @@ jobs:
         if: always()
         shell: pwsh
         env:
-          TS_API_KEY: ${{ secrets.TS_API_KEY }}
-          TS_TAILNET: ${{ secrets.TS_TAILNET }}
+          TS_API_KEY: ${{ secrets.TAILSCALE_API_KEY }}
+          TS_TAILNET: ${{ secrets.TAILSCALE_USER_EMAIL }}
           DEVICE_PREFIX: github-runner
         run: |
           $ErrorActionPreference = "Stop"
