@@ -32,6 +32,10 @@ class StationDataGroup(Enum):
             f"Invalid dataGroup {raw!r}. "
             f"Allowed names: {allowed_names}. Allowed values: {allowed_values}."
         )
+
+class StationState(Enum):
+    Online= 'Online'
+    Offline= 'Offline'
 @dataclass
 class StationSerializable:
     Id: str
@@ -63,7 +67,8 @@ class StationDbObject:
     DataTableName: str | None
     HasDataTable: bool
     LastDataPointTime: datetime | None
-    State: str | None
+    State: StationState
+    HasStateChanged: bool | None
 
     def __init__(
         self,
@@ -93,9 +98,9 @@ class StationDbObject:
         self.Altitude      = row.get("Altitude")
         self.DataSourceId  = row.get("DataSourceId")
         self.DataTableName = row.get("DataTableName")
+        self.State = row.get("State")  # type: ignore
         self.set_has_data_table()
         self.set_last_data_point_time()
-        self.State = row.get("State")
         self.setAvailableSensors()
 
     def set_has_data_table(self):
@@ -120,6 +125,28 @@ class StationDbObject:
                 return
             self.LastDataPointTime = None
   
+    def updateStationState(self):
+        state = StationState.Offline
+        if self.LastDataPointTime is not None:
+            current_utc = datetime.now(timezone.utc)
+            seconds_diff = (current_utc - self.LastDataPointTime).total_seconds()
+            
+            if seconds_diff < 3600:
+                state = StationState.Online
+        self.State = state
+
+        stateCheckQuery = text("SELECT \"State\" FROM \"Stations\" WHERE \"Id\" = :station_id;")
+        with self.engine.begin() as connection:
+            res = connection.execute(stateCheckQuery, {"station_id": self.Id}).fetchone()
+            if res is None:
+                self.HasStateChanged = None
+                return
+            oldState = res[0]
+        if oldState == state.value:
+            self.HasStateChanged = False
+            return
+        self.HasStateChanged = True   
+
     def setAvailableSensors(self):
         if not self.HasDataTable: self.Sensors = None; self.serializedSensors = None; return;
         
@@ -247,6 +274,6 @@ class StationDbObject:
             Altitude = self.Altitude,
             LastDataPointTime = self.LastDataPointTime,
             SensorsList=self.serializedSensors,
-            State = self.State
+            State = self.State.value
         )
     

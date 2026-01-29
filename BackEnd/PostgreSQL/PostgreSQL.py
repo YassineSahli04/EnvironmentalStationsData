@@ -2,21 +2,21 @@ import json
 import sqlalchemy.engine as _engine
 from sqlalchemy import create_engine, text, bindparam
 import os
-from datetime import datetime, timezone
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
-from BackEnd.PostgreSQL.StationDbObject import StationDbObject
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject, StationState
 from BackEnd.C2aiStations.Api.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
 from concurrent.futures import ThreadPoolExecutor
+from BackEnd.Utils.EmailNotifier import EmailNotifier
+from BackEnd.PostgreSQL.User import User
 
 class PostgreSQL:
     engine: _engine.Engine;
     CHUNK_SIZE = 25
     def __init__(self):
         self.SECRETJSONPATH = os.getenv("DBINFO_PATH")
-        self.initialize_postgres_connection()
-    
+        self.initialize_postgres_connection()   
 
     def initialize_postgres_connection(self):
         if self.SECRETJSONPATH is None:
@@ -39,7 +39,6 @@ class PostgreSQL:
             connection_string,
             connect_args={"options": "-c timezone=UTC"},
         )
-        self.check_and_update_schema()
 
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
         query = text("SELECT \"Id\" FROM \"Stations\";")
@@ -57,8 +56,21 @@ class PostgreSQL:
                 stations.append(station)
         return stations
     
+    def get_all_user_objects(self) -> list[User]:
+        query = text("SELECT \"Name\" FROM \"Users\";")
+        users = []
+        with self.engine.connect() as connection:
+            result = connection.execute(query).fetchall()
+            for res in result:
+                userName = res[0]
+                user = User(self.engine, userName)
+                users.append(user)
+        return users
+    
     def create_update_all_stations_data_tables(self):
         stations = self.get_all_station_objects()
+        users = self.get_all_user_objects()
+        userEmailsToAlert = [user.Email for user in users if user.IsSubscribedToStationAlerts]
         for station in stations:
             match station.Manufacturer:
                 case "DeltaOHM":
@@ -77,25 +89,11 @@ class PostgreSQL:
             else:
                 self.update_db_table(station)
 
-                station.addVpdColOrUpdate()
-
-            query = text(f'SELECT MAX("date_time") FROM "{table_creator.newTableName}";')
-            with self.engine.connect() as conn:
-                last_db_time = conn.execute(query).scalar()
-            state = "Offline"
-            if last_db_time:
-                if last_db_time.tzinfo is None:
-                    last_db_time = last_db_time.replace(tzinfo=timezone.utc)
-                
-                current_utc = datetime.now(timezone.utc)
-                seconds_diff = (current_utc - last_db_time).total_seconds()
-                
-                if seconds_diff < 3600:
-                    state = "Online"
-            self.update_station_state(station.Id, state)
-
-                
-               
+            station.addVpdColOrUpdate()
+            
+            station.updateStationState()
+            if station.HasStateChanged:
+                self.update_station_state(station, userEmailsToAlert)
 
     def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:
@@ -186,22 +184,12 @@ class PostgreSQL:
         dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)
 
-    def update_station_state(self, station_id, state):
+    def update_station_state(self, station: StationDbObject, userEmailsToAlert: list[str]):
         query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
         with self.engine.begin() as connection:
-            connection.execute(query, {"station_id": station_id, "state": state})
+            connection.execute(query, {"station_id": station.Id, "state": station.State.value})
+        self._send_state_change_notification(station, userEmailsToAlert)
 
-    def check_and_update_schema(self):
-        '''
-        Checks if the 'State' column exists in the 'Stations' table and adds it if it doesn't.
-        '''
-        try:
-            query = text("SELECT column_name FROM information_schema.columns WHERE table_name='Stations' AND column_name='State';")
-            with self.engine.connect() as connection:
-                result = connection.execute(query).fetchone()
-                if not result:
-                    print("Adding 'State' column to Stations table...")
-                    connection.execute(text('ALTER TABLE "Stations" ADD COLUMN "State" TEXT DEFAULT \'Unknown\';'))
-                    connection.commit()
-        except Exception as e:
-            print(f"Schema Check Warning: {e}")
+    def _send_state_change_notification(self, station: StationDbObject, userEmailsToAlert: list[str]):
+        notifier = EmailNotifier(userEmailsToAlert)
+        notifier.send_station_state_change_email(station)
