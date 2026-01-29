@@ -1,0 +1,67 @@
+name: Tailscale Devices Cleanup
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+
+  workflow_dispatch:
+
+jobs:
+  devices-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Expired Devices Deletion
+        if: always()
+        shell: pwsh
+        env:
+          TS_API_KEY: ${{ secrets.TS_API_KEY }}
+          TS_TAILNET: ${{ secrets.TS_TAILNET }}
+          DEVICE_PREFIX: github-runner
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($env:TS_API_KEY):"))
+          $headers = @{ Authorization = "Basic $auth" }
+
+          $listUrl = "https://api.tailscale.com/api/v2/tailnet/$($env:TS_TAILNET)/devices"
+          $resp = Invoke-RestMethod -Method GET -Uri $listUrl -Headers $headers
+          $devices = @($resp.devices)
+
+          $prefix = $env:DEVICE_PREFIX
+          $targets = $devices | Where-Object {
+              $_.expires -and
+              $_.hostname -like "$prefix*" -and
+              ([DateTime]$_.expires) -lt (Get-Date).ToUniversalTime()
+          }
+
+          Write-Host "Found $($targets.Count) expired devices with prefix '$prefix'"
+
+          function Invoke-DeleteWithRetry([string]$url) {
+            $max = 6
+            for ($i = 1; $i -le $max; $i++) {
+                try {
+                Invoke-RestMethod -Method DELETE -Uri $url -Headers $headers | Out-Null
+                return
+                } catch {
+                $status = $null
+                if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+                if ($status -eq 429 -or ($status -ge 500 -and $status -lt 600)) {
+                    $sleep = [Math]::Min(30, [Math]::Pow(2, $i))
+                    Write-Host "DELETE throttled/failed (HTTP $status). Retry $i/$max in ${sleep}s..."
+                    Start-Sleep -Seconds $sleep
+                    continue
+                }
+                throw
+                }
+            }
+            throw "DELETE failed after retries: $url"
+          }
+
+          foreach ($d in $targets) {
+            $delUrl = "https://api.tailscale.com/api/v2/device/$($d.id)"
+            Write-Host "Deleting: $($d.hostname) (id=$($d.id)) expired=$($d.expires)"
+            Invoke-DeleteWithRetry -url $delUrl
+            Start-Sleep -Milliseconds 300
+          }
+
+          Write-Host "Cleanup done."
