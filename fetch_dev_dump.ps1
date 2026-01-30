@@ -1,1 +1,0 @@
-$ErrorActionPreference = "Stop"
