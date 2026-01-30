@@ -32,6 +32,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const geoDataRef = useRef<any>(null);
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
   const prevStyleRef = useRef<string>(STYLE_SATELLITE);
 
   const [mapStyle, setMapStyle] = useState<string>(STYLE_SATELLITE);
@@ -245,24 +246,113 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
       const coordinates = e.feature.geometry.coordinates.slice();
       const props = e.feature.properties;
 
-      const popup = new mapboxgl.Popup()
+      // Close any existing popup before opening a new one
+      if (popupRef.current) {
+        popupRef.current.remove();
+      }
+
+      const popup = new mapboxgl.Popup({ offset: 15, maxWidth: "320px", closeOnClick: false })
         .setLngLat(coordinates)
         .setHTML(
           `
-          <div class="station-popup" style="cursor: pointer;">
-            <h3 style="color: #2238ffff; margin: 0;">${props?.name}</h3>
-            <p style="color: #000000ff; margin: 4px 0 0 0;">
-              <strong style="color:#000000ff;">ID:</strong> ${props?.id}<br />
-              <strong style="color:#000000ff;">Manuf:</strong> ${props?.manufacturer}<br />
-              ${props?.type ? `<strong style="color:#000000ff;">Type:</strong> ${props.type}<br />` : ""}
-              <strong style="color:#000000ff;">Lon:</strong> ${coordinates[0].toFixed(4)}, 
-              <strong style="color:#000000ff;">Lat:</strong> ${coordinates[1].toFixed(4)}
-              ${props?.paramValue != null ? `<br /><strong style="color:#000000ff;">${props.param?.toString()}:</strong> ${props.paramValue.toFixed(2)}` : ""}
-            </p>
+          <div class="station-popup" style="
+            cursor: pointer;
+            padding: 16px 18px;
+            font-family: 'Source Sans Pro', -apple-system, sans-serif;
+          ">
+            <div style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              margin-bottom: 14px;
+              padding-bottom: 12px;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            ">
+              <div style="
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #00d9ff, #0066ff);
+                box-shadow: 0 0 12px rgba(0, 217, 255, 0.5);
+                animation: pulse 2s infinite;
+              "></div>
+              <h3 style="
+                color: #fff;
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
+                letter-spacing: 0.3px;
+              ">${props?.name}</h3>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">ID</span>
+                <span style="color: #fff; font-size: 13px; font-weight: 500;">${props?.id}</span>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Manufacturer</span>
+                <span style="color: #fff; font-size: 13px; font-weight: 500;">${props?.manufacturer}</span>
+              </div>
+              
+              ${props?.type ? `
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Type</span>
+                <span style="color: #fff; font-size: 13px; font-weight: 500;">${props.type}</span>
+              </div>
+              ` : ""}
+              
+              <div style="
+                display: flex;
+                gap: 12px;
+                margin-top: 6px;
+                padding: 10px 12px;
+                background: rgba(255, 255, 255, 0.04);
+                border-radius: 8px;
+              ">
+                <div style="flex: 1;">
+                  <div style="color: rgba(255, 255, 255, 0.4); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Longitude</div>
+                  <div style="color: #00d9ff; font-size: 13px; font-weight: 600; font-family: 'SF Mono', monospace;">${coordinates[0].toFixed(4)}</div>
+                </div>
+                <div style="flex: 1;">
+                  <div style="color: rgba(255, 255, 255, 0.4); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Latitude</div>
+                  <div style="color: #00d9ff; font-size: 13px; font-weight: 600; font-family: 'SF Mono', monospace;">${coordinates[1].toFixed(4)}</div>
+                </div>
+              </div>
+              
+              ${props?.paramValue != null ? `
+              <div style="
+                margin-top: 8px;
+                padding: 12px;
+                background: linear-gradient(135deg, rgba(0, 217, 255, 0.15), rgba(0, 102, 255, 0.1));
+                border-radius: 8px;
+                border: 1px solid rgba(0, 217, 255, 0.2);
+              ">
+                <div style="color: rgba(255, 255, 255, 0.5); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">${props.param?.toString()}</div>
+                <div style="color: #fff; font-size: 22px; font-weight: 700;">${props.paramValue.toFixed(2)}</div>
+              </div>
+              ` : ""}
+            </div>
+            
+            <style>
+              @keyframes pulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.7; transform: scale(1.1); }
+              }
+            </style>
           </div>
         `
         )
         .addTo(mapRef.current);
+
+      // Store popup reference for outside click handling
+      popupRef.current = popup;
+
+      // Clear ref when popup is closed
+      popup.on("close", () => {
+        popupRef.current = null;
+      });
 
       const popupElement = popup
         .getElement()
@@ -365,8 +455,45 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
       setIsMapLoaded(true);
     });
 
+    // Close popup when clicking on empty map area
+    map.on("click", (e) => {
+      if (!popupRef.current) return;
+
+      // Check if click is on a station or cluster layer
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ["clusters", "unclustered-point", "station-param-points"],
+      });
+
+      // If not clicking on a feature, close the popup
+      if (features.length === 0) {
+        popupRef.current.remove();
+        popupRef.current = null;
+      }
+    });
+
     return () => {
       map.remove();
+    };
+  }, []);
+
+  // Close popup when clicking outside the map container
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (!popupRef.current) return;
+      
+      const mapContainer = mapContainerRef.current;
+      if (!mapContainer) return;
+
+      // Check if click is outside the map container
+      if (!mapContainer.contains(e.target as Node)) {
+        popupRef.current.remove();
+        popupRef.current = null;
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
     };
   }, []);
 
