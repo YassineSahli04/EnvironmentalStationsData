@@ -7,6 +7,7 @@ import * as turf from "@turf/turf";
 import mapboxgl from "mapbox-gl";
 import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { useNavigate } from "react-router-dom";
 import { getStationsGeojson } from "../Api/Api";
 import { WeatherParam } from "../Api/Api";
 import { getMapDataForParam } from "../Api/DataHandling";
@@ -27,6 +28,8 @@ type LocationFocus = { center: [number, number] | undefined; radiusKm: number | 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProps) {
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
 
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -285,23 +288,27 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
               ">${props?.name}</h3>
             </div>
             
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">ID</span>
-                <span style="color: #fff; font-size: 13px; font-weight: 500;">${props?.id}</span>
-              </div>
-              
+            <div style="display: flex; flex-direction: column; gap: 8px;">             
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Manufacturer</span>
                 <span style="color: #fff; font-size: 13px; font-weight: 500;">${props?.manufacturer}</span>
               </div>
               
-              ${props?.type ? `
+              ${
+                props?.type
+                  ? `
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Type</span>
                 <span style="color: #fff; font-size: 13px; font-weight: 500;">${props.type}</span>
               </div>
-              ` : ""}
+              `
+                  : ""
+              }
+
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">State</span>
+                <span style="color: #fff; font-size: 13px; font-weight: 500;">${props?.state}</span>
+              </div>
               
               <div style="
                 display: flex;
@@ -321,7 +328,9 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
                 </div>
               </div>
               
-              ${props?.paramValue != null ? `
+              ${
+                props?.paramValue != null
+                  ? `
               <div style="
                 margin-top: 8px;
                 padding: 12px;
@@ -332,7 +341,9 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
                 <div style="color: rgba(255, 255, 255, 0.5); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">${props.param?.toString()}</div>
                 <div style="color: #fff; font-size: 22px; font-weight: 700;">${props.paramValue.toFixed(2)}</div>
               </div>
-              ` : ""}
+              `
+                  : ""
+              }
             </div>
             
             <style>
@@ -359,7 +370,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
         ?.querySelector(".station-popup") as HTMLDivElement | null;
       if (popupElement) {
         popupElement.addEventListener("click", () => {
-          console.log(`Station ID: ${props?.name}`);
+          navigate(`/station/${props.id}`);
         });
       }
     };
@@ -480,7 +491,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
       if (!popupRef.current) return;
-      
+
       const mapContainer = mapContainerRef.current;
       if (!mapContainer) return;
 
