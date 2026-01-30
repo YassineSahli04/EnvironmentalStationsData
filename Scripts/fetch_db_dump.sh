@@ -16,7 +16,7 @@ cp /keys/deploy_key /root/.ssh/deploy_key
 chmod 600 /root/.ssh/deploy_key
 
 echo "Fetching dump from server..."
-scp -v -o BatchMode=yes -i /root/.ssh/deploy_key \
+scp -o BatchMode=yes -i /root/.ssh/deploy_key \
   "${DEPLOY_USER}@${DEPLOY_HOST}:${REMOTE_DUMP_PATH}" \
   "/dumps/latest.dump"
 
