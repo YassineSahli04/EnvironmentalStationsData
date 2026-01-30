@@ -98,7 +98,7 @@ class StationDbObject:
         self.Altitude      = row.get("Altitude")
         self.DataSourceId  = row.get("DataSourceId")
         self.DataTableName = row.get("DataTableName")
-        self.State = row.get("State")  # type: ignore
+        self.State = StationState(row.get("State"))  # type: ignore
         self.set_has_data_table()
         self.set_last_data_point_time()
         self.setAvailableSensors()
