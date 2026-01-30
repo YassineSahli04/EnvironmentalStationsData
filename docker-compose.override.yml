@@ -23,8 +23,35 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  dump-fetch:
-    image: alpine
+  dump_fetch:
+    image: alpine:3.20
+    volumes:
+      - ./Secrets/deploy_key:/keys/deploy_key:ro
+      - dumps:/dumps
+      - ./Scripts:/scripts:ro
+    environment:
+      DEPLOY_USER: Administrator
+      DEPLOY_HOST: 100.89.242.54
+      REMOTE_DUMP_PATH: "C:/Users/Administrator/Desktop/AGRODATA/DbDumpFiles/latest.dump"
+    entrypoint: ["/bin/sh", "/scripts/fetch_db_dump.sh"]
+
+  # db_restore:
+  #   image: postgres:16
+  #   depends_on:
+  #     dump_fetch:
+  #       condition: service_completed_successfully
+  #     db:
+  #       condition: service_started
+  #   environment:
+  #     DB_HOST: db
+  #     DB_PORT: "5432"
+  #     DB_NAME: AGRODATA
+  #     DB_USER: postgres
+  #     DB_PASSWORD: postgres
+  #   volumes:
+  #     - dumps:/dumps:ro
+  #     - ./Scripts:/scripts:ro
+  #   entrypoint: ["/bin/bash", "/scripts/restore_db.sh"]
   api:
     build:
       context: ./BackEnd
@@ -61,3 +88,5 @@ services:
 
 volumes:
   vite_node_modules:
+  pgdata:
+  dumps:
