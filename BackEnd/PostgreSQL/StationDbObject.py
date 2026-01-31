@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from enum import Enum
 from BackEnd.PostgreSQL.SensorDbObject import SensorDbObject, SensorSerializable
 from dataclasses import dataclass
+from BackEnd.Utils.TransformData import TransformData
 
 
 class StationDataGroup(Enum):
@@ -38,7 +39,7 @@ class StationState(Enum):
     Offline= 'Offline'
 @dataclass
 class StationSerializable:
-    Id: str
+    Id: int
     Name: str | None
     Location: str | None
     Manufacturer: str | None
@@ -107,7 +108,7 @@ class StationDbObject:
         self.HardwareStationIds = []
         
         for row in rows:
-            self.HardwareStationIds.append(row.get("HardwareId"))
+            self.HardwareStationIds.append(row.get("HardwareId")) # type: ignore
             
             self.Name          = row.get("Name")
 
@@ -132,7 +133,7 @@ class StationDbObject:
             if self.Altitude is None:
                 self.Altitude = rowAltitude
             else:
-                self.Altitude = (self.Altitude + rowAltitude) / 2
+                self.Altitude = (self.Altitude + rowAltitude) / 2 # type: ignore
             
             self.DataSourceId  = row.get("DataSourceId")
 
@@ -179,7 +180,7 @@ class StationDbObject:
         
         self.LastDataPointTime = None
         with self.engine.connect() as connection:
-            for hrdId in self.HardwareStationIds:
+            for hrdId in self.HardwareStationIds: # type: ignore
                 lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{hrdId}\";")
                 time = connection.execute(lastDateTimeQuery).scalar()
                 if(time is not None):
@@ -242,16 +243,21 @@ class StationDbObject:
     def getSensonsDefaultDataColumns(self, sensorIdsList:list[str], dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
         dataGroup = StationDataGroup.parse(dataGroup)
 
-        parts = []
+        parts: dict[str, list[str]] = {}
         for sensorId in sensorIdsList:
             sensor = SensorDbObject(self, sensorId, isDataInDf=False)
             key, col = sensor.getDefaultSensorColumn()
-            parts.append(f'{key}("{col}") AS "{sensorId}"')
+            expr = f'{key}("{col}") AS "{sensorId}"'
+            parts.setdefault(sensor.tableName, []).append(expr)
 
-        aggSelectDefaultSensorCol = ",\n".join(parts)
+        dfs = []
+        for tableName, exprs in parts.items():
+            aggSelectDefaultSensorCol = ",\n".join(exprs)
+            df = SensorDbObject.getdfFromQueryResult(self.engine, tableName, aggSelectDefaultSensorCol, dataGroup, startDtUTC, endDtUTC)
+            dfs.append(df)
 
-        df = SensorDbObject.getdfFromQueryResult(self.engine, self.Id, aggSelectDefaultSensorCol, dataGroup, startDtUTC, endDtUTC)
-        data = SensorDbObject.dfToTimeValueRecords(df, sensorIdsList, startDtUTC)
+        finalDf = TransformData.combine_dfs_with_diff_timestamp(dfs, "Date/Time")      
+        data = SensorDbObject.dfToTimeValueRecords(finalDf, sensorIdsList, startDtUTC)
         return data
     
     def addVpdColOrUpdate(self):
@@ -339,6 +345,6 @@ class StationDbObject:
             Altitude = self.Altitude,
             LastDataPointTime = self.LastDataPointTime,
             SensorsList=self.serializedSensors,
-            State = self.State.value
+            State = self.State.value # type: ignore
         )
     
