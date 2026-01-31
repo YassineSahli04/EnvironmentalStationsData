@@ -9,7 +9,7 @@ class CfStationAPIDataGroup(Enum):
     daily = "daily"
     monthly = "monthly"
 
-class CfStationAPI:
+class CfHardwareStationAPI:
     DATA_ACCESS_DAYS_LIMIT = 365
     QUERY_DAYS_LIMIT_HOURLY = 30
 
