@@ -16,8 +16,8 @@ def get_postgres():
         _postgres = PostgreSQL()
     return _postgres
 
-def setColumParam(stationId, columnName, sensorData):
+def setColumParam(hardwareId, columnName, sensorData):
     semantic = get_semantic()
     postgres = get_postgres()
     param, score = semantic.getPredictedParam(sensorData)
-    postgres.updateParamInStationColumnTable(stationId, columnName, param, score) # type: ignore
+    postgres.updateParamInStationColumnTable(hardwareId, columnName, param, score) # type: ignore
