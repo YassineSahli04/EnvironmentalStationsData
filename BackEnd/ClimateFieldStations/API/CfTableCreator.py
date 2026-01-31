@@ -25,7 +25,7 @@ class CfTableCreator:
         self.workerQueue = Queue(name="SemanticSearchQueue", connection=redisConn)
 
     def add_station_to_stations_table(self):
-        query = f"INSERT INTO \"Stations\" (\"Id\", \"Name\", \"Manufacturer\", \"Type\", \"Latitude\", \"Longitude\", \"Altitude\", \"DataTableName\") VALUES (:id, :name, :manufacturer, :type, :latitude, :longitude, :altitude, :tablename)"
+        query = f"INSERT INTO \"Stations\" (\"HardwareId\", \"Name\", \"Manufacturer\", \"Type\", \"Latitude\", \"Longitude\", \"Altitude\", \"DataTableName\") VALUES (:id, :name, :manufacturer, :type, :latitude, :longitude, :altitude, :tablename)"
         with self.engine.connect() as connection: # type: ignore
             connection.execute(
             text(query),

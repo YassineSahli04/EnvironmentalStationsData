@@ -52,6 +52,7 @@ class StationSerializable:
 
 class StationDbObject:
     Id: str
+    HardwareStationIds: list[str] | None
     Name: str | None
     Location: str | None
     Manufacturer: str | None
@@ -64,50 +65,111 @@ class StationDbObject:
     serializedSensors: list[SensorSerializable] | None
 
     DataSourceId: int | None
-    DataTableName: str | None
-    HasDataTable: bool
+    HasDataTable: bool | None
     LastDataPointTime: datetime | None
-    State: StationState
+    State: StationState | None
     HasStateChanged: bool | None
 
     def __init__(
         self,
         engine:_engine.Engine,
-        station_id: str
+        id: str,
+        isHardwareId: bool = False
     ):
-        self.Id = station_id
+        self.Id = id
+        self.IsHardwareId = isHardwareId
         self.engine = engine
         self.set_station_metadata()
 
     def set_station_metadata(self):
-        query = text(f"SELECT * FROM \"Stations\" Where \"Id\"= :id;")
+        match self.IsHardwareId:
+            case True:
+                query = text(f"SELECT * FROM \"Stations\" Where \"HardwareId\"= :id;")
+            case False:
+                query = text(f"SELECT * FROM \"Stations\" Where \"StationId\"= :id;")
 
         with self.engine.connect() as connection:
             result = connection.execute(query, {"id": self.Id})
-            row = result.mappings().first()
+            rows = result.mappings().all()
 
-        if not row:
+        if not rows:
             return
+        
+        self.Name = None
+        self.Location = None
+        self.Manufacturer = None
+        self.Type = None
+        self.Latitude = None
+        self.Longitude = None
+        self.Altitude = None
+        self.DataSourceId = None
+        self.State = None
+        self.HardwareStationIds = []
+        
+        for row in rows:
+            self.HardwareStationIds.append(row.get("HardwareId"))
+            
+            self.Name          = row.get("Name")
 
-        self.Name          = row.get("Name")
-        self.Location      = row.get("Location")
-        self.Manufacturer  = row.get("Manufacturer")
-        self.Type          = row.get("Type")
-        self.Latitude      = row.get("Latitude")
-        self.Longitude     = row.get("Longitude")
-        self.Altitude      = row.get("Altitude")
-        self.DataSourceId  = row.get("DataSourceId")
-        self.DataTableName = row.get("DataTableName")
-        self.State = StationState(row.get("State"))  # type: ignore
+            rowLocation      = row.get("Location")
+            if self.Location is None:
+                self.Location = rowLocation
+            else:
+                self.Location += f" / {rowLocation}"
+
+            self.Manufacturer  = row.get("Manufacturer")
+            
+            rowType          = row.get("Type")
+            if self.Type is None:
+                self.Type = rowType
+            else:
+                self.Type += f" / {rowType}"
+
+            self.Latitude      = row.get("Latitude")
+            self.Longitude     = row.get("Longitude")
+
+            rowAltitude      = row.get("Altitude")
+            if self.Altitude is None:
+                self.Altitude = rowAltitude
+            else:
+                self.Altitude = (self.Altitude + rowAltitude) / 2
+            
+            self.DataSourceId  = row.get("DataSourceId")
+
+            rowState = StationState(row.get("State"))  # type: ignore            
+            if self.State is None:
+                self.State = rowState
+            else:
+                if self.State != rowState:
+                    if self.State == StationState.Offline or rowState == StationState.Offline:
+                        self.State = StationState.Offline
+                    else:
+                        self.State = StationState.Online
         self.set_has_data_table()
-        self.set_last_data_point_time()
-        self.setAvailableSensors()
+        print('yes')
+        # self.set_last_data_point_time()
+        # self.setAvailableSensors()
 
     def set_has_data_table(self):
-        query = text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = :dataTableName);")
-        with self.engine.connect() as connection:
-            result = connection.execute(query, {"dataTableName":self.Id}).fetchone()
-        self.HasDataTable = result[0] # type: ignore    
+        ids = self.HardwareStationIds or []
+        if not ids:
+            self.HasDataTable = False
+            return
+
+        query = text("""
+            SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+                AND table_name = :name
+            );
+        """)
+
+        with self.engine.connect() as conn:
+            self.HasDataTable = all(
+                conn.execute(query, {"name": hrd_id}).scalar()
+                for hrd_id in ids
+            )
 
     def set_last_data_point_time(self):
         if self.Manufacturer is None or not self.HasDataTable: self.LastDataPointTime = None; return;

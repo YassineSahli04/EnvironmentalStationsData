@@ -40,10 +40,21 @@ class PostgreSQL:
             connect_args={"options": "-c timezone=UTC"},
         )
 
+    def get_all_hardware_stations(self) -> list[StationDbObject]:
+        query = text("SELECT \"HardwareId\" FROM \"Stations\";")
+        stations = []
+        with self.engine.connect() as connection:
+            result = connection.execute(query).fetchall()
+            for res in result:
+                station_id = res[0]
+                station = StationDbObject(self.engine, station_id)
+                stations.append(station)
+        return stations
+    
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
-        query = text("SELECT \"Id\" FROM \"Stations\";")
+        query = text("SELECT \"StationId\" FROM \"Stations\";")
         if typeFilter:
-            query = (text(f"SELECT \"Id\" FROM \"Stations\" WHERE \"Type\" IN :types;").bindparams(bindparam("types", expanding=True)))
+            query = (text(f"SELECT \"StationId\" FROM \"Stations\" WHERE \"Type\" IN :types;").bindparams(bindparam("types", expanding=True)))
         stations = []
         with self.engine.connect() as connection:
             if typeFilter:
@@ -68,7 +79,7 @@ class PostgreSQL:
         return users
     
     def create_update_all_stations_data_tables(self):
-        stations = self.get_all_station_objects()
+        stations = self.get_all_hardware_stations()
         users = self.get_all_user_objects()
         userEmailsToAlert = [user.Email for user in users if user.IsSubscribedToStationAlerts]
         for station in stations:
@@ -185,7 +196,7 @@ class PostgreSQL:
         self.insert_create_data_df(dataDf, table_creator.newTableName)
 
     def update_station_state(self, station: StationDbObject, userEmailsToAlert: list[str]):
-        query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
+        query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"HardwareId\" = :station_id;")
         with self.engine.begin() as connection:
             connection.execute(query, {"station_id": station.Id, "state": station.State.value})
         self._send_state_change_notification(station, userEmailsToAlert)
