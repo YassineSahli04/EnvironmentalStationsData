@@ -266,36 +266,36 @@ class StationDbObject:
         if self.Type in ('Aquachek', 'Drill and Drop'):
             return
         
+        sensors = self.Sensors
         updateVpd = False
-        isTempAv = False
-        isRhAv = False
-        for sensorParam in self.Sensors:
-            if sensorParam == 'vpd':
-                updateVpd = True
-                break
-            elif sensorParam == 'temperature':
-                isTempAv = True
-            elif sensorParam == 'relative humidity':
-                isRhAv = True
-            else:
-                continue
-        if (not updateVpd) and isTempAv and isRhAv:
+        if 'vpd' in sensors:
+            updateVpd = True 
+
+        temp = sensors.get('temperature')
+        rh   = sensors.get('relative humidity')
+        
+        if not temp or not rh:
+            return
+
+        if temp.tableName != rh.tableName:
+            return
+        
+        if (not updateVpd):
             with self.engine.begin() as connection:
                 connection.execute(
-                    text(f'ALTER TABLE "{self.Id}" ADD COLUMN IF NOT EXISTS "vpd" DOUBLE PRECISION;')
+                    text(f'ALTER TABLE "{temp.tableName}" ADD COLUMN IF NOT EXISTS "vpd" DOUBLE PRECISION;')
                 )
                 insertVpd = text("""
                     INSERT INTO "StationColumn"
-                    ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
+                    ("table_name", "station_id","column_name","data_type","unit","aggregation","param","confidence","source")
                     VALUES
-                    (:stationId, 'vpd', 'NUMERIC(10,3)', 'kPa', ARRAY['avg'], 'vpd', NULL, 'manual')
+                    (:tableName, :stationId, 'vpd', 'NUMERIC(10,3)', 'kPa', ARRAY['avg'], 'vpd', NULL, 'manual')
 
                 """)
-                connection.execute(insertVpd, {'stationId': self.Id})
-        if isTempAv and isRhAv:
-            self.insertVpdData(updateVpd)
+                connection.execute(insertVpd, {'tableName':temp.tableName, 'stationId': self.Id})
+        self.insertVpdData(temp.tableName, updateVpd)
 
-    def insertVpdData(self, isUpdate: bool):
+    def insertVpdData(self, tableName: str, isUpdate: bool):
         startDt = datetime.min.replace(tzinfo=timezone.utc)
         vpdSensorObj = SensorDbObject(self, 'vpd', isDataInDf=False)
         if isUpdate:
@@ -317,13 +317,13 @@ class StationDbObject:
 
             connection.execute(
                 text(f"""
-                    UPDATE "{self.Id}" AS t
+                    UPDATE "{tableName}" AS t
                     SET "{vpdSensorObj.columnNames['avg']}" = v.calc
                     FROM (
                         SELECT
                             "date_time",
                             ({expr}) AS calc
-                        FROM "{self.Id}"
+                        FROM "{tableName}"
                         WHERE "date_time" >= :start_dt
                     ) AS v
                     WHERE t."date_time" = v."date_time"
