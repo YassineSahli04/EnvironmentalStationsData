@@ -136,40 +136,6 @@ class PostgreSQL:
                 END $$;
                 """)
             connection.execute(query)
-
-    def create_station_column_table(self):
-        query = text("""
-            CREATE TABLE IF NOT EXISTS "StationColumn" (
-                "id"              BIGSERIAL PRIMARY KEY,
-
-                "station_id"      TEXT NOT NULL
-                                REFERENCES "Stations"("Id")
-                                ON DELETE CASCADE,
-                     
-                "column_name"     TEXT NOT NULL,
-
-                "data_type"       TEXT NOT NULL,
-                "unit"            TEXT NULL,
-                "aggregation" TEXT[],
-
-                "param" TEXT NULL,
-                "confidence"      DOUBLE PRECISION NULL CHECK ("confidence" IS NULL OR ("confidence" >= 0 AND "confidence" <= 1)),
-
-                "source"          TEXT NOT NULL CHECK (source IN (
-                                    'inferred',
-                                    'manufacturer_template',
-                                    'manual'
-                                )),
-
-                "updated_at"      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-                CONSTRAINT uq_station_column UNIQUE ("station_id", "column_name")
-            );
-
-        """)
-
-        with self.engine.begin() as connection:
-            connection.execute(query)
         
     def get_stations_Geojson_object(self, typeFilter = None):
         stations = self.get_all_station_objects(typeFilter)
