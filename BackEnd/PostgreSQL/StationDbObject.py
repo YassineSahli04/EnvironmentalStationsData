@@ -51,7 +51,7 @@ class StationSerializable:
     State: str | None
 
 class StationDbObject:
-    Id: str
+    Id: int
     HardwareStationIds: list[str] | None
     Name: str | None
     Location: str | None
@@ -73,7 +73,7 @@ class StationDbObject:
     def __init__(
         self,
         engine:_engine.Engine,
-        id: str,
+        id: int,
         isHardwareId: bool = False
     ):
         self.Id = id
@@ -146,9 +146,8 @@ class StationDbObject:
                     else:
                         self.State = StationState.Online
         self.set_has_data_table()
-        print('yes')
-        # self.set_last_data_point_time()
-        # self.setAvailableSensors()
+        self.set_last_data_point_time()
+        self.setAvailableSensors()
 
     def set_has_data_table(self):
         ids = self.HardwareStationIds or []
@@ -178,14 +177,18 @@ class StationDbObject:
         if self.Manufacturer not in allowed:
             raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
         
+        self.LastDataPointTime = None
         with self.engine.connect() as connection:
-            lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{self.Id}\";")
-            time = connection.execute(lastDateTimeQuery).scalar()
-            if(time is not None):
-                utcTime = time.replace(tzinfo=timezone.utc)
-                self.LastDataPointTime = utcTime
-                return
-            self.LastDataPointTime = None
+            for hrdId in self.HardwareStationIds:
+                lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{hrdId}\";")
+                time = connection.execute(lastDateTimeQuery).scalar()
+                if(time is not None):
+                    utcTime = time.replace(tzinfo=timezone.utc)
+                    if self.LastDataPointTime is None:
+                        self.LastDataPointTime = utcTime
+                    else:
+                        if utcTime < self.LastDataPointTime:
+                            self.LastDataPointTime = utcTime
   
     def updateStationState(self):
         state = StationState.Offline
