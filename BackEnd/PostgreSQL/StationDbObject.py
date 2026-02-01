@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from enum import Enum
 from BackEnd.PostgreSQL.SensorDbObject import SensorDbObject, SensorSerializable
 from dataclasses import dataclass
+from BackEnd.Utils.TransformData import TransformData
 
 
 class StationDataGroup(Enum):
@@ -38,7 +39,7 @@ class StationState(Enum):
     Offline= 'Offline'
 @dataclass
 class StationSerializable:
-    Id: str
+    Id: int
     Name: str | None
     Location: str | None
     Manufacturer: str | None
@@ -51,7 +52,8 @@ class StationSerializable:
     State: str | None
 
 class StationDbObject:
-    Id: str
+    Id: int
+    HardwareStationIds: list[str] | None
     Name: str | None
     Location: str | None
     Manufacturer: str | None
@@ -64,50 +66,110 @@ class StationDbObject:
     serializedSensors: list[SensorSerializable] | None
 
     DataSourceId: int | None
-    DataTableName: str | None
-    HasDataTable: bool
+    HasDataTable: bool | None
     LastDataPointTime: datetime | None
-    State: StationState
+    State: StationState | None
     HasStateChanged: bool | None
 
     def __init__(
         self,
         engine:_engine.Engine,
-        station_id: str
+        id: int,
+        isHardwareId: bool = False
     ):
-        self.Id = station_id
+        self.Id = id
+        self.IsHardwareId = isHardwareId
         self.engine = engine
         self.set_station_metadata()
 
     def set_station_metadata(self):
-        query = text(f"SELECT * FROM \"Stations\" Where \"Id\"= :id;")
+        match self.IsHardwareId:
+            case True:
+                query = text(f"SELECT * FROM \"Stations\" Where \"HardwareId\"= :id;")
+            case False:
+                query = text(f"SELECT * FROM \"Stations\" Where \"StationId\"= :id;")
 
         with self.engine.connect() as connection:
             result = connection.execute(query, {"id": self.Id})
-            row = result.mappings().first()
+            rows = result.mappings().all()
 
-        if not row:
+        if not rows:
             return
+        
+        self.Name = None
+        self.Location = None
+        self.Manufacturer = None
+        self.Type = None
+        self.Latitude = None
+        self.Longitude = None
+        self.Altitude = None
+        self.DataSourceId = None
+        self.State = None
+        self.HardwareStationIds = []
+        
+        for row in rows:
+            self.HardwareStationIds.append(row.get("HardwareId")) # type: ignore
+            
+            self.Name          = row.get("Name")
 
-        self.Name          = row.get("Name")
-        self.Location      = row.get("Location")
-        self.Manufacturer  = row.get("Manufacturer")
-        self.Type          = row.get("Type")
-        self.Latitude      = row.get("Latitude")
-        self.Longitude     = row.get("Longitude")
-        self.Altitude      = row.get("Altitude")
-        self.DataSourceId  = row.get("DataSourceId")
-        self.DataTableName = row.get("DataTableName")
-        self.State = StationState(row.get("State"))  # type: ignore
+            rowLocation      = row.get("Location")
+            if self.Location is None:
+                self.Location = rowLocation
+            else:
+                self.Location += f" / {rowLocation}"
+
+            self.Manufacturer  = row.get("Manufacturer")
+            
+            rowType          = row.get("Type")
+            if self.Type is None:
+                self.Type = rowType
+            else:
+                self.Type += f" / {rowType}"
+
+            self.Latitude      = row.get("Latitude")
+            self.Longitude     = row.get("Longitude")
+
+            rowAltitude      = row.get("Altitude")
+            if self.Altitude is None:
+                self.Altitude = rowAltitude
+            else:
+                self.Altitude = (self.Altitude + rowAltitude) / 2 # type: ignore
+            
+            self.DataSourceId  = row.get("DataSourceId")
+
+            rowState = StationState(row.get("State"))  # type: ignore            
+            if self.State is None:
+                self.State = rowState
+            else:
+                if self.State != rowState:
+                    if self.State == StationState.Offline or rowState == StationState.Offline:
+                        self.State = StationState.Offline
+                    else:
+                        self.State = StationState.Online
         self.set_has_data_table()
         self.set_last_data_point_time()
         self.setAvailableSensors()
 
     def set_has_data_table(self):
-        query = text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = :dataTableName);")
-        with self.engine.connect() as connection:
-            result = connection.execute(query, {"dataTableName":self.Id}).fetchone()
-        self.HasDataTable = result[0] # type: ignore    
+        ids = self.HardwareStationIds or []
+        if not ids:
+            self.HasDataTable = False
+            return
+
+        query = text("""
+            SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+                AND table_name = :name
+            );
+        """)
+
+        with self.engine.connect() as conn:
+            self.HasDataTable = all(
+                conn.execute(query, {"name": hrd_id}).scalar()
+                for hrd_id in ids
+            )
 
     def set_last_data_point_time(self):
         if self.Manufacturer is None or not self.HasDataTable: self.LastDataPointTime = None; return;
@@ -116,14 +178,18 @@ class StationDbObject:
         if self.Manufacturer not in allowed:
             raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
         
+        self.LastDataPointTime = None
         with self.engine.connect() as connection:
-            lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{self.Id}\";")
-            time = connection.execute(lastDateTimeQuery).scalar()
-            if(time is not None):
-                utcTime = time.replace(tzinfo=timezone.utc)
-                self.LastDataPointTime = utcTime
-                return
-            self.LastDataPointTime = None
+            for hrdId in self.HardwareStationIds: # type: ignore
+                lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{hrdId}\";")
+                time = connection.execute(lastDateTimeQuery).scalar()
+                if(time is not None):
+                    utcTime = time.replace(tzinfo=timezone.utc)
+                    if self.LastDataPointTime is None:
+                        self.LastDataPointTime = utcTime
+                    else:
+                        if utcTime < self.LastDataPointTime:
+                            self.LastDataPointTime = utcTime
   
     def updateStationState(self):
         state = StationState.Offline
@@ -177,16 +243,21 @@ class StationDbObject:
     def getSensonsDefaultDataColumns(self, sensorIdsList:list[str], dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
         dataGroup = StationDataGroup.parse(dataGroup)
 
-        parts = []
+        parts: dict[str, list[str]] = {}
         for sensorId in sensorIdsList:
             sensor = SensorDbObject(self, sensorId, isDataInDf=False)
             key, col = sensor.getDefaultSensorColumn()
-            parts.append(f'{key}("{col}") AS "{sensorId}"')
+            expr = f'{key}("{col}") AS "{sensorId}"'
+            parts.setdefault(sensor.tableName, []).append(expr)
 
-        aggSelectDefaultSensorCol = ",\n".join(parts)
+        dfs = []
+        for tableName, exprs in parts.items():
+            aggSelectDefaultSensorCol = ",\n".join(exprs)
+            df = SensorDbObject.getdfFromQueryResult(self.engine, tableName, aggSelectDefaultSensorCol, dataGroup, startDtUTC, endDtUTC)
+            dfs.append(df)
 
-        df = SensorDbObject.getdfFromQueryResult(self.engine, self.Id, aggSelectDefaultSensorCol, dataGroup, startDtUTC, endDtUTC)
-        data = SensorDbObject.dfToTimeValueRecords(df, sensorIdsList, startDtUTC)
+        finalDf = TransformData.combine_dfs_with_diff_timestamp(dfs, "Date/Time")      
+        data = SensorDbObject.dfToTimeValueRecords(finalDf, sensorIdsList, startDtUTC)
         return data
     
     def addVpdColOrUpdate(self):
@@ -195,36 +266,36 @@ class StationDbObject:
         if self.Type in ('Aquachek', 'Drill and Drop'):
             return
         
+        sensors = self.Sensors
         updateVpd = False
-        isTempAv = False
-        isRhAv = False
-        for sensorParam in self.Sensors:
-            if sensorParam == 'vpd':
-                updateVpd = True
-                break
-            elif sensorParam == 'temperature':
-                isTempAv = True
-            elif sensorParam == 'relative humidity':
-                isRhAv = True
-            else:
-                continue
-        if (not updateVpd) and isTempAv and isRhAv:
+        if 'vpd' in sensors:
+            updateVpd = True 
+
+        temp = sensors.get('temperature')
+        rh   = sensors.get('relative humidity')
+        
+        if not temp or not rh:
+            return
+
+        if temp.tableName != rh.tableName:
+            return
+        
+        if (not updateVpd):
             with self.engine.begin() as connection:
                 connection.execute(
-                    text(f'ALTER TABLE "{self.Id}" ADD COLUMN IF NOT EXISTS "vpd" DOUBLE PRECISION;')
+                    text(f'ALTER TABLE "{temp.tableName}" ADD COLUMN IF NOT EXISTS "vpd" DOUBLE PRECISION;')
                 )
                 insertVpd = text("""
                     INSERT INTO "StationColumn"
-                    ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
+                    ("table_name", "station_id","column_name","data_type","unit","aggregation","param","confidence","source")
                     VALUES
-                    (:stationId, 'vpd', 'NUMERIC(10,3)', 'kPa', ARRAY['avg'], 'vpd', NULL, 'manual')
+                    (:tableName, :stationId, 'vpd', 'NUMERIC(10,3)', 'kPa', ARRAY['avg'], 'vpd', NULL, 'manual')
 
                 """)
-                connection.execute(insertVpd, {'stationId': self.Id})
-        if isTempAv and isRhAv:
-            self.insertVpdData(updateVpd)
+                connection.execute(insertVpd, {'tableName':temp.tableName, 'stationId': self.Id})
+        self.insertVpdData(temp.tableName, updateVpd)
 
-    def insertVpdData(self, isUpdate: bool):
+    def insertVpdData(self, tableName: str, isUpdate: bool):
         startDt = datetime.min.replace(tzinfo=timezone.utc)
         vpdSensorObj = SensorDbObject(self, 'vpd', isDataInDf=False)
         if isUpdate:
@@ -246,13 +317,13 @@ class StationDbObject:
 
             connection.execute(
                 text(f"""
-                    UPDATE "{self.Id}" AS t
+                    UPDATE "{tableName}" AS t
                     SET "{vpdSensorObj.columnNames['avg']}" = v.calc
                     FROM (
                         SELECT
                             "date_time",
                             ({expr}) AS calc
-                        FROM "{self.Id}"
+                        FROM "{tableName}"
                         WHERE "date_time" >= :start_dt
                     ) AS v
                     WHERE t."date_time" = v."date_time"
@@ -274,6 +345,6 @@ class StationDbObject:
             Altitude = self.Altitude,
             LastDataPointTime = self.LastDataPointTime,
             SensorsList=self.serializedSensors,
-            State = self.State.value
+            State = self.State.value # type: ignore
         )
     

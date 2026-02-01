@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import sqlalchemy.engine as _engine
 from sqlalchemy import create_engine, text, bindparam
@@ -39,11 +40,11 @@ class PostgreSQL:
             connection_string,
             connect_args={"options": "-c timezone=UTC"},
         )
-
+    
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
-        query = text("SELECT \"Id\" FROM \"Stations\";")
+        query = text("SELECT DISTINCT  \"StationId\" FROM \"Stations\";")
         if typeFilter:
-            query = (text(f"SELECT \"Id\" FROM \"Stations\" WHERE \"Type\" IN :types;").bindparams(bindparam("types", expanding=True)))
+            query = (text(f"SELECT DISTINCT  \"StationId\" FROM \"Stations\" WHERE \"Type\" IN :types;").bindparams(bindparam("types", expanding=True)))
         stations = []
         with self.engine.connect() as connection:
             if typeFilter:
@@ -51,7 +52,7 @@ class PostgreSQL:
             else:
                 result = connection.execute(query).fetchall()
             for res in result:
-                station_id = res[0]
+                station_id = int(res[0])
                 station = StationDbObject(self.engine, station_id)
                 stations.append(station)
         return stations
@@ -72,22 +73,28 @@ class PostgreSQL:
         users = self.get_all_user_objects()
         userEmailsToAlert = [user.Email for user in users if user.IsSubscribedToStationAlerts]
         for station in stations:
-            match station.Manufacturer:
-                case "DeltaOHM":
-                    if station.DataSourceId is None:
-                        raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-                    table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
-                    alreadyExists = table_creator.create_postgre_table()
-                    
-                case "Pessl":
-                    table_creator = CfTableCreator(self.engine, station.Id)
-                    alreadyExists = table_creator.IsDataTableCreated()
+            for hardwareStation in station.HardwareStationIds: # type: ignore
+                match station.Manufacturer:
+                    case "DeltaOHM":
+                        if station.DataSourceId is None:
+                            raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
+                        table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+                        alreadyExists = table_creator.create_postgre_table()
+                        
+                    case "Pessl":
+                        table_creator = CfTableCreator(self.engine, hardwareStation)
+                        alreadyExists = table_creator.IsDataTableCreated()
 
-            if not alreadyExists:
-                dataDf = table_creator.getFullDataDf()
-                self.insert_create_data_df(dataDf, table_creator.newTableName)
-            else:
-                self.update_db_table(station)
+                if not alreadyExists:
+                    dataDf = table_creator.getFullDataDf()
+                    self.insert_create_data_df(dataDf, table_creator.newTableName)
+                else:
+                    self.update_db_table(
+                        station.Manufacturer,
+                        station.Id,
+                        station.DataSourceId,
+                        station.LastDataPointTime,
+                    )
 
             station.addVpdColOrUpdate()
             
@@ -125,40 +132,6 @@ class PostgreSQL:
                 END $$;
                 """)
             connection.execute(query)
-
-    def create_station_column_table(self):
-        query = text("""
-            CREATE TABLE IF NOT EXISTS "StationColumn" (
-                "id"              BIGSERIAL PRIMARY KEY,
-
-                "station_id"      TEXT NOT NULL
-                                REFERENCES "Stations"("Id")
-                                ON DELETE CASCADE,
-                     
-                "column_name"     TEXT NOT NULL,
-
-                "data_type"       TEXT NOT NULL,
-                "unit"            TEXT NULL,
-                "aggregation" TEXT[],
-
-                "param" TEXT NULL,
-                "confidence"      DOUBLE PRECISION NULL CHECK ("confidence" IS NULL OR ("confidence" >= 0 AND "confidence" <= 1)),
-
-                "source"          TEXT NOT NULL CHECK (source IN (
-                                    'inferred',
-                                    'manufacturer_template',
-                                    'manual'
-                                )),
-
-                "updated_at"      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-                CONSTRAINT uq_station_column UNIQUE ("station_id", "column_name")
-            );
-
-        """)
-
-        with self.engine.begin() as connection:
-            connection.execute(query)
         
     def get_stations_Geojson_object(self, typeFilter = None):
         stations = self.get_all_station_objects(typeFilter)
@@ -171,23 +144,30 @@ class PostgreSQL:
             geoJson.add_feature(feature) # type: ignore
         return geoJson.to_dict()
 
-    def update_db_table(self, station: StationDbObject):
-        match station.Manufacturer:
+    def update_db_table(
+        self,
+        manufacturer: str | None,
+        hardwareId: int,
+        datasource_id: int | None,
+        last_data_point_time: datetime| None,
+    ):
+        match manufacturer:
             case "DeltaOHM":
-                if station.DataSourceId is None:
-                    raise ValueError(f"DeltaOHM Station {station.Id} does not have a DataSourceId.")
-                table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+                if datasource_id is None:
+                    raise ValueError(f"DeltaOHM Station {hardwareId} does not have a DataSourceId.")
+                table_creator = C2aiTableCreator(self.engine, datasource_id)
             case "Pessl":
-                table_creator = CfTableCreator(self.engine, station.Id)
+                table_creator = CfTableCreator(self.engine, str(hardwareId))
             case _:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
-        dataDf = table_creator.getFullDataDf(station.LastDataPointTime) # type: ignore
+
+        dataDf = table_creator.getFullDataDf(last_data_point_time)  # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)
 
     def update_station_state(self, station: StationDbObject, userEmailsToAlert: list[str]):
-        query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"Id\" = :station_id;")
+        query = text("UPDATE \"Stations\" SET \"State\" = :state WHERE \"StationId\" = :station_id;")
         with self.engine.begin() as connection:
-            connection.execute(query, {"station_id": station.Id, "state": station.State.value})
+            connection.execute(query, {"station_id": station.Id, "state": station.State.value}) # type: ignore
         self._send_state_change_notification(station, userEmailsToAlert)
 
     def _send_state_change_notification(self, station: StationDbObject, userEmailsToAlert: list[str]):

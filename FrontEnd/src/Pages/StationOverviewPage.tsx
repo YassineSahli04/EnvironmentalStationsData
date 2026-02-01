@@ -17,12 +17,13 @@ type StationOverviewPageProps = {
 
 export default function StationOverviewPage({ isSideBarCollapsed }: StationOverviewPageProps) {
   const { stationId } = useParams<{ stationId: string }>();
+  const id = Number(stationId);
   const navigate = useNavigate();
   const chartRef = useRef<any>(null);
 
   const { data: stations, isStationLoading } = useAllStations();
 
-  const station = useMemo(() => stations?.find((st) => st.Id === stationId), [stations, stationId]);
+  const station = useMemo(() => stations?.find((st) => st.Id === id), [stations, id]);
 
   const [ambianceData, setAmbianceData] = useState<any[]>([]);
   const [stressData, setStressData] = useState<any[]>([]);
@@ -33,32 +34,31 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
   );
 
   const onDataQueryChange = (startDate: string, endDate: string, aggregationType: string) => {
-    if (!stationId) return;
+    if (!id) return;
 
     setIsChartLoading(true);
     (async () => {
       const resAmbianceData = await getStationSensorsData(
-        stationId,
+        id,
         ["Relative Humidity", "Solar Radiation", "Temperature"],
         aggregationType,
         startDate,
         endDate
       );
       const resStressData = await getStationSensorsData(
-        stationId,
+        id,
         ["Relative Humidity", "vpd"],
         aggregationType,
         startDate,
         endDate
       );
       const resEventsData = await getStationSensorsData(
-        stationId,
+        id,
         ["Precipitation", "wind speed"],
         aggregationType,
         startDate,
         endDate
       );
-      console.log(resEventsData);
       setAmbianceData(resAmbianceData || []);
       setStressData(resStressData || []);
       setEventsData(resEventsData || []);

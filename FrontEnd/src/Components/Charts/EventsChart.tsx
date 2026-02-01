@@ -19,7 +19,6 @@ const EventsChart = forwardRef<ReactECharts, EventsChartProps>(function EventsCh
   ref
 ) {
   const option = useMemo(() => {
-    console.log("data: ", data);
     const timestamps = extractTimeSeries(data);
 
     const seriesPrecip = extractSensorValues(data, "Precipitation");
@@ -118,4 +117,3 @@ const EventsChart = forwardRef<ReactECharts, EventsChartProps>(function EventsCh
 });
 
 export default EventsChart;
-
