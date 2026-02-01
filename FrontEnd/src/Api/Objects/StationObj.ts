@@ -12,7 +12,7 @@ export interface StationSensorObj {
 export type StationStatus = "Online" | "Offline";
 
 export interface StationObj {
-  Id: string;
+  Id: number;
   Name: string | null;
   Location: string | null;
   Manufacturer: string | null;
