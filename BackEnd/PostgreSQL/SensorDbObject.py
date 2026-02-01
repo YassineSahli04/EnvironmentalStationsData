@@ -61,7 +61,10 @@ class SensorDbObject:
         is_today_utc = startDtUTC.date() == nowUTC.date()
 
         for _, row in df.iterrows():
-            values = {a: (None if pd.isna(row[a]) else row[a]) for a in cols}
+            values = {
+                c: (None if c not in df.columns or pd.isna(row[c]) else row[c])
+                for c in cols
+            }
 
             if is_today_utc and lastMeasuredKey is not None:
                 values[lastMeasuredKey] = lastSensorData
