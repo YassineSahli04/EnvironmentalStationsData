@@ -61,7 +61,7 @@ def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]"
 @router.get('/station/{stationId}/sensors')
 def get_station_sensons_data(stationId: str, sensorsId: list[str] | None = Query(None, alias="sensorsId[]"), dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)):     
     try: 
-        station = StationDbObject(db.engine, stationId)
+        station = StationDbObject(db.engine, int(stationId))
 
         startDtUTC = DateTimeHelper.to_utc(startDtUTC)
         endDtUTC = DateTimeHelper.to_utc(endDtUTC)

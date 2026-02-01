@@ -42,9 +42,9 @@ class PostgreSQL:
         )
     
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
-        query = text("SELECT \"StationId\" FROM \"Stations\";")
+        query = text("SELECT DISTINCT  \"StationId\" FROM \"Stations\";")
         if typeFilter:
-            query = (text(f"SELECT \"StationId\" FROM \"Stations\" WHERE \"Type\" IN :types;").bindparams(bindparam("types", expanding=True)))
+            query = (text(f"SELECT DISTINCT  \"StationId\" FROM \"Stations\" WHERE \"Type\" IN :types;").bindparams(bindparam("types", expanding=True)))
         stations = []
         with self.engine.connect() as connection:
             if typeFilter:
