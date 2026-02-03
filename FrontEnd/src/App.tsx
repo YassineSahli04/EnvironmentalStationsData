@@ -3,6 +3,7 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { PrefetchData } from "./Api/PrefetchData";
+import { useAuthSync } from "./Api/useAuthSync";
 import "./App.css";
 import Sidebar from "./Components/Global/Sidebar";
 import Topbar from "./Components/Global/Topbar";
@@ -13,6 +14,7 @@ import { ColorModeContext, useMode } from "./theme";
 type LocationFocus = { center: [number, number]; radiusKm: number };
 
 function App() {
+  useAuthSync();
   const [theme, colorMode] = useMode();
   const [isSideBarCollapsed, setIsSideBarCollapsed] = useState(false);
 
