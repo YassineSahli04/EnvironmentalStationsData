@@ -67,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onStationViewData,
   onLocationSelected,
 }) => {
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, user } = useUser();
 
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
