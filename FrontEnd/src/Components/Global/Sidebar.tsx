@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import ContactsOutlinedIcon from "@mui/icons-material/ContactsOutlined";
@@ -10,7 +11,7 @@ import PieChartOutlineOutlinedIcon from "@mui/icons-material/PieChartOutlineOutl
 import ReceiptOutlinedIcon from "@mui/icons-material/ReceiptOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import TimelineOutlinedIcon from "@mui/icons-material/TimelineOutlined";
-import { Box, IconButton, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Skeleton, Typography, useTheme } from "@mui/material";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import "react-pro-sidebar/dist/css/styles.css";
 import { Link } from "react-router-dom";
@@ -66,6 +67,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onStationViewData,
   onLocationSelected,
 }) => {
+  const { isLoaded, isSignedIn, user } = useUser();
+
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [selected, setSelected] = useState<string>("Dashboard");
@@ -128,30 +131,90 @@ const Sidebar: React.FC<SidebarProps> = ({
           </MenuItem>
 
           {!isCollapsed && (
-            <Box mb="25px">
-              <Box display="flex" justifyContent="center" alignItems="center">
-                <img
-                  alt="profile-user"
-                  width="100px"
-                  height="100px"
-                  src={img}
-                  style={{ cursor: "pointer", borderRadius: "50%" }}
-                />
-              </Box>
-              <Box textAlign="center">
-                <Typography
-                  variant="h2"
-                  color={colors.grey[100]}
-                  fontWeight="bold"
-                  sx={{ m: "10px 0 0 0" }}
-                >
-                  Ali Sahli
-                </Typography>
-                <Typography variant="h5" color={colors.greenAccent[500]}>
-                  Admin
-                </Typography>
-              </Box>
-            </Box>
+            <>
+              {!isLoaded ? (
+                // Skeleton loading state
+                <Box mb="25px">
+                  <Box display="flex" justifyContent="center" alignItems="center">
+                    <Skeleton
+                      variant="circular"
+                      width={100}
+                      height={100}
+                      animation="wave"
+                      sx={{ bgcolor: colors.primary[300] }}
+                    />
+                  </Box>
+                  <Box textAlign="center" sx={{ mt: "10px" }}>
+                    <Skeleton
+                      variant="text"
+                      width={120}
+                      height={32}
+                      animation="wave"
+                      sx={{ bgcolor: colors.primary[300], mx: "auto" }}
+                    />
+                    <Skeleton
+                      variant="text"
+                      width={60}
+                      height={20}
+                      animation="wave"
+                      sx={{ bgcolor: colors.primary[300], mx: "auto", mt: "4px" }}
+                    />
+                  </Box>
+                </Box>
+              ) : (
+                <>
+                  <SignedOut>
+                    <Box mb="25px">
+                      <Box display="flex" justifyContent="center" alignItems="center">
+                        <img
+                          alt="profile-user"
+                          width="100px"
+                          height="100px"
+                          src={img}
+                          style={{ cursor: "pointer", borderRadius: "50%" }}
+                        />
+                      </Box>
+                      <Box textAlign="center">
+                        <Typography
+                          variant="h2"
+                          color={colors.grey[100]}
+                          fontWeight="bold"
+                          sx={{ m: "10px 0 0 0" }}
+                        >
+                          Guest
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </SignedOut>
+                  <SignedIn>
+                    <Box mb="25px">
+                      <Box display="flex" justifyContent="center" alignItems="center">
+                        <img
+                          alt="profile-user"
+                          width="100px"
+                          height="100px"
+                          src={user?.hasImage ? user.imageUrl : img}
+                          style={{ cursor: "pointer", borderRadius: "50%" }}
+                        />
+                      </Box>
+                      <Box textAlign="center">
+                        <Typography
+                          variant="h2"
+                          color={colors.grey[100]}
+                          fontWeight="bold"
+                          sx={{ m: "10px 0 0 0" }}
+                        >
+                          {user ? user.fullName : "Signed User"}
+                        </Typography>
+                        <Typography variant="h5" color={colors.greenAccent[500]}>
+                          Admin
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </SignedIn>
+                </>
+              )}
+            </>
           )}
 
           <Box paddingLeft={isCollapsed ? undefined : "10%"}>

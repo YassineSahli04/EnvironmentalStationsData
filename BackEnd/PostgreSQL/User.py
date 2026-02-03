@@ -24,5 +24,5 @@ class User:
             return
 
         self.Name = row.get("Name") # type: ignore
-        self.Email = row.get("Email") # type: ignore
-        self.IsSubscribedToStationAlerts  = row.get("IsSubscribedToStationAlerts") # type: ignore
+        self.Email = row.get("email") # type: ignore
+        self.IsSubscribedToStationAlerts  = row.get("isSubscribedToStationAlerts") # type: ignore
