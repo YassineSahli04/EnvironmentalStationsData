@@ -8,3 +8,4 @@ pycryptodome
 sqlalchemy
 psycopg2-binary
 rq
+clerk-backend-api
