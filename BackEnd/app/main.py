@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from BackEnd.app.stations_routes import router as stations_router
+from BackEnd.app.user_routes import router as users_router
 import logging
 from fastapi.responses import JSONResponse
 
@@ -13,6 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(stations_router)
+app.include_router(users_router)
 
 logging.basicConfig(
     level=logging.INFO,
