@@ -73,7 +73,21 @@ class ClerkAuthentication():
                 }
             )
 
+    def getUserRole(self, requestState: RequestState | None):
+        if requestState is None or requestState.is_signed_in != True:
+            logging.warning('User Not Authenticated!')
+            raise HTTPException(status_code=401, detail="User Not Authenticated!")
+        
+        with Clerk(bearer_auth=self.clerkSecretKey) as clerk:
+            user_id = requestState.payload["sub"]  # type: ignore
+
+        with self.engine.begin() as connection:
+            res = connection.execute(text(f"SELECT role FROM Users WHERE clerk_user_id = {user_id}")).fetchone()
+
+            if res is None:
+                return None
             
+            return res[0]
 
             
 
