@@ -24,7 +24,7 @@ def require_auth(request: Request) -> RequestState:
 
 
 @router.post("/sync")
-def syncUser(request: Request, auth: RequestState = Depends(require_auth)):
+def syncUser(auth: RequestState = Depends(require_auth)):
     try:
         clerk_auth.get_or_create_user(auth)
         return {"message": "User synced successfully"}
