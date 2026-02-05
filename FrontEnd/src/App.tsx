@@ -11,6 +11,7 @@ import MapBox from "./Components/MapBox";
 import StationOverviewPage from "./Pages/StationOverviewPage";
 import UsersPage from "./Pages/UsersPage";
 import { ColorModeContext, useMode } from "./theme";
+import ProtectedRoute from "./Components/Global/ProtectedRoute";
 
 type LocationFocus = { center: [number, number]; radiusKm: number };
 
@@ -66,7 +67,11 @@ function App() {
                 />
                 <Route
                   path="/users"
-                  element={<UsersPage isSideBarCollapsed={isSideBarCollapsed} />}
+                  element={
+                  <ProtectedRoute requiredRole="admin">
+                    <UsersPage isSideBarCollapsed={isSideBarCollapsed} />
+                  </ProtectedRoute>
+                  }
                 />
               </Routes>
             </main>
