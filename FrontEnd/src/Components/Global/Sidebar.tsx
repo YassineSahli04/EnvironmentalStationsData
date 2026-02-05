@@ -15,6 +15,7 @@ import { Box, IconButton, Skeleton, Typography, useTheme } from "@mui/material";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import "react-pro-sidebar/dist/css/styles.css";
 import { Link } from "react-router-dom";
+import { useAppUser } from "../../Context/AppUserContext";
 import img from "../../assets/user.png";
 import { tokens } from "../../theme";
 import SearchSidePanel from "./SearchSidePanel";
@@ -68,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onLocationSelected,
 }) => {
   const { isLoaded, user } = useUser();
+  const { appUser } = useAppUser();
 
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
@@ -207,7 +209,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                           {user ? user.fullName : "Signed User"}
                         </Typography>
                         <Typography variant="h5" color={colors.greenAccent[500]}>
-                          Admin
+                          {appUser ? appUser.role[0].toUpperCase() + appUser.role.slice(1) : "User"}
                         </Typography>
                       </Box>
                     </Box>
