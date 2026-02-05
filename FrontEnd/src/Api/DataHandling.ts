@@ -1,5 +1,5 @@
-import { getStations, getStationSensorsData } from "./Api";
-import { WeatherParam } from "./Api.ts";
+import { getStations, getStationSensorsData } from "./StationApi.ts";
+import { WeatherParam } from "./StationApi.ts";
 import { queryClient } from "./AppQueryClient.ts";
 import type { SensorDataRow } from "./Objects/StationObj";
 

@@ -6,6 +6,7 @@ import ContactsOutlinedIcon from "@mui/icons-material/ContactsOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import PieChartOutlineOutlinedIcon from "@mui/icons-material/PieChartOutlineOutlined";
 import ReceiptOutlinedIcon from "@mui/icons-material/ReceiptOutlined";
@@ -240,6 +241,15 @@ const Sidebar: React.FC<SidebarProps> = ({
               setSelected={setSelected}
               onClickExtra={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
             />
+
+            {appUser?.role === "admin" && <Item
+              title="Users Dashboard"
+              to="/users"
+              icon={<PeopleAltOutlinedIcon />}
+              selected={selected}
+              setSelected={setSelected}
+              onClickExtra={() => setIsFilterPanelOpen(false)}
+            />}
 
             <Item
               title="Contacts Information"

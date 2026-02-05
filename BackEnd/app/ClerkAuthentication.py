@@ -1,15 +1,12 @@
 from clerk_backend_api import RequestState, authenticate_request, AuthenticateRequestOptions, Clerk
 from fastapi import Request, HTTPException
 import sqlalchemy.engine as _engine
-from enum import Enum
 from sqlalchemy import text
 from datetime import datetime, timezone
 import logging
 import os
 
-class UserRole(Enum):
-    User = 'user'
-    Admin = 'admin'
+from BackEnd.PostgreSQL.User import User, UserRole
 
 class ClerkAuthentication():
     def __init__(self, engine: _engine.Engine) -> None:
@@ -78,23 +75,15 @@ class ClerkAuthentication():
                 }
             )
 
-    def getUserRole(self, requestState: RequestState | None) -> UserRole | None:
+    def getClerkUserRole(self, requestState: RequestState | None) -> UserRole | None:
         if requestState is None or requestState.is_signed_in != True:
             logging.warning('User Not Authenticated!')
             raise HTTPException(status_code=401, detail="User Not Authenticated!")
 
         user_id = requestState.payload["sub"]  # type: ignore
 
-        with self.engine.begin() as connection:
-            res = connection.execute(text(f'SELECT "role" FROM "Users" WHERE "clerk_user_id" = \'{user_id}\'')).fetchone()
-
-            if res is None:
-                return None
-            
-            try:
-                return UserRole(res[0])
-            except Exception as e:
-                return None
+        user = User.from_clerk_id(self.engine, user_id)
+        return user.Role
 
             
 

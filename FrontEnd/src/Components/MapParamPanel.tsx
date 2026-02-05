@@ -18,7 +18,7 @@ import {
   Divider,
   useTheme,
 } from "@mui/material";
-import { WeatherParam } from "../Api/Api.ts";
+import { WeatherParam } from "../Api/StationApi.ts";
 import { tokens } from "../theme";
 
 const OPTIONS = {
