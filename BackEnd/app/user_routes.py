@@ -29,6 +29,7 @@ def syncUser(auth: RequestState = Depends(require_auth)):
     try:
         clerk_auth.get_or_create_user(auth)
         role = clerk_auth.getClerkUserRole(auth)
+        logger.info("User role: %s", role.value)
         if role is None:
             return { "id": auth.payload["sub"], "role": None } # type: ignore
         return { "id": auth.payload["sub"], "role": role.value } # type: ignore
@@ -61,6 +62,7 @@ def get_all_users(auth: RequestState = Depends(require_auth)):
         usersSerializable = []
         for user in users:
             usersSerializable.append(user.getSerializableUser())
+        logger.info("Users: %s", usersSerializable)
         return usersSerializable
     except ValueError as e:
         logger.warning("%s", e)
