@@ -58,13 +58,13 @@ class PostgreSQL:
         return stations
     
     def get_all_user_objects(self) -> list[User]:
-        query = text("SELECT \"Name\" FROM \"Users\";")
+        query = text("SELECT \"id\" FROM \"Users\";")
         users = []
         with self.engine.connect() as connection:
             result = connection.execute(query).fetchall()
             for res in result:
-                userName = res[0]
-                user = User(self.engine, userName)
+                userId = res[0]
+                user = User.from_id(self.engine, userId)
                 users.append(user)
         return users
     
