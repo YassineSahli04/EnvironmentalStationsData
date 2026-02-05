@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAllStations, getStationSensorsData } from "../Api/Api";
+import { useAllStations, getStationSensorsData } from "../Api/StationApi";
 import AmbianceChart from "../Components/Charts/AmbianceChart";
 import EventsChart from "../Components/Charts/EventsChart";
 import StressChart from "../Components/Charts/StressChart";

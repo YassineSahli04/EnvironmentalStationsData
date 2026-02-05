@@ -9,6 +9,7 @@ import Sidebar from "./Components/Global/Sidebar";
 import Topbar from "./Components/Global/Topbar";
 import MapBox from "./Components/MapBox";
 import StationOverviewPage from "./Pages/StationOverviewPage";
+import UsersPage from "./Pages/UsersPage";
 import { ColorModeContext, useMode } from "./theme";
 
 type LocationFocus = { center: [number, number]; radiusKm: number };
@@ -62,6 +63,10 @@ function App() {
                 <Route
                   path="/station/:stationId"
                   element={<StationOverviewPage isSideBarCollapsed={isSideBarCollapsed} />}
+                />
+                <Route
+                  path="/users"
+                  element={<UsersPage isSideBarCollapsed={isSideBarCollapsed} />}
                 />
               </Routes>
             </main>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography, Slider } from "@mui/material";
-import { useAllStations } from "../../Api/Api.ts";
+import { useAllStations } from "../../Api/StationApi.ts";
 import type { StationObj } from "../../Api/Objects/StationObj.ts";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;

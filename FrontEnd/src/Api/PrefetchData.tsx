@@ -1,7 +1,7 @@
 // PrefetchBootstrap.tsx
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getStations, getStationsGeojson } from "./Api.ts";
+import { getStations, getStationsGeojson } from "./StationApi.ts";
 
 // adjust imports
 
