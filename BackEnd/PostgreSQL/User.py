@@ -23,7 +23,7 @@ class User:
     FirstName: str
     LastName: str
     Email: str
-    Role: str
+    Role: UserRole
     CreatedAt: datetime
     IsSubscribedToStationAlerts: bool
 
