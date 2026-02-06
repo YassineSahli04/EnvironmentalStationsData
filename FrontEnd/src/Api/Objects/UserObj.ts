@@ -1,6 +1,7 @@
 export type AppUser = { id: string; role: "user" | "admin" };
 
 export type UserDetails = {
+  Id: string;
   Email: string;
   FirstName: string | null;
   LastName: string | null;

@@ -10,6 +10,7 @@ class UserRole(Enum):
 
 @dataclass
 class UserSerializable:
+    Id: str
     FirstName: str
     LastName: str
     Email: str
@@ -62,10 +63,37 @@ class User:
         self.Email = row.get("email") # type: ignore
         self.Role = UserRole(row.get("role")) # type: ignore
         self.CreatedAt = row.get("created_at") # type: ignore
-        self.IsSubscribedToStationAlerts  = row.get("isSubscribedToStationAlerts") # type: ignore
+        self.IsSubscribedToStationAlerts  = row.get("issubscribedtostationalerts") # type: ignore
+    
+    def updateUser(self, newSubscription: bool | None = None, newRole: str | None = None):
+        updates = []
+        params = {"id": self.Id}
+        
+        if newSubscription is not None and newSubscription != self.IsSubscribedToStationAlerts:
+            updates.append('"issubscribedtostationalerts" = :subscription')
+            params["subscription"] = newSubscription
+        
+        if newRole is not None and newRole != self.Role.value:
+            updates.append('"role" = :role')
+            params["role"] = newRole
+        
+        if not updates:
+            return
+        
+        query = text(f'UPDATE "Users" SET {", ".join(updates)} WHERE "id" = :id')
+        
+        with self.engine.begin() as connection:
+            connection.execute(query, params)
+        
+        if newSubscription is not None:
+            self.IsSubscribedToStationAlerts = newSubscription
+        if newRole is not None:
+            self.Role = UserRole(newRole)
+        
     
     def getSerializableUser(self):
         return UserSerializable(
+            Id=self.Id,
             FirstName=self.FirstName,
             LastName=self.LastName,
             Email=self.Email,
