@@ -1,5 +1,10 @@
 import { useMemo, useState, useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import NotificationsOffOutlinedIcon from "@mui/icons-material/NotificationsOffOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import {
   Box,
   Typography,
@@ -17,23 +22,33 @@ import {
   TablePagination,
   Paper,
 } from "@mui/material";
-import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
-import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
-import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
-import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
-import NotificationsOffOutlinedIcon from "@mui/icons-material/NotificationsOffOutlined";
-import { getAllUsers } from "../Api/UserApi";
 import type { UserDetails } from "../Api/Objects/UserObj";
+import { getAllUsers, updateUserInfo } from "../Api/UserApi";
 import { tokens } from "../theme";
 
 type UsersPageProps = {
   isSideBarCollapsed: boolean;
 };
 
+type GetToken = () => Promise<string | null>;
+
+async function UpdateUserAsync(getToken: GetToken, newUserDetails: UserDetails) {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("Not authenticated");
+    }
+    await updateUserInfo(token, newUserDetails);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
 export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const { getToken } = useAuth();
+  const { user: currentUser } = useUser();
 
   const [users, setUsers] = useState<UserDetails[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,6 +93,38 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+  };
+
+  const toggleAlertSubscription = (id: string) => {
+    const user = users?.find((u) => u.Id === id);
+    if (!user) return;
+  
+    const newValue = !user.IsSubscribedToStationAlerts;
+
+    setUsers(
+      users?.map((u) =>
+        u.Id === id ? { ...u, IsSubscribedToStationAlerts: newValue } : u
+      ) || []
+    );
+
+    UpdateUserAsync(getToken, { ...user, IsSubscribedToStationAlerts: newValue });
+  };
+
+  const toggleRole = (id: string) => {
+    const user = users?.find((u) => u.Id === id);
+    if (!user) return;
+
+    if (user.Email === currentUser?.emailAddresses.find(email => email.id ===  currentUser?.primaryEmailAddressId)?.emailAddress && user.Role === "admin") return;
+
+    const newRole = user.Role === "admin" ? "user" : "admin";
+
+    setUsers(
+      users?.map((u) =>
+        u.Id === id ? { ...u, Role: newRole } : u
+      ) || []
+    );
+
+    UpdateUserAsync(getToken, { ...user, Role: newRole });
   };
 
   const paginatedUsers = useMemo(() => {
@@ -157,7 +204,12 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
       {[...Array(5)].map((_, index) => (
         <TableRow key={index}>
           <TableCell>
-            <Skeleton variant="circular" width={36} height={36} sx={{ bgcolor: colors.primary[300] }} />
+            <Skeleton
+              variant="circular"
+              width={36}
+              height={36}
+              sx={{ bgcolor: colors.primary[300] }}
+            />
           </TableCell>
           <TableCell>
             <Skeleton width={80} sx={{ bgcolor: colors.primary[300] }} />
@@ -229,12 +281,7 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
       </Box>
 
       {/* Stats Cards */}
-      <Box
-        display="grid"
-        gridTemplateColumns="repeat(auto-fit, minmax(240px, 1fr))"
-        gap={3}
-        mb={4}
-      >
+      <Box display="grid" gridTemplateColumns="repeat(auto-fit, minmax(240px, 1fr))" gap={3} mb={4}>
         <StatCard
           title="Total Users"
           value={stats.total}
@@ -314,13 +361,14 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
                     <TableSkeleton />
                   ) : (
                     paginatedUsers.map((user) => {
-                      const initials = `${user.FirstName?.[0] || ""}${user.LastName?.[0] || ""}`.toUpperCase();
+                      const initials =
+                        `${user.FirstName?.[0] || ""}${user.LastName?.[0] || ""}`.toUpperCase();
                       const isAdmin = user.Role === "admin";
                       const date = new Date(user.CreatedAt);
 
                       return (
                         <TableRow
-                          key={user.Email}
+                          key={user.Id}
                           sx={{
                             "&:hover": {
                               backgroundColor: alpha(colors.blueAccent[500], 0.08),
@@ -350,9 +398,7 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography sx={{ fontWeight: 500 }}>
-                              {user.LastName || "—"}
-                            </Typography>
+                            <Typography sx={{ fontWeight: 500 }}>{user.LastName || "—"}</Typography>
                           </TableCell>
                           <TableCell>
                             <Typography
@@ -366,30 +412,41 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Chip
-                              icon={
-                                isAdmin ? (
-                                  <AdminPanelSettingsOutlinedIcon sx={{ fontSize: "1rem !important" }} />
-                                ) : (
-                                  <PersonOutlineOutlinedIcon sx={{ fontSize: "1rem !important" }} />
-                                )
-                              }
-                              label={isAdmin ? "Admin" : "User"}
-                              size="small"
-                              sx={{
-                                background: isAdmin
-                                  ? `linear-gradient(135deg, ${alpha(colors.redAccent[500], 0.2)} 0%, ${alpha(colors.redAccent[400], 0.3)} 100%)`
-                                  : `linear-gradient(135deg, ${alpha(colors.blueAccent[500], 0.2)} 0%, ${alpha(colors.blueAccent[400], 0.3)} 100%)`,
-                                color: isAdmin ? colors.redAccent[300] : colors.blueAccent[300],
-                                borderRadius: "8px",
-                                fontWeight: 600,
-                                fontSize: "0.75rem",
-                                border: `1px solid ${isAdmin ? alpha(colors.redAccent[500], 0.3) : alpha(colors.blueAccent[500], 0.3)}`,
-                                "& .MuiChip-icon": {
-                                  color: "inherit",
-                                },
-                              }}
-                            />
+                            {(() => {
+                              const isSelf = user.Email === currentUser?.emailAddresses.find(email => email.id ===  currentUser?.primaryEmailAddressId)?.emailAddress;
+                              const isDisabled = isSelf && isAdmin;
+                              return (
+                                <Chip
+                                  icon={
+                                    isAdmin ? (
+                                      <AdminPanelSettingsOutlinedIcon
+                                        sx={{ fontSize: "1rem !important" }}
+                                      />
+                                    ) : (
+                                      <PersonOutlineOutlinedIcon sx={{ fontSize: "1rem !important" }} />
+                                    )
+                                  }
+                                  onClick={() => !isDisabled && toggleRole(user.Id)}
+                                  label={isAdmin ? "Admin" : "User"}
+                                  size="small"
+                                  sx={{
+                                    cursor: isDisabled ? "not-allowed" : "pointer",
+                                    opacity: isDisabled ? 0.6 : 1,
+                                    background: isAdmin
+                                      ? `linear-gradient(135deg, ${alpha(colors.redAccent[500], 0.2)} 0%, ${alpha(colors.redAccent[400], 0.3)} 100%)`
+                                      : `linear-gradient(135deg, ${alpha(colors.blueAccent[500], 0.2)} 0%, ${alpha(colors.blueAccent[400], 0.3)} 100%)`,
+                                    color: isAdmin ? colors.redAccent[300] : colors.blueAccent[300],
+                                    borderRadius: "8px",
+                                    fontWeight: 600,
+                                    fontSize: "0.75rem",
+                                    border: `1px solid ${isAdmin ? alpha(colors.redAccent[500], 0.3) : alpha(colors.blueAccent[500], 0.3)}`,
+                                    "& .MuiChip-icon": {
+                                      color: "inherit",
+                                    },
+                                  }}
+                                />
+                              );
+                            })()}
                           </TableCell>
                           <TableCell>
                             <Box>
@@ -412,18 +469,26 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
                             <Chip
                               icon={
                                 user.IsSubscribedToStationAlerts ? (
-                                  <NotificationsActiveOutlinedIcon sx={{ fontSize: "1rem !important" }} />
+                                  <NotificationsActiveOutlinedIcon
+                                    sx={{ fontSize: "1rem !important" }}
+                                  />
                                 ) : (
-                                  <NotificationsOffOutlinedIcon sx={{ fontSize: "1rem !important" }} />
+                                  <NotificationsOffOutlinedIcon
+                                    sx={{ fontSize: "1rem !important" }}
+                                  />
                                 )
                               }
+                              onClick={() => toggleAlertSubscription(user.Id)}
                               label={user.IsSubscribedToStationAlerts ? "On" : "Off"}
                               size="small"
                               sx={{
+                                cursor: "pointer",
                                 background: user.IsSubscribedToStationAlerts
                                   ? `linear-gradient(135deg, ${alpha(colors.greenAccent[500], 0.2)} 0%, ${alpha(colors.greenAccent[400], 0.3)} 100%)`
                                   : alpha(colors.grey[700], 0.5),
-                                color: user.IsSubscribedToStationAlerts ? colors.greenAccent[300] : colors.grey[400],
+                                color: user.IsSubscribedToStationAlerts
+                                  ? colors.greenAccent[300]
+                                  : colors.grey[400],
                                 borderRadius: "8px",
                                 fontWeight: 600,
                                 fontSize: "0.75rem",

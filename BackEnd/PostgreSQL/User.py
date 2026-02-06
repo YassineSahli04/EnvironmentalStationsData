@@ -10,6 +10,7 @@ class UserRole(Enum):
 
 @dataclass
 class UserSerializable:
+    Id: str
     FirstName: str
     LastName: str
     Email: str
@@ -66,6 +67,7 @@ class User:
     
     def getSerializableUser(self):
         return UserSerializable(
+            Id=self.Id,
             FirstName=self.FirstName,
             LastName=self.LastName,
             Email=self.Email,
