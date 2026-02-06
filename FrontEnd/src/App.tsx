@@ -9,6 +9,7 @@ import Sidebar from "./Components/Global/Sidebar";
 import Topbar from "./Components/Global/Topbar";
 import MapBox from "./Components/MapBox";
 import StationOverviewPage from "./Pages/StationOverviewPage";
+import StationsListPage from "./Pages/StationsListPage";
 import UsersPage from "./Pages/UsersPage";
 import { ColorModeContext, useMode } from "./theme";
 import ProtectedRoute from "./Components/Global/ProtectedRoute";
@@ -64,6 +65,10 @@ function App() {
                 <Route
                   path="/station/:stationId"
                   element={<StationOverviewPage isSideBarCollapsed={isSideBarCollapsed} />}
+                />
+                <Route
+                  path="/stations"
+                  element={<StationsListPage isSideBarCollapsed={isSideBarCollapsed} />}
                 />
                 <Route
                   path="/users"

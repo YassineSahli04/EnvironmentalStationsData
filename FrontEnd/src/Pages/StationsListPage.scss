@@ -1,0 +1,578 @@
+// ============================================
+// Environmental Stations List Page - Styles
+// ============================================
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+// Color Variables
+$bg-primary: #0a0e17;
+$bg-secondary: #111827;
+$bg-card: rgba(17, 24, 39, 0.7);
+$border-color: rgba(75, 85, 99, 0.3);
+$border-glow: rgba(76, 206, 172, 0.2);
+
+$text-primary: #f3f4f6;
+$text-secondary: #9ca3af;
+$text-dim: #6b7280;
+
+$accent-cyan: #4cceac;
+$accent-blue: #6870fa;
+$accent-purple: #a855f7;
+$accent-red: #ef4444;
+$accent-orange: #f97316;
+
+// Animations
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(30px, -20px);
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+// Main Page Container
+.stations-list-page {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: $bg-primary;
+  font-family: 'Outfit', sans-serif;
+  
+  // Scrollbar Styling
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: $bg-secondary;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(76, 206, 172, 0.3);
+    border-radius: 4px;
+    
+    &:hover {
+      background: rgba(76, 206, 172, 0.5);
+    }
+  }
+}
+
+// Animated Background
+.page-background {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  
+  .grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(76, 206, 172, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(76, 206, 172, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  
+  .glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.3;
+    animation: float 20s ease-in-out infinite;
+    
+    &.orb-1 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, $accent-cyan 0%, transparent 70%);
+      top: -100px;
+      right: -100px;
+    }
+    
+    &.orb-2 {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, $accent-blue 0%, transparent 70%);
+      bottom: -50px;
+      left: -50px;
+      animation-delay: -10s;
+    }
+  }
+}
+
+// Header Section
+.page-header {
+  position: relative;
+  z-index: 1;
+  padding: 32px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+  flex-wrap: wrap;
+  animation: fadeSlideIn 0.6s ease-out;
+  
+  .header-content {
+    flex: 1;
+    min-width: 300px;
+  }
+  
+  .page-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: $text-primary;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    
+    .title-icon {
+      color: $accent-cyan;
+      font-size: 1.8rem;
+      animation: glow 3s ease-in-out infinite;
+    }
+  }
+  
+  .page-subtitle {
+    font-size: 1rem;
+    color: $text-secondary;
+    margin-top: 8px;
+    letter-spacing: 0.01em;
+  }
+}
+
+// Stats Container
+.stats-container {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  position: relative;
+  padding: 20px 28px;
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: 12px;
+  min-width: 140px;
+  text-align: center;
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    border-color: $border-glow;
+  }
+  
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2rem;
+    font-weight: 600;
+    color: $text-primary;
+    line-height: 1;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+    color: $text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 8px;
+  }
+  
+  .stat-glow {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    opacity: 0.8;
+  }
+  
+  &.stat-total {
+    .stat-value { color: $text-primary; }
+    .stat-glow { background: linear-gradient(90deg, transparent, $text-secondary, transparent); }
+  }
+  
+  &.stat-online {
+    .stat-value { color: $accent-cyan; }
+    .stat-glow { background: linear-gradient(90deg, transparent, $accent-cyan, transparent); }
+  }
+  
+  &.stat-offline {
+    .stat-value { color: $accent-red; }
+    .stat-glow { background: linear-gradient(90deg, transparent, $accent-red, transparent); }
+  }
+}
+
+// Search Container
+.search-container {
+  position: relative;
+  z-index: 1;
+  padding: 0 40px 24px;
+  animation: fadeSlideIn 0.6s ease-out 0.1s backwards;
+  
+  .search-field {
+    .MuiOutlinedInput-root {
+      background: $bg-card;
+      border-radius: 12px;
+      backdrop-filter: blur(12px);
+      
+      fieldset {
+        border-color: $border-color;
+        transition: border-color 0.2s ease;
+      }
+      
+      &:hover fieldset {
+        border-color: rgba(76, 206, 172, 0.4);
+      }
+      
+      &.Mui-focused fieldset {
+        border-color: $accent-cyan;
+        border-width: 1px;
+      }
+    }
+    
+    .MuiInputBase-input {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      color: $text-primary;
+      padding: 14px 16px;
+      
+      &::placeholder {
+        color: $text-dim;
+        opacity: 1;
+      }
+    }
+  }
+  
+  .search-icon {
+    color: $text-dim;
+  }
+}
+
+// Table Wrapper
+.table-wrapper {
+  position: relative;
+  z-index: 1;
+  padding: 0 40px 40px;
+  animation: fadeSlideIn 0.6s ease-out 0.2s backwards;
+}
+
+// Table Container
+.table-container {
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+// Table Header
+.table-header {
+  display: grid;
+  grid-template-columns: 
+    minmax(160px, 1.5fr)  /* Name */
+    minmax(140px, 1.2fr)  /* Location */
+    minmax(110px, 1fr)    /* Manufacturer */
+    minmax(100px, 1fr)    /* Type */
+    100px                  /* Latitude */
+    100px                  /* Longitude */
+    80px                   /* Altitude */
+    100px                  /* State */
+    minmax(160px, 1.5fr); /* Hardware IDs */
+  gap: 1px;
+  padding: 0 24px;
+  background: rgba(76, 206, 172, 0.05);
+  border-bottom: 1px solid $border-color;
+  
+  .header-cell {
+    padding: 16px 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: $accent-cyan;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+}
+
+// Table Body
+.table-body {
+  max-height: calc(100vh - 340px);
+  overflow-y: auto;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(76, 206, 172, 0.2);
+    border-radius: 3px;
+  }
+}
+
+// Table Row
+.table-row {
+  display: grid;
+  grid-template-columns: 
+    minmax(160px, 1.5fr)
+    minmax(140px, 1.2fr)
+    minmax(110px, 1fr)
+    minmax(100px, 1fr)
+    100px
+    100px
+    80px
+    100px
+    minmax(160px, 1.5fr);
+  gap: 1px;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.15);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  animation: fadeSlideIn 0.4s ease-out backwards;
+  
+  &:hover {
+    background: rgba(76, 206, 172, 0.06);
+    
+    .station-name {
+      color: $accent-cyan;
+    }
+  }
+  
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+// Row Cells
+.row-cell {
+  padding: 18px 12px;
+  font-size: 0.875rem;
+  color: $text-secondary;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  
+  &.cell-name {
+    .station-name {
+      font-weight: 500;
+      color: $text-primary;
+      transition: color 0.2s ease;
+    }
+  }
+}
+
+// Manufacturer Badge
+.manufacturer-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--badge-color);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--badge-color);
+  border-radius: 6px;
+  opacity: 0.9;
+}
+
+// Coordinate & Altitude Values
+.coord-value,
+.altitude-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: $text-secondary;
+}
+
+// Dim Text
+.dim-text {
+  color: $text-dim;
+  font-style: italic;
+}
+
+// Status Badge
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  
+  .status-icon {
+    font-size: 1rem;
+  }
+  
+  &.status-online {
+    color: $accent-cyan;
+    background: rgba(76, 206, 172, 0.1);
+    border: 1px solid rgba(76, 206, 172, 0.3);
+    
+    .status-icon {
+      animation: pulse 2s ease-in-out infinite;
+    }
+  }
+  
+  &.status-offline {
+    color: $accent-red;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    opacity: 0.8;
+  }
+}
+
+// Hardware IDs
+.hardware-ids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.hardware-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: $accent-blue;
+  background: rgba(104, 112, 250, 0.1);
+  border: 1px solid rgba(104, 112, 250, 0.25);
+  border-radius: 4px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(104, 112, 250, 0.2);
+    border-color: rgba(104, 112, 250, 0.4);
+  }
+  
+  &.more-chip {
+    color: $text-secondary;
+    background: rgba(156, 163, 175, 0.1);
+    border-color: rgba(156, 163, 175, 0.25);
+  }
+}
+
+// Empty State
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+  text-align: center;
+  
+  .empty-text {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: $text-secondary;
+  }
+  
+  .empty-subtext {
+    font-size: 0.875rem;
+    color: $text-dim;
+    margin-top: 8px;
+  }
+}
+
+// Responsive Adjustments
+@media (max-width: 1400px) {
+  .table-header,
+  .table-row {
+    grid-template-columns: 
+      minmax(140px, 1.5fr)
+      minmax(120px, 1fr)
+      100px
+      90px
+      85px
+      85px
+      70px
+      90px
+      minmax(140px, 1.3fr);
+  }
+}
+
+@media (max-width: 1200px) {
+  .page-header {
+    padding: 24px 24px;
+    flex-direction: column;
+    
+    .page-title {
+      font-size: 2rem;
+    }
+  }
+  
+  .stats-container {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .search-container,
+  .table-wrapper {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  
+  .table-header,
+  .table-row {
+    padding: 0 16px;
+  }
+}
+
