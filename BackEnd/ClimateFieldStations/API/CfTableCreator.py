@@ -135,7 +135,7 @@ class CfTableCreator:
         query = text(f"""
             SELECT COUNT(*) 
             FROM "StationColumn"
-            WHERE "station_id" = '{self.newTableName}'
+            WHERE "table_name" = '{self.newTableName}'
             """)
         with self.engine.begin() as connection:
             res = connection.execute(query).scalar()

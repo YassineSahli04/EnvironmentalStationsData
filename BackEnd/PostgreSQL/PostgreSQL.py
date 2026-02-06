@@ -91,7 +91,7 @@ class PostgreSQL:
                 else:
                     self.update_db_table(
                         station.Manufacturer,
-                        station.Id,
+                        hardwareStation,
                         station.DataSourceId,
                         station.LastDataPointTime,
                     )
@@ -147,7 +147,7 @@ class PostgreSQL:
     def update_db_table(
         self,
         manufacturer: str | None,
-        hardwareId: int,
+        hardwareId: str,
         datasource_id: int | None,
         last_data_point_time: datetime| None,
     ):
