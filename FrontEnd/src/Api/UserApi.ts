@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import type { UserDetails } from "./Objects/UserObj";
 
@@ -39,7 +39,8 @@ export type UpdateUserDetailsPayload = {
 
 export async function updateUserInfo(
   token: string,
-  updatedUserDetails: UserDetails
+  updatedUserDetails: UserDetails,
+  queryClient?: QueryClient
 ): Promise<UserDetails> {
   const updateUserUrl = `${usersUrl}/update/${updatedUserDetails.Id}`;
   try {
@@ -53,10 +54,21 @@ export async function updateUserInfo(
         "Content-Type": "application/json",
       },
     });
+
+    if (queryClient) {
+      queryClient.setQueryData(
+        ["allUsers", token],
+        (oldData: UserDetails[] | undefined) =>
+          oldData?.map((u) =>
+            u.Id === updatedUserDetails.Id ? response.data : u
+          )
+      );
+    }
+
     return response.data;
   } catch (err) {
     if (axios.isAxiosError(err)) {
-      console.error("Failed to fetch users:", {
+      console.error("Failed to update user:", {
         status: err.response?.status,
         detail: err.response?.data?.detail ?? err.message,
       });

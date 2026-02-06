@@ -22,6 +22,7 @@ import {
   TablePagination,
   Paper,
 } from "@mui/material";
+import { useQueryClient } from "@tanstack/react-query";
 import type { UserDetails } from "../Api/Objects/UserObj";
 import { getAllUsers, updateUserInfo } from "../Api/UserApi";
 import { tokens } from "../theme";
@@ -31,14 +32,19 @@ type UsersPageProps = {
 };
 
 type GetToken = () => Promise<string | null>;
+type QueryClient = ReturnType<typeof useQueryClient>;
 
-async function UpdateUserAsync(getToken: GetToken, newUserDetails: UserDetails) {
+async function UpdateUserAsync(
+  getToken: GetToken,
+  newUserDetails: UserDetails,
+  queryClient: QueryClient
+) {
   try {
     const token = await getToken();
     if (!token) {
       throw new Error("Not authenticated");
     }
-    await updateUserInfo(token, newUserDetails);
+    await updateUserInfo(token, newUserDetails, queryClient);
   } catch (err) {
     console.log(err);
   }
@@ -49,6 +55,7 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
   const colors = tokens(theme.palette.mode);
   const { getToken } = useAuth();
   const { user: currentUser } = useUser();
+  const queryClient = useQueryClient();
 
   const [users, setUsers] = useState<UserDetails[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,7 +114,7 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
       ) || []
     );
 
-    UpdateUserAsync(getToken, { ...user, IsSubscribedToStationAlerts: newValue });
+    UpdateUserAsync(getToken, { ...user, IsSubscribedToStationAlerts: newValue }, queryClient);
   };
 
   const toggleRole = (id: string) => {
@@ -124,7 +131,7 @@ export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
       ) || []
     );
 
-    UpdateUserAsync(getToken, { ...user, Role: newRole });
+    UpdateUserAsync(getToken, { ...user, Role: newRole }, queryClient);
   };
 
   const paginatedUsers = useMemo(() => {
