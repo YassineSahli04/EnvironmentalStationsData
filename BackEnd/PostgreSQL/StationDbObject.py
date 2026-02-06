@@ -197,11 +197,11 @@ class StationDbObject:
             current_utc = datetime.now(timezone.utc)
             seconds_diff = (current_utc - self.LastDataPointTime).total_seconds()
             
-            if seconds_diff < 3600:
+            if seconds_diff < 7200:
                 state = StationState.Online
         self.State = state
 
-        stateCheckQuery = text("SELECT \"State\" FROM \"Stations\" WHERE \"Id\" = :station_id;")
+        stateCheckQuery = text("SELECT \"State\" FROM \"Stations\" WHERE \"StationId\" = :station_id;")
         with self.engine.begin() as connection:
             res = connection.execute(stateCheckQuery, {"station_id": self.Id}).fetchone()
             if res is None:
