@@ -71,7 +71,7 @@ class User:
         
         if newSubscription is not None and newSubscription != self.IsSubscribedToStationAlerts:
             updates.append('"issubscribedtostationalerts" = :subscription')
-            params["subscription"] = newSubscription
+            params["subscription"] = newSubscription # type: ignore
         
         if newRole is not None and newRole != self.Role.value:
             updates.append('"role" = :role')
