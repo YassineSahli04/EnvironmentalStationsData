@@ -260,6 +260,30 @@ class StationDbObject:
         data = SensorDbObject.dfToTimeValueRecords(finalDf, sensorIdsList, startDtUTC)
         return data
     
+    def updateStateInfo(self, station: StationSerializable):
+        query = text("""
+            UPDATE "Stations"
+            SET 
+                "Name" = :newName,
+                "Location" = :newLocation,
+                "Latitude" = :newLatitude,
+                "Longitude" = :newLongitude,
+                "Altitude" = :newAltitude
+            WHERE
+                "HardwareId" = :hardwareId
+        """)
+        with self.engine.begin() as connection:
+            for hardwareId in self.HardwareStationIds: # type: ignore
+                connection.execute(query, {
+                    "newName": station.Name,
+                    "newLocation": station.Location,
+                    "newLatitude": station.Latitude,
+                    "newLongitude": station.Longitude,
+                    "newAltitude": station.Altitude,
+                    "hardwareId": hardwareId
+                })
+        self.set_station_metadata()
+
     def addVpdColOrUpdate(self):
         if self.Sensors is None: 
             return

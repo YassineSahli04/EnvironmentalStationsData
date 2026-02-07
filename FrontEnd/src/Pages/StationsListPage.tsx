@@ -4,9 +4,11 @@ import SensorsIcon from "@mui/icons-material/Sensors";
 import SensorsOffIcon from "@mui/icons-material/SensorsOff";
 import { Box, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import type { StationObj, StationStatus } from "../Api/Objects/StationObj";
-import { useAllStations } from "../Api/StationApi";
+import { updateStationInfo, useAllStations } from "../Api/StationApi";
 import { OverlayLoader } from "../Components/Global/OverlayLoader";
 import "./StationsListPage.scss";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth, useUser } from "@clerk/clerk-react";
 
 type StationsListPageProps = {
   isSideBarCollapsed: boolean;
@@ -192,21 +194,43 @@ function EditableCell({
   );
 }
 
+type GetToken = () => Promise<string | null>;
+type QueryClient = ReturnType<typeof useQueryClient>;
+
+async function UpdateStationAsync(
+  getToken: GetToken,
+  station: StationObj,
+  queryClient: QueryClient
+) {
+  try {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("Not authenticated");
+    }
+    await updateStationInfo(token, station, queryClient);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
 function StationRow({ station, index }: StationRowProps) {
   const [editingField, setEditingField] = useState<keyof StationObj | null>(null);
   const [editedStation, setEditedStation] = useState(station);
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
 
   const handleEdit = (field: keyof StationObj) => {
     setEditingField(field);
   };
 
   const handleSave = () => {
+    UpdateStationAsync(getToken, editedStation, queryClient);
     setEditingField(null);
   };
 
   const handleCancel = () => {
     setEditingField(null);
-    setEditedStation(station); // Revert
+    setEditedStation(station);
   };
 
   const handleChange = (field: keyof StationObj, value: any) => {

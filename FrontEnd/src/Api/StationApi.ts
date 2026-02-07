@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { QueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import type { StationObj, StationSensorObj } from "./Objects/StationObj";
 
@@ -81,6 +81,24 @@ export async function getStationSensorsData(
 
     console.error("Unexpected error while fetching station sensor data:", err);
     return null;
+  }
+}
+
+export async function updateStationInfo(token: string, station: StationObj, queryClient: QueryClient) {
+  try {
+    const response = await axios.put(`${url}/update/${station.Id}`, station, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    queryClient.setQueryData(["allStationsObj"], (oldData: StationObj[] | undefined) => {
+      if (!oldData) return [response.data];
+      return oldData.map((s) => (s.Id === station.Id ? response.data : s));
+    });
+    return response.data;
+  } catch (err) {
+    console.error("Issue While Updating Station Data", err);
+    throw new Error("Issue While Updating Station Data");
   }
 }
 
