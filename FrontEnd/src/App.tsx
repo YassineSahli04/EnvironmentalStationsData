@@ -68,7 +68,11 @@ function App() {
                 />
                 <Route
                   path="/stations"
-                  element={<StationsListPage isSideBarCollapsed={isSideBarCollapsed} />}
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <StationsListPage isSideBarCollapsed={isSideBarCollapsed} />
+                    </ProtectedRoute>
+                  }
                 />
                 <Route
                   path="/users"
