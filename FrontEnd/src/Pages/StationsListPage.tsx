@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import SearchIcon from "@mui/icons-material/Search";
 import SensorsIcon from "@mui/icons-material/Sensors";
 import SensorsOffIcon from "@mui/icons-material/SensorsOff";
 import { Box, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
+import { useQueryClient } from "@tanstack/react-query";
 import type { StationObj, StationStatus } from "../Api/Objects/StationObj";
 import { updateStationInfo, useAllStations } from "../Api/StationApi";
 import { OverlayLoader } from "../Components/Global/OverlayLoader";
 import "./StationsListPage.scss";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAuth, useUser } from "@clerk/clerk-react";
 
 type StationsListPageProps = {
   isSideBarCollapsed: boolean;
@@ -52,10 +52,10 @@ export default function StationsListPage({ isSideBarCollapsed }: StationsListPag
         <Box className="header-content">
           <Typography className="page-title">
             <span className="title-icon">◈</span>
-            Environmental Stations
+            Stations
           </Typography>
           <Typography className="page-subtitle">
-            Real-time monitoring dashboard for all connected stations
+            Real-time monitoring dashboard for all stations
           </Typography>
         </Box>
 
@@ -236,7 +236,7 @@ function StationRow({ station, index }: StationRowProps) {
   const handleChange = (field: keyof StationObj, value: any) => {
     setEditedStation((prev) => ({ ...prev, [field]: value }));
   };
-  
+
   return (
     <Box className="table-row" style={{ animationDelay: `${index * 30}ms` }}>
       <Box className="row-cell cell-name">
