@@ -24,6 +24,16 @@ def require_auth(request: Request) -> RequestState:
         raise HTTPException(status_code=401, detail="Authentication required")
     return request_state
 
+def require_role(*allowed: UserRole):
+    def guard(request_state: RequestState = Depends(require_auth)):
+        role = clerk_auth.getClerkUserRole(request_state)
+
+        allowedRoleValues = [role.value for role in allowed]
+        if role is None or role.value not in allowedRoleValues:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return request_state
+    return guard 
+
 
 @router.post("/sync")
 def syncUser(auth: RequestState = Depends(require_auth)):
@@ -51,13 +61,8 @@ def syncUser(auth: RequestState = Depends(require_auth)):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/all")
-def get_all_users(auth: RequestState = Depends(require_auth)):
+def get_all_users(auth: RequestState = Depends(require_role(UserRole.Admin))):
     try:
-        role = clerk_auth.getClerkUserRole(auth)
-
-        if role is None or role != UserRole.Admin:
-            raise HTTPException(status_code=403, detail="User is not authorized to access this resource")
-
         users = db.get_all_user_objects()
         usersSerializable = []
         for user in users:
@@ -77,15 +82,9 @@ class UpdateUserPayload(BaseModel):
     Role: str | None = None
 
 @router.patch("/update/{userId}")
-def update_user(userId: str, payload: UpdateUserPayload, auth: RequestState = Depends(require_auth)):
+def update_user(userId: str, payload: UpdateUserPayload, auth: RequestState = Depends(require_role(UserRole.Admin))):
     try:
-        role = clerk_auth.getClerkUserRole(auth)
-
-        if role is None or role != UserRole.Admin:
-            raise HTTPException(status_code=403, detail="User is not authorized to access this resource")
-
         user = User.from_id(db.engine, userId)
-
         user.updateUser(payload.IsSubscribedToStationAlerts, payload.Role)
 
         return User.from_id(db.engine, userId).getSerializableUser()
