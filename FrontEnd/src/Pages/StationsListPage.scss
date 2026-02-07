@@ -411,6 +411,59 @@ $accent-orange: #f97316;
       transition: color 0.2s ease;
     }
   }
+
+  // Editable Content Wrapper
+  .editable-content {
+    position: relative;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    margin: -4px -8px; // Offset padding
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+
+    &:hover {
+      background: rgba($accent-cyan, 0.1);
+      border-color: rgba($accent-cyan, 0.3);
+      box-shadow: 0 0 15px rgba($accent-cyan, 0.15);
+      
+      .station-name, .coord-value, .altitude-value {
+        color: $accent-cyan;
+      }
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  // Futuristic Input
+  .futuristic-input {
+    width: 100%;
+    margin: -5px 0; // Align with text
+    
+    .MuiInputBase-root {
+      font-family: inherit;
+      color: $accent-cyan;
+      background: rgba(10, 14, 23, 0.8);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      padding: 4px 12px;
+      border: 1px solid $accent-cyan;
+      box-shadow: 
+        0 0 12px rgba($accent-cyan, 0.3),
+        inset 0 0 8px rgba($accent-cyan, 0.1);
+        
+      transition: all 0.2s ease;
+    }
+
+    input {
+      padding: 0;
+      height: 1.5em;
+      text-align: inherit;
+      text-shadow: 0 0 8px rgba($accent-cyan, 0.4);
+    }
+  }
 }
 
 // Manufacturer Badge

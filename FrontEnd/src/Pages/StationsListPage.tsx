@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
-import { Box, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import SensorsIcon from "@mui/icons-material/Sensors";
 import SensorsOffIcon from "@mui/icons-material/SensorsOff";
-import { useNavigate } from "react-router-dom";
+import { Box, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
+import type { StationObj, StationStatus } from "../Api/Objects/StationObj";
 import { useAllStations } from "../Api/StationApi";
 import { OverlayLoader } from "../Components/Global/OverlayLoader";
-import type { StationObj, StationStatus } from "../Api/Objects/StationObj";
 import "./StationsListPage.scss";
 
 type StationsListPageProps = {
@@ -15,7 +14,6 @@ type StationsListPageProps = {
 
 export default function StationsListPage({ isSideBarCollapsed }: StationsListPageProps) {
   const { data: stations, isStationLoading } = useAllStations();
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredStations = useMemo(() => {
@@ -37,10 +35,6 @@ export default function StationsListPage({ isSideBarCollapsed }: StationsListPag
     const online = stations.filter((s) => s.State === "Online").length;
     return { total: stations.length, online, offline: stations.length - online };
   }, [stations]);
-
-  const handleRowClick = (stationId: number) => {
-    navigate(`/station/${stationId}`);
-  };
 
   return (
     <Box className="stations-list-page">
@@ -113,12 +107,7 @@ export default function StationsListPage({ isSideBarCollapsed }: StationsListPag
             {/* Table Body */}
             <Box className="table-body">
               {filteredStations.map((station, index) => (
-                <StationRow
-                  key={station.Id}
-                  station={station}
-                  index={index}
-                  onClick={() => handleRowClick(station.Id)}
-                />
+                <StationRow key={station.Id} station={station} index={index} />
               ))}
             </Box>
           </Box>
@@ -126,9 +115,7 @@ export default function StationsListPage({ isSideBarCollapsed }: StationsListPag
           {!isStationLoading && filteredStations.length === 0 && (
             <Box className="empty-state">
               <Typography className="empty-text">No stations found</Typography>
-              <Typography className="empty-subtext">
-                Try adjusting your search criteria
-              </Typography>
+              <Typography className="empty-subtext">Try adjusting your search criteria</Typography>
             </Box>
           )}
         </Box>
@@ -137,7 +124,6 @@ export default function StationsListPage({ isSideBarCollapsed }: StationsListPag
   );
 }
 
-// Stat Card Component
 type StatCardProps = {
   label: string;
   value: number;
@@ -154,36 +140,141 @@ function StatCard({ label, value, variant }: StatCardProps) {
   );
 }
 
-// Station Row Component
 type StationRowProps = {
   station: StationObj;
   index: number;
-  onClick: () => void;
 };
 
-function StationRow({ station, index, onClick }: StationRowProps) {
+function EditableCell({
+  value,
+  isEditing,
+  type = "text",
+  onEdit,
+  onChange,
+  onSave,
+  onCancel,
+  displayComponent,
+}: {
+  value: any;
+  isEditing: boolean;
+  type?: "text" | "number";
+  onEdit: () => void;
+  onChange: (val: any) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  displayComponent?: React.ReactNode;
+}) {
+  if (isEditing) {
+    return (
+      <TextField
+        autoFocus
+        fullWidth
+        variant="standard"
+        type={type}
+        value={value ?? ""}
+        onChange={(e) => onChange(type === "number" ? parseFloat(e.target.value) : e.target.value)}
+        onBlur={onSave}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSave();
+          if (e.key === "Escape") onCancel();
+        }}
+        className="edit-input futuristic-input"
+        slotProps={{ input: { disableUnderline: true } }}
+      />
+    );
+  }
+
   return (
-    <Box
-      className="table-row"
-      onClick={onClick}
-      style={{ animationDelay: `${index * 30}ms` }}
-    >
+    <div className="editable-content" onClick={onEdit}>
+      {displayComponent || value || "—"}
+      <div className="edit-hint" />
+    </div>
+  );
+}
+
+function StationRow({ station, index }: StationRowProps) {
+  const [editingField, setEditingField] = useState<keyof StationObj | null>(null);
+  const [editedStation, setEditedStation] = useState(station);
+
+  const handleEdit = (field: keyof StationObj) => {
+    setEditingField(field);
+  };
+
+  const handleSave = () => {
+    setEditingField(null);
+  };
+
+  const handleCancel = () => {
+    setEditingField(null);
+    setEditedStation(station); // Revert
+  };
+
+  const handleChange = (field: keyof StationObj, value: any) => {
+    setEditedStation((prev) => ({ ...prev, [field]: value }));
+  };
+  
+  return (
+    <Box className="table-row" style={{ animationDelay: `${index * 30}ms` }}>
       <Box className="row-cell cell-name">
-        <span className="station-name">{station.Name || "—"}</span>
+        <EditableCell
+          value={editedStation.Name}
+          isEditing={editingField === "Name"}
+          onEdit={() => handleEdit("Name")}
+          onChange={(val) => handleChange("Name", val)}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          displayComponent={<span className="station-name">{editedStation.Name || "—"}</span>}
+        />
       </Box>
-      <Box className="row-cell cell-location">{station.Location || "—"}</Box>
+      <Box className="row-cell cell-location">
+        <EditableCell
+          value={editedStation.Location}
+          isEditing={editingField === "Location"}
+          onEdit={() => handleEdit("Location")}
+          onChange={(val) => handleChange("Location", val)}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
+      </Box>
       <Box className="row-cell cell-manufacturer">
         <ManufacturerBadge manufacturer={station.Manufacturer} />
       </Box>
       <Box className="row-cell cell-type">{station.Type || "—"}</Box>
       <Box className="row-cell cell-coords">
-        <CoordValue value={station.Latitude} />
+        <EditableCell
+          value={editedStation.Latitude}
+          isEditing={editingField === "Latitude"}
+          type="number"
+          onEdit={() => handleEdit("Latitude")}
+          onChange={(val) => handleChange("Latitude", val)}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          displayComponent={<CoordValue value={editedStation.Latitude} />}
+        />
       </Box>
       <Box className="row-cell cell-coords">
-        <CoordValue value={station.Longitude} />
+        <EditableCell
+          value={editedStation.Longitude}
+          isEditing={editingField === "Longitude"}
+          type="number"
+          onEdit={() => handleEdit("Longitude")}
+          onChange={(val) => handleChange("Longitude", val)}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          displayComponent={<CoordValue value={editedStation.Longitude} />}
+        />
       </Box>
       <Box className="row-cell cell-altitude">
-        <AltitudeValue value={station.Altitude} />
+        <EditableCell
+          value={editedStation.Altitude}
+          isEditing={editingField === "Altitude"}
+          type="number"
+          onEdit={() => handleEdit("Altitude")}
+          onChange={(val) => handleChange("Altitude", val)}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          displayComponent={<AltitudeValue value={editedStation.Altitude} />}
+        />
       </Box>
       <Box className="row-cell cell-state">
         <StatusBadge status={station.State} />
@@ -192,7 +283,6 @@ function StationRow({ station, index, onClick }: StationRowProps) {
   );
 }
 
-// Manufacturer Badge
 function ManufacturerBadge({ manufacturer }: { manufacturer: string | null }) {
   if (!manufacturer) return <span className="dim-text">—</span>;
 
@@ -211,19 +301,14 @@ function ManufacturerBadge({ manufacturer }: { manufacturer: string | null }) {
   );
 }
 
-// Coordinate Value
 function CoordValue({ value }: { value: number | null }) {
   if (value === null) return <span className="dim-text">—</span>;
   return <span className="coord-value">{value.toFixed(4)}°</span>;
 }
-
-// Altitude Value
 function AltitudeValue({ value }: { value: number | null }) {
   if (value === null) return <span className="dim-text">—</span>;
   return <span className="altitude-value">{value.toFixed(0)}m</span>;
 }
-
-// Status Badge
 function StatusBadge({ status }: { status: StationStatus }) {
   const isOnline = status === "Online";
   return (
@@ -239,5 +324,3 @@ function StatusBadge({ status }: { status: StationStatus }) {
     </Tooltip>
   );
 }
-
-
