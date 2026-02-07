@@ -97,39 +97,40 @@ export default function StationsListPage({ isSideBarCollapsed }: StationsListPag
         <OverlayLoader show={isStationLoading} dim={0.3} blockInteraction={isStationLoading} />
 
         <Box className="table-container">
-          {/* Table Header */}
-          <Box className="table-header">
-            <Box className="header-cell cell-name">Name</Box>
-            <Box className="header-cell cell-location">Location</Box>
-            <Box className="header-cell cell-manufacturer">Manufacturer</Box>
-            <Box className="header-cell cell-type">Type</Box>
-            <Box className="header-cell cell-coords">Latitude</Box>
-            <Box className="header-cell cell-coords">Longitude</Box>
-            <Box className="header-cell cell-altitude">Altitude</Box>
-            <Box className="header-cell cell-state">State</Box>
-            <Box className="header-cell cell-hardware">Hardware IDs</Box>
+          <Box className="stations-table">
+            {/* Table Header */}
+            <Box className="table-header">
+              <Box className="header-cell cell-name">Name</Box>
+              <Box className="header-cell cell-location">Location</Box>
+              <Box className="header-cell cell-manufacturer">Manufacturer</Box>
+              <Box className="header-cell cell-type">Type</Box>
+              <Box className="header-cell cell-coords">Latitude</Box>
+              <Box className="header-cell cell-coords">Longitude</Box>
+              <Box className="header-cell cell-altitude">Altitude</Box>
+              <Box className="header-cell cell-state">State</Box>
+            </Box>
+
+            {/* Table Body */}
+            <Box className="table-body">
+              {filteredStations.map((station, index) => (
+                <StationRow
+                  key={station.Id}
+                  station={station}
+                  index={index}
+                  onClick={() => handleRowClick(station.Id)}
+                />
+              ))}
+            </Box>
           </Box>
 
-          {/* Table Body */}
-          <Box className="table-body">
-            {filteredStations.map((station, index) => (
-              <StationRow
-                key={station.Id}
-                station={station}
-                index={index}
-                onClick={() => handleRowClick(station.Id)}
-              />
-            ))}
-
-            {!isStationLoading && filteredStations.length === 0 && (
-              <Box className="empty-state">
-                <Typography className="empty-text">No stations found</Typography>
-                <Typography className="empty-subtext">
-                  Try adjusting your search criteria
-                </Typography>
-              </Box>
-            )}
-          </Box>
+          {!isStationLoading && filteredStations.length === 0 && (
+            <Box className="empty-state">
+              <Typography className="empty-text">No stations found</Typography>
+              <Typography className="empty-subtext">
+                Try adjusting your search criteria
+              </Typography>
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>
@@ -187,9 +188,6 @@ function StationRow({ station, index, onClick }: StationRowProps) {
       <Box className="row-cell cell-state">
         <StatusBadge status={station.State} />
       </Box>
-      <Box className="row-cell cell-hardware">
-        <HardwareIds ids={station.HardwareStationIds} />
-      </Box>
     </Box>
   );
 }
@@ -242,28 +240,4 @@ function StatusBadge({ status }: { status: StationStatus }) {
   );
 }
 
-// Hardware IDs
-function HardwareIds({ ids }: { ids: string[] }) {
-  if (!ids || ids.length === 0) {
-    return <span className="dim-text">—</span>;
-  }
-
-  const displayIds = ids.slice(0, 2);
-  const remainingCount = ids.length - 2;
-
-  return (
-    <Box className="hardware-ids">
-      {displayIds.map((id, idx) => (
-        <Tooltip key={idx} title={`Hardware ID: ${id}`}>
-          <span className="hardware-chip">{id}</span>
-        </Tooltip>
-      ))}
-      {remainingCount > 0 && (
-        <Tooltip title={ids.slice(2).join(", ")}>
-          <span className="hardware-chip more-chip">+{remainingCount}</span>
-        </Tooltip>
-      )}
-    </Box>
-  );
-}
 

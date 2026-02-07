@@ -73,10 +73,12 @@ $accent-orange: #f97316;
 .stations-list-page {
   position: relative;
   width: 100%;
-  height: 100%;
-  overflow: auto;
+  height: 90vh;
+  overflow: hidden;
   background: $bg-primary;
   font-family: 'Outfit', sans-serif;
+  display: flex;
+  flex-direction: column;
   
   // Scrollbar Styling
   &::-webkit-scrollbar {
@@ -151,6 +153,7 @@ $accent-orange: #f97316;
   align-items: flex-start;
   gap: 32px;
   flex-wrap: wrap;
+  flex-shrink: 0;
   animation: fadeSlideIn 0.6s ease-out;
   
   .header-content {
@@ -253,6 +256,7 @@ $accent-orange: #f97316;
   position: relative;
   z-index: 1;
   padding: 0 40px 24px;
+  flex-shrink: 0;
   animation: fadeSlideIn 0.6s ease-out 0.1s backwards;
   
   .search-field {
@@ -300,6 +304,10 @@ $accent-orange: #f97316;
   z-index: 1;
   padding: 0 40px 40px;
   animation: fadeSlideIn 0.6s ease-out 0.2s backwards;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 // Table Container
@@ -308,74 +316,73 @@ $accent-orange: #f97316;
   border: 1px solid $border-color;
   border-radius: 16px;
   backdrop-filter: blur(12px);
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: $bg-secondary;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(76, 206, 172, 0.3);
+    border-radius: 3px;
+    
+    &:hover {
+      background: rgba(76, 206, 172, 0.5);
+    }
+  }
+  
+  &::-webkit-scrollbar-corner {
+    background: $bg-secondary;
+  }
+}
+
+// Table Element
+.stations-table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
 }
 
 // Table Header
 .table-header {
-  display: grid;
-  grid-template-columns: 
-    minmax(160px, 1.5fr)  /* Name */
-    minmax(140px, 1.2fr)  /* Location */
-    minmax(110px, 1fr)    /* Manufacturer */
-    minmax(100px, 1fr)    /* Type */
-    100px                  /* Latitude */
-    100px                  /* Longitude */
-    80px                   /* Altitude */
-    100px                  /* State */
-    minmax(160px, 1.5fr); /* Hardware IDs */
-  gap: 1px;
-  padding: 0 24px;
-  background: rgba(76, 206, 172, 0.05);
-  border-bottom: 1px solid $border-color;
+  display: table-row;
   
   .header-cell {
-    padding: 16px 12px;
+    display: table-cell;
+    padding: 16px 20px;
     font-size: 0.7rem;
     font-weight: 600;
     color: $accent-cyan;
     text-transform: uppercase;
     letter-spacing: 0.12em;
+    white-space: nowrap;
+    border-bottom: 1px solid $border-color;
+    background: $bg-secondary;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
 }
 
 // Table Body
 .table-body {
-  max-height: calc(100vh - 340px);
-  overflow-y: auto;
-  
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: rgba(76, 206, 172, 0.2);
-    border-radius: 3px;
-  }
+  display: table-row-group;
 }
 
 // Table Row
 .table-row {
-  display: grid;
-  grid-template-columns: 
-    minmax(160px, 1.5fr)
-    minmax(140px, 1.2fr)
-    minmax(110px, 1fr)
-    minmax(100px, 1fr)
-    100px
-    100px
-    80px
-    100px
-    minmax(160px, 1.5fr);
-  gap: 1px;
-  padding: 0 24px;
-  border-bottom: 1px solid rgba(75, 85, 99, 0.15);
+  display: table-row;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease;
   animation: fadeSlideIn 0.4s ease-out backwards;
   
   &:hover {
@@ -385,22 +392,17 @@ $accent-orange: #f97316;
       color: $accent-cyan;
     }
   }
-  
-  &:last-child {
-    border-bottom: none;
-  }
 }
 
 // Row Cells
 .row-cell {
-  padding: 18px 12px;
+  display: table-cell;
+  padding: 18px 20px;
   font-size: 0.875rem;
   color: $text-secondary;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  vertical-align: middle;
   white-space: nowrap;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.15);
   
   &.cell-name {
     .station-name {
@@ -473,43 +475,6 @@ $accent-orange: #f97316;
   }
 }
 
-// Hardware IDs
-.hardware-ids {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.hardware-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: $accent-blue;
-  background: rgba(104, 112, 250, 0.1);
-  border: 1px solid rgba(104, 112, 250, 0.25);
-  border-radius: 4px;
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: default;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: rgba(104, 112, 250, 0.2);
-    border-color: rgba(104, 112, 250, 0.4);
-  }
-  
-  &.more-chip {
-    color: $text-secondary;
-    background: rgba(156, 163, 175, 0.1);
-    border-color: rgba(156, 163, 175, 0.25);
-  }
-}
-
 // Empty State
 .empty-state {
   display: flex;
@@ -533,19 +498,10 @@ $accent-orange: #f97316;
 }
 
 // Responsive Adjustments
-@media (max-width: 1400px) {
-  .table-header,
-  .table-row {
-    grid-template-columns: 
-      minmax(140px, 1.5fr)
-      minmax(120px, 1fr)
-      100px
-      90px
-      85px
-      85px
-      70px
-      90px
-      minmax(140px, 1.3fr);
+@media (max-width: 1200px) {
+  .header-cell,
+  .row-cell {
+    padding: 14px 12px;
   }
 }
 

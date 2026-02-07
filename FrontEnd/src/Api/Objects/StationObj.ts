@@ -22,7 +22,6 @@ export interface StationObj {
   Altitude: number | null;
   DataSourceId: number | null;
   DataTableName: string | null;
-  HardwareStationIds: string[];
 
   LastDataPointTime: string;
   SensorsList: StationSensorObj[];
