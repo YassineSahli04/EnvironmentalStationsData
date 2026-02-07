@@ -4,6 +4,7 @@ import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import ContactsOutlinedIcon from "@mui/icons-material/ContactsOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
@@ -241,6 +242,14 @@ const Sidebar: React.FC<SidebarProps> = ({
               setSelected={setSelected}
               onClickExtra={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
             />
+            {appUser?.role === "admin" && <Item
+              title="Stations List"
+              to="/stations"
+              icon={<ListAltOutlinedIcon />}
+              selected={selected}
+              setSelected={setSelected}
+              onClickExtra={() => setIsFilterPanelOpen(false)}
+            />}
 
             {appUser?.role === "admin" && <Item
               title="Users Dashboard"

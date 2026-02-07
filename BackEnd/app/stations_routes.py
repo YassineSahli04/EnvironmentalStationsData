@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Query, HTTPException
+from clerk_backend_api import RequestState
+from fastapi import APIRouter, Depends, Query, HTTPException
 from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
-from BackEnd.PostgreSQL.StationDbObject import StationDbObject
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject, StationSerializable
 from datetime import datetime
 import  logging, traceback
+from BackEnd.PostgreSQL.User import UserRole
 from BackEnd.Utils.DateTimeHelper import DateTimeHelper
+from BackEnd.app.user_routes import require_role
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +95,28 @@ def get_station_sensons_data(stationId: str, sensorsId: list[str] | None = Query
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+
+@router.put('/update/{stationId}')
+def update_station(stationId: int, station: StationSerializable, auth: RequestState = Depends(require_role(UserRole.Admin))):
+    try:
+        st = StationDbObject(db.engine, stationId)
+        st.updateStateInfo(station)
+        return st.getSerializableObj()
+    except ValueError as e:
+        logger.warning(
+            "%s", e
+        )
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        tb_last = traceback.extract_tb(e.__traceback__)[-1]
+        logger.error(
+            "Error while updating station: (%s) at %s:%s in %s",
+            e,
+            tb_last.filename,
+            tb_last.lineno,
+            tb_last.name,
+        )
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 ### SCHEDULER CODE FOR UPDATING THE DB FROM THE SERVER 
 @router.post("/server/update-db")

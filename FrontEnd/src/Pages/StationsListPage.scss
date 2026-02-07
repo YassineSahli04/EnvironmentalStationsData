@@ -1,0 +1,500 @@
+// ============================================
+// Environmental Stations List Page - Styles
+// ============================================
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+// Color Variables (Matched to theme.ts)
+$bg-primary: #141b2d;      
+$bg-secondary: #1f2a40;    
+$text-primary: #e0e0e0;    
+$text-secondary: #a3a3a3;  
+$text-dim: #666666;        
+
+$accent-cyan: #4cceac;     
+$accent-blue: #6870fa;     
+$accent-red: #db4f4a;      
+
+// Modern Glass Variables
+$glass-bg: rgba(31, 42, 64, 0.4);
+$glass-border: 1px solid rgba(255, 255, 255, 0.08);
+$glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+$glass-blur: blur(16px);
+
+// Animations
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes floatMinimal {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes meshFlow {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+// Main Page Container
+.stations-list-page {
+  position: relative;
+  width: 100%;
+  height: 90vh;
+  overflow: hidden;
+  background: $bg-primary;
+  font-family: 'Source Sans Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+  
+  // Scrollbar Styling
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: $bg-secondary;
+}
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(76, 206, 172, 0.3);
+    border-radius: 4px;
+    
+    &:hover {
+      background: rgba(76, 206, 172, 0.5);
+    }
+  }
+}
+
+// Animated Background
+.page-background {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle at top left, #1a2333 0%, #141b2d 100%);
+  
+  .grid-overlay {
+    display: none;
+  }
+  
+  // Large, soft ambient gradients (Mesh Gradient effect)
+  .glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    animation: meshFlow 25s ease-in-out infinite; // Slower, smoother animation
+    
+    &.orb-1 {
+      width: 800px;
+      height: 800px;
+      background: $accent-blue;
+      top: -200px;
+      right: -100px;
+      animation-delay: 0s;
+    }
+    
+    &.orb-2 {
+      width: 600px;
+      height: 600px;
+      background: $accent-cyan;
+      bottom: -100px;
+      left: -100px;
+      animation-delay: -8s;
+    }
+  }
+}
+
+// Header Section
+.page-header {
+  position: relative;
+  z-index: 1;
+  padding: 40px 48px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 32px;
+  animation: fadeSlideIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  
+  .header-content {
+    flex: 1;
+  }
+  
+  .page-title {
+    font-size: 2.75rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 8px;
+    
+    .title-icon {
+      color: $accent-cyan;
+      font-size: 2rem;
+      opacity: 0.9;
+    }
+  }
+  
+  .page-subtitle {
+    font-size: 1.1rem;
+    color: $text-secondary;
+    font-weight: 400;
+    max-width: 600px;
+    line-height: 1.5;
+  }
+}
+
+// Stats Container
+.stats-container {
+  display: flex;
+  gap: 20px;
+}
+
+.stat-card {
+  position: relative;
+  padding: 24px 32px;
+  background: $glass-bg;
+  backdrop-filter: $glass-blur;
+  -webkit-backdrop-filter: $glass-blur;
+  border: $glass-border;
+  box-shadow: $glass-shadow;
+  border-radius: 16px; // Modern rounded corners
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    border-color: rgba(255,255,255,0.15);
+  }
+  
+  .stat-value {
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 4px;
+    order: 1;
+  }
+  
+  .stat-label {
+    font-size: 0.85rem;
+    color: $text-secondary;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    order: 2;
+  }
+  
+  // Status indicators dot
+  &::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  &.stat-total::before { background: $text-dim; }
+  &.stat-online::before { background: $accent-cyan; box-shadow: 0 0 10px $accent-cyan; }
+  &.stat-offline::before { background: $accent-red; box-shadow: 0 0 10px $accent-red; }
+
+  // Clean up old glow
+  .stat-glow { display: none; }
+}
+
+// Search Container
+.search-container {
+  position: relative;
+  z-index: 1;
+  padding: 0 48px 24px;
+  animation: fadeSlideIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s backwards;
+  
+  .search-field {
+    .MuiOutlinedInput-root {
+      background: rgba(31, 42, 64, 0.6); // Slightly darker for input
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      
+      fieldset { border: 1px solid rgba(255,255,255,0.1); }
+      
+      &:hover {
+        background: rgba(31, 42, 64, 0.8);
+        fieldset { border-color: rgba(255,255,255,0.2); }
+      }
+      
+      &.Mui-focused {
+        background: rgba(31, 42, 64, 0.9);
+        box-shadow: 0 0 0 2px rgba($accent-cyan, 0.3);
+        fieldset { border-color: $accent-cyan; border-width: 1px; }
+      }
+    }
+    
+    .MuiInputBase-input {
+      color: #fff;
+      padding: 16px;
+      font-size: 1rem;
+      
+      &::placeholder {
+        color: $text-secondary;
+        opacity: 0.6;
+      }
+    }
+  }
+  
+  .search-icon { color: $text-secondary; }
+}
+
+// Table Wrapper
+.table-wrapper {
+  position: relative;
+  z-index: 1;
+  padding: 0 48px 48px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  animation: fadeSlideIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s backwards;
+}
+
+// Table Container (The Glass Panel)
+.table-container {
+  background: $glass-bg;
+  backdrop-filter: $glass-blur;
+  -webkit-backdrop-filter: $glass-blur;
+  border: $glass-border;
+  box-shadow: $glass-shadow;
+  border-radius: 20px; // Large border radius
+  overflow-x: auto; // Enable horizontal scrolling
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  
+  // Scrollbar styling for horizontal scroll
+  &::-webkit-scrollbar { 
+    width: 8px; 
+    height: 8px; 
+  }
+  &::-webkit-scrollbar-track { 
+    background: rgba(255,255,255,0.02); 
+  }
+  &::-webkit-scrollbar-thumb { 
+    background: rgba(76, 206, 172, 0.3); 
+    border-radius: 4px; 
+    &:hover { 
+      background: rgba(76, 206, 172, 0.5); 
+    }
+  }
+}
+
+// Table
+.stations-table {
+  display: grid;
+  grid-template-columns: 
+    auto  // Name
+    auto  // Location
+    auto  // Manufacturer
+    auto  // Type
+    auto  // Latitude
+    auto  // Longitude
+    auto  // Altitude
+    auto; // State
+  grid-auto-rows: max-content;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: auto; // Enable horizontal scrolling
+  align-content: start;
+  
+  // Custom scrollbar for table
+  &::-webkit-scrollbar { 
+    width: 8px;
+    height: 8px; // Height for horizontal scrollbar
+  }
+  &::-webkit-scrollbar-track { 
+    background: rgba(255,255,255,0.02); 
+  }
+  &::-webkit-scrollbar-thumb { 
+    background: rgba(76, 206, 172, 0.3); 
+    border-radius: 4px; 
+    &:hover { 
+      background: rgba(76, 206, 172, 0.5); 
+    }
+  }
+}
+
+// Header
+.table-header {
+  display: contents;
+  
+  .header-cell {
+    padding: 20px 24px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: $text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: rgba(20, 27, 45, 0.6); // Darker header
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+  }
+}
+
+.table-body {
+  display: contents;
+}
+
+// Table Rows
+.table-row {
+  display: contents;
+  
+  .row-cell {
+    padding: 16px 24px;
+    font-size: 0.95rem;
+    color: $text-primary;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+    
+    // First cell text style
+    &.cell-name .station-name {
+      font-weight: 600;
+      color: #fff;
+    }
+  }
+  
+  &:hover .row-cell {
+    background: rgba(76, 206, 172, 0.05);
+  }
+  
+  // Last row border removal
+  &:last-child .row-cell {
+    border-bottom: none;
+  }
+}
+
+// Elements inside cells
+
+// Manufacturer Badge
+.manufacturer-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05); // Default muted
+  color: $text-secondary;
+}
+
+// Status Badges (Modern)
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 30px; // Pill shape
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  
+  .status-icon { font-size: 0.9rem; }
+  
+  &.status-online {
+    background: rgba($accent-cyan, 0.15);
+    color: lighten($accent-cyan, 10%);
+    
+    .status-icon {
+      color: inherit;
+    }
+  }
+  
+  &.status-offline {
+    background: rgba($accent-red, 0.15);
+    color: lighten($accent-red, 10%);
+  }
+}
+
+// Editable Cell
+.editable-content {
+  cursor: pointer;
+  padding: 6px 10px;
+  margin: -6px -10px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  width: fit-content;
+  min-width: 100%;
+  
+  &:hover,
+  &.editing {
+    background: rgba(255,255,255,0.08);
+  }
+  
+  .edit-input {
+    width: 100%;
+  }
+}
+
+// Font monospace for data
+.coord-value, .altitude-value {
+  font-family: 'JetBrains Mono', 'Source Code Pro', monospace;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+// Empty State
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px;
+  opacity: 0.5;
+  
+  .empty-text { font-size: 1.2rem; margin-bottom: 8px; font-weight: 500;}
+  .empty-subtext { font-size: 0.9rem; }
+}
+
+// Responsive
+@media (max-width: 1024px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .stats-container {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  
+  .stat-card {
+    min-width: 140px;
+    padding: 16px 20px;
+  }
+  
+  .search-container, .table-wrapper {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}

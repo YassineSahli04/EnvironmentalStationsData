@@ -112,11 +112,7 @@ class StationDbObject:
             
             self.Name          = row.get("Name")
 
-            rowLocation      = row.get("Location")
-            if self.Location is None:
-                self.Location = rowLocation
-            else:
-                self.Location += f" / {rowLocation}"
+            self.Location      = row.get("Location")
 
             self.Manufacturer  = row.get("Manufacturer")
             
@@ -259,6 +255,33 @@ class StationDbObject:
         finalDf = TransformData.combine_dfs_with_diff_timestamp(dfs, "Date/Time")      
         data = SensorDbObject.dfToTimeValueRecords(finalDf, sensorIdsList, startDtUTC)
         return data
+    
+    def updateStateInfo(self, station: StationSerializable):
+        query = text("""
+            UPDATE "Stations"
+            SET 
+                "Name" = :newName,
+                "Location" = :newLocation,
+                "Latitude" = :newLatitude,
+                "Longitude" = :newLongitude,
+                "Altitude" = :newAltitude
+            WHERE
+                "HardwareId" = :hardwareId
+        """)
+        with self.engine.begin() as connection:
+            for hardwareId in self.HardwareStationIds: # type: ignore
+                connection.execute(query, {
+                    "newName": station.Name,
+                    "newLocation": station.Location,
+                    "newLatitude": station.Latitude,
+                    "newLongitude": station.Longitude,
+                    "newAltitude": station.Altitude,
+                    "hardwareId": hardwareId
+                })
+        self.set_station_metadata()
+
+
+
     
     def addVpdColOrUpdate(self):
         if self.Sensors is None: 
