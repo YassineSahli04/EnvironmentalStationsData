@@ -166,30 +166,30 @@ function EditableCell({
   onCancel: () => void;
   displayComponent?: React.ReactNode;
 }) {
-  if (isEditing) {
-    return (
-      <TextField
-        autoFocus
-        fullWidth
-        variant="standard"
-        type={type}
-        value={value ?? ""}
-        onChange={(e) => onChange(type === "number" ? parseFloat(e.target.value) : e.target.value)}
-        onBlur={onSave}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onSave();
-          if (e.key === "Escape") onCancel();
-        }}
-        className="edit-input futuristic-input"
-        slotProps={{ input: { disableUnderline: true } }}
-      />
-    );
-  }
-
   return (
-    <div className="editable-content" onClick={onEdit}>
-      {displayComponent || value || "—"}
-      <div className="edit-hint" />
+    <div className={`editable-content ${isEditing ? "editing" : ""}`} onClick={onEdit}>
+      {isEditing ? (
+        <TextField
+          autoFocus
+          variant="standard"
+          type={type}
+          value={value ?? ""}
+          onChange={(e) => onChange(type === "number" ? parseFloat(e.target.value) : e.target.value)}
+          onBlur={onSave}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSave();
+            if (e.key === "Escape") onCancel();
+          }}
+          className="edit-input futuristic-input"
+          slotProps={{ input: { disableUnderline: true } }}
+          sx={{ minWidth: '80px', maxWidth: '200px' }}
+        />
+      ) : (
+        <>
+          {displayComponent || value || "—"}
+          <div className="edit-hint" />
+        </>
+      )}
     </div>
   );
 }

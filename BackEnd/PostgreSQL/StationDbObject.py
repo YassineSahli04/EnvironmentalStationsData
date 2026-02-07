@@ -112,11 +112,7 @@ class StationDbObject:
             
             self.Name          = row.get("Name")
 
-            rowLocation      = row.get("Location")
-            if self.Location is None:
-                self.Location = rowLocation
-            else:
-                self.Location += f" / {rowLocation}"
+            self.Location      = row.get("Location")
 
             self.Manufacturer  = row.get("Manufacturer")
             
@@ -284,6 +280,9 @@ class StationDbObject:
                 })
         self.set_station_metadata()
 
+
+
+    
     def addVpdColOrUpdate(self):
         if self.Sensors is None: 
             return
