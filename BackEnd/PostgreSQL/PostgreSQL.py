@@ -4,7 +4,7 @@ import sqlalchemy.engine as _engine
 from sqlalchemy import create_engine, text, bindparam
 import os
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
-from BackEnd.PostgreSQL.StationDbObject import StationDbObject, StationState
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.C2aiStations.Api.C2aiTableCreator import C2aiTableCreator
 from BackEnd.GeoJson.GeoJsonObject import GeoJsonObject
 from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
@@ -92,8 +92,7 @@ class PostgreSQL:
                     self.update_db_table(
                         station.Manufacturer,
                         hardwareStation,
-                        station.DataSourceId,
-                        station.LastDataPointTime,
+                        station.DataSourceId
                     )
 
             station.addVpdColOrUpdate()
@@ -148,8 +147,7 @@ class PostgreSQL:
         self,
         manufacturer: str | None,
         hardwareId: str,
-        datasource_id: int | None,
-        last_data_point_time: datetime| None,
+        datasource_id: int | None
     ):
         match manufacturer:
             case "DeltaOHM":
@@ -161,7 +159,7 @@ class PostgreSQL:
             case _:
                 raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
 
-        dataDf = table_creator.getFullDataDf(last_data_point_time)  # type: ignore
+        dataDf = table_creator.getFullDataDf(isUpdate=True)  # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)
 
     def update_station_state(self, station: StationDbObject, userEmailsToAlert: list[str]):
