@@ -2,6 +2,7 @@ from BackEnd.ClimateFieldStations.API.CfHardwareStationAPI import CfHardwareStat
 from sqlalchemy import text
 import sqlalchemy.engine as _engine
 from BackEnd.Utils.TransformData import TransformData
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorDataInfo, CfSensorObject, CfDataType
 from datetime import datetime, timedelta, timezone
 import pandas as pd
@@ -43,17 +44,18 @@ class CfTableCreator:
             )
             connection.commit()
 
-    def getFullDataDf(self, startQueryTime: datetime | None = None, dataGroup :CfStationAPIDataGroup = CfStationAPIDataGroup.hourly):
+    def getFullDataDf(self, isUpdate: bool = False, dataGroup :CfStationAPIDataGroup = CfStationAPIDataGroup.hourly):
         minMaxTimeStamps = self.hardwareStation.get_station_min_max_timestamps_from_api()
         max_str = minMaxTimeStamps["max_date"]  # type: ignore
       
         now = datetime.now(self.hardwareStation.DataTimeZone)
-        if startQueryTime is None:
+        if isUpdate:
+            isNewTable = False
+            startQueryTime = StationDbObject.getStationHardwareLastDataPoint(self.engine, self.newTableName) + timedelta(minutes=1) # type: ignore          
+        else:
             isNewTable = True
             startQueryTime = now - timedelta(self.hardwareStation.DATA_ACCESS_DAYS_LIMIT)
-        else:
-            isNewTable = False
-            startQueryTime += timedelta(minutes=1)
+            
         max = datetime.strptime(max_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.hardwareStation.DataTimeZone)
 
         if startQueryTime >= max:

@@ -1,4 +1,5 @@
 from datetime import datetime
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.Utils.TransformData import TransformData
 import pandas as pd
 from sqlalchemy import text
@@ -333,13 +334,13 @@ class C2aiTableCreator:
                 else:
                     lastDailyRainfallVal = cellDailyRainFall
         return df
-
     
-    def getFullDataDf(self, startQueryTime : datetime | None = None):
+    def getFullDataDf(self, isUpdate: bool = False):
         dfList = []
         unixStartTime = None
-        if startQueryTime is not None:
-            unixStartTime = int(startQueryTime.timestamp())
+        if isUpdate:
+            startQueryTime = StationDbObject.getStationHardwareLastDataPoint(self.engine, self.newTableName) # type: ignore
+            unixStartTime = int(startQueryTime.timestamp()) # type: ignore
         if unixStartTime is None: unixStartTime = self.get_highest_starting_timestamp()
         for table in self.edTablesDict:
             dfList.append(self.get_table_data(table, unixStartTime))

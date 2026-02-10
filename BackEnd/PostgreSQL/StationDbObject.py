@@ -175,18 +175,25 @@ class StationDbObject:
             raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
         
         self.LastDataPointTime = None
-        with self.engine.connect() as connection:
-            for hrdId in self.HardwareStationIds: # type: ignore
-                lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{hrdId}\";")
-                time = connection.execute(lastDateTimeQuery).scalar()
-                if(time is not None):
-                    utcTime = time.replace(tzinfo=timezone.utc)
-                    if self.LastDataPointTime is None:
+        for hrdId in self.HardwareStationIds: # type: ignore
+            utcTime = StationDbObject.getStationHardwareLastDataPoint(self.engine, hrdId)
+            if(utcTime is not None):
+                if self.LastDataPointTime is None:
+                    self.LastDataPointTime = utcTime
+                else:
+                    if utcTime < self.LastDataPointTime:
                         self.LastDataPointTime = utcTime
-                    else:
-                        if utcTime < self.LastDataPointTime:
-                            self.LastDataPointTime = utcTime
   
+    @staticmethod
+    def getStationHardwareLastDataPoint(engine: _engine.Engine, tableName: str):
+        utcTime = None
+        with engine.begin() as connection:
+            lastDateTimeQuery = text(f"SELECT MAX(\"date_time\" AT TIME ZONE 'UTC') FROM \"{tableName}\";")
+            time = connection.execute(lastDateTimeQuery).scalar()
+            if(time is not None):
+                utcTime = time.replace(tzinfo=timezone.utc)
+        return utcTime
+
     def updateStationState(self):
         state = StationState.Offline
         if self.LastDataPointTime is not None:
