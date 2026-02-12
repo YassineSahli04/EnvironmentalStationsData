@@ -26,7 +26,7 @@ export async function getMapDataForParam(param: WeatherParam, date: Date) {
   for (const p of pairs) {
     if (!p) continue;
     const [stationId, data] = p;
-    sensorsData[stationId] = data;
+    sensorsData[String(stationId)] = data;
   }
 
   return sensorsData;

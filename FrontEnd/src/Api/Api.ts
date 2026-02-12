@@ -2,13 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import type { StationObj, StationSensorObj } from "../Api/Objects/StationObj";
 
-export enum WeatherParam {
-  TEMPERATURE = "Temperature",
-  PRECIPITATION = "Precipitation",
-  RELATIVE_HUMIDITY = "Relative Humidity",
-  SOLAR_RADIATION = "Solar Radiation",
-  WIND_SPEED = "Wind Speed",
-}
+export const WeatherParam = {
+  TEMPERATURE: "Temperature",
+  PRECIPITATION: "Precipitation",
+  RELATIVE_HUMIDITY: "Relative Humidity",
+  SOLAR_RADIATION: "Solar Radiation",
+  WIND_SPEED: "Wind Speed",
+} as const;
+
+export type WeatherParam = (typeof WeatherParam)[keyof typeof WeatherParam];
 
 const TypeFilter = [
   "Pyranometer",
@@ -49,7 +51,7 @@ export async function getStationsGeojson() {
 }
 
 export async function getStationSensorsData(
-  stationId: string,
+  stationId: number | string,
   sensorsId: string[],
   dataGroup?: string,
   startDtUTC?: Date | string,

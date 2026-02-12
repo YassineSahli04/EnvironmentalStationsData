@@ -34,7 +34,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
 }
 
 const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSidePanelProps) => {
-  const { data: allLoadedStations, isLoading } = useAllStations();
+  const { data: allLoadedStations } = useAllStations();
   const [allStations, setAllStations] = useState<StationObj[]>([]);
 
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -142,7 +142,7 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
 
     for (let station of stationsInRadius) {
       const name: string = station.Id + "-" + station.Name;
-      const option: Option = { label: name, id: station.Id };
+      const option: Option = { label: name, id: String(station.Id) };
 
       if (station.Type) typeOptions.add(station.Type);
 

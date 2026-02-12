@@ -15,7 +15,8 @@ type StationsListPageProps = {
 };
 
 export default function StationsListPage({ isSideBarCollapsed }: StationsListPageProps) {
-  const { data: stations, isStationLoading } = useAllStations();
+  void isSideBarCollapsed;
+  const { data: stations, isLoading: isStationLoading } = useAllStations();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredStations = useMemo(() => {
