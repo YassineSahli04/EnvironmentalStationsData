@@ -20,7 +20,8 @@ const TypeFilter = [
   // "Drill and Drop",
   // "Aquachek",
 ];
-const url = "http://localhost:8000/api/stations";
+const API_URL = import.meta.env.VITE_API_URL;
+const url = `${API_URL}/api/stations`;
 
 export async function getStations(): Promise<StationObj[]> {
   const allStationsUrl = `${url}/all`;
@@ -86,7 +87,11 @@ export async function getStationSensorsData(
   }
 }
 
-export async function updateStationInfo(token: string, station: StationObj, queryClient: QueryClient) {
+export async function updateStationInfo(
+  token: string,
+  station: StationObj,
+  queryClient: QueryClient
+) {
   try {
     const response = await axios.put(`${url}/update/${station.Id}`, station, {
       headers: {

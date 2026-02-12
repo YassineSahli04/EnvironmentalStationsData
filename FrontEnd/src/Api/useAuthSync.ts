@@ -4,7 +4,8 @@ import axios from "axios";
 import { useAppUser } from "../Context/AppUserContext.tsx";
 import type { AppUser } from "./Objects/UserObj.ts";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_URL;
+const url = `${API_URL}/api`;
 
 export function useAuthSync() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -22,7 +23,7 @@ export function useAuthSync() {
         const token = await getToken();
 
         const { data } = await axios.post<AppUser>(
-          `${API_URL}/users/sync`,
+          `${url}/users/sync`,
           {},
           {
             headers: {
