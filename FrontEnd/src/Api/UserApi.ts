@@ -2,7 +2,8 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import type { UserDetails } from "./Objects/UserObj";
 
-const usersUrl = "http://localhost:8000/api/users";
+const API_URL = import.meta.env.VITE_API_URL;
+const usersUrl = `${API_URL}/api/users`;
 
 export async function getAllUsers(token: string): Promise<UserDetails[]> {
   const allUsersUrl = `${usersUrl}/all`;
@@ -56,12 +57,8 @@ export async function updateUserInfo(
     });
 
     if (queryClient) {
-      queryClient.setQueryData(
-        ["allUsers", token],
-        (oldData: UserDetails[] | undefined) =>
-          oldData?.map((u) =>
-            u.Id === updatedUserDetails.Id ? response.data : u
-          )
+      queryClient.setQueryData(["allUsers", token], (oldData: UserDetails[] | undefined) =>
+        oldData?.map((u) => (u.Id === updatedUserDetails.Id ? response.data : u))
       );
     }
 
