@@ -72,6 +72,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
     const { center, radiusKm } = locationFocus;
 
     const circleFeature = makeCircleGeoJSON(center, radiusKm);
+    if (!circleFeature) return;
     const fc: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: [circleFeature as any],
@@ -244,7 +245,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
     if (!mapRef.current) return;
 
     // Shared handlers
-    const handleStationClick = (e) => {
+    const handleStationClick = (e: any) => {
       if (!mapRef.current || !e.feature) return;
       const coordinates = e.feature.geometry.coordinates.slice();
       const props = e.feature.properties;
@@ -441,7 +442,6 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
   const {
     data: geojson,
     isLoading,
-    isError,
   } = useQuery({
     queryKey: ["allStationsGeojson"],
     queryFn: () => getStationsGeojson(),
@@ -753,7 +753,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
 
     const updatedGeoJson = {
       ...geoDataRef.current,
-      features: geoDataRef.current.features.map((f) => {
+      features: geoDataRef.current.features.map((f: any) => {
         const rows = paramDataRef.current[f.properties.id];
         const lastRow = rows && rows.length > 0 ? rows[rows.length - 1] : null;
         const lastValue = lastRow ? lastRow.values[dataOption] : null;

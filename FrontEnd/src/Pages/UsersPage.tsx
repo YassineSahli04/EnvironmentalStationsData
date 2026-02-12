@@ -51,6 +51,7 @@ async function UpdateUserAsync(
 }
 
 export default function UsersPage({ isSideBarCollapsed }: UsersPageProps) {
+  void isSideBarCollapsed;
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const { getToken } = useAuth();

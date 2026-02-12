@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAllStations, getStationSensorsData } from "../Api/StationApi";
+import type { SensorDataRow } from "../Api/Objects/StationObj";
 import AmbianceChart from "../Components/Charts/AmbianceChart";
 import EventsChart from "../Components/Charts/EventsChart";
 import StressChart from "../Components/Charts/StressChart";
@@ -17,24 +18,24 @@ type StationOverviewPageProps = {
 
 export default function StationOverviewPage({ isSideBarCollapsed }: StationOverviewPageProps) {
   const { stationId } = useParams<{ stationId: string }>();
-  const id = Number(stationId);
+  const id = stationId ? Number(stationId) : NaN;
   const navigate = useNavigate();
   const chartRef = useRef<any>(null);
 
-  const { data: stations, isStationLoading } = useAllStations();
+  const { data: stations, isLoading: isStationLoading } = useAllStations();
 
   const station = useMemo(() => stations?.find((st) => st.Id === id), [stations, id]);
 
-  const [ambianceData, setAmbianceData] = useState<any[]>([]);
-  const [stressData, setStressData] = useState<any[]>([]);
-  const [eventsData, setEventsData] = useState<any[]>([]);
+  const [ambianceData, setAmbianceData] = useState<SensorDataRow[]>([]);
+  const [stressData, setStressData] = useState<SensorDataRow[]>([]);
+  const [eventsData, setEventsData] = useState<SensorDataRow[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(true);
   const [expandedChart, setExpandedChart] = useState<"ambiance" | "stress" | "events" | null>(
     "ambiance"
   );
 
   const onDataQueryChange = (startDate: string, endDate: string, aggregationType: string) => {
-    if (!id) return;
+    if (!Number.isFinite(id)) return;
 
     setIsChartLoading(true);
     (async () => {
@@ -59,9 +60,9 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
         startDate,
         endDate
       );
-      setAmbianceData(resAmbianceData || []);
-      setStressData(resStressData || []);
-      setEventsData(resEventsData || []);
+      setAmbianceData(resAmbianceData?.data ?? []);
+      setStressData(resStressData?.data ?? []);
+      setEventsData(resEventsData?.data ?? []);
       setIsChartLoading(false);
     })();
   };
@@ -73,8 +74,8 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
     return () => clearTimeout(timeoutId);
   }, [isSideBarCollapsed]);
 
-  const handleStationChange = (newStationId: string) => {
-    navigate(`/stations/${newStationId}`);
+  const handleStationChange = (newStationId: number) => {
+    navigate(`/station/${newStationId}`);
   };
 
   return (
@@ -89,14 +90,14 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
     >
       {/* Sticky Station Summary Bar */}
       <StationSummaryBar
-        station={station}
+        station={station ?? null}
         isLoading={isStationLoading}
         onStationChange={handleStationChange}
         availableStations={[]} // Can be populated from API
       />
 
       {/* Collapsible Station Details */}
-      <StationDetailsAccordion station={station} isLoading={isStationLoading} />
+      <StationDetailsAccordion station={station ?? null} isLoading={isStationLoading} />
 
       {/* Data Query Settings */}
       <DataQueryCard stationId={stationId} onDataQueryChange={onDataQueryChange} />
