@@ -135,7 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </MenuItem>
 
           {!isCollapsed && (
-            <>
+            <Box>
               {!isLoaded ? (
                 // Skeleton loading state
                 <Box mb="25px">
@@ -166,7 +166,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   </Box>
                 </Box>
               ) : (
-                <>
+                <Box>
                   <SignedOut>
                     <Box mb="25px">
                       <Box display="flex" justifyContent="center" alignItems="center">
@@ -216,9 +216,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                       </Box>
                     </Box>
                   </SignedIn>
-                </>
+                </Box>
               )}
-            </>
+            </Box>
           )}
 
           <Box paddingLeft={isCollapsed ? undefined : "10%"}>
@@ -356,3 +356,4 @@ const Sidebar: React.FC<SidebarProps> = ({
 };
 
 export default Sidebar;
+
