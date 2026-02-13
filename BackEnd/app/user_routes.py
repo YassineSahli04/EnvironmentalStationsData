@@ -3,9 +3,9 @@ from clerk_backend_api import RequestState
 
 import logging, traceback
 
-from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 from BackEnd.PostgreSQL.User import User, UserRole
 from BackEnd.app.ClerkAuthentication import ClerkAuthentication
+from BackEnd.app.db import db
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,6 @@ router = APIRouter(
     tags=["users"],
 )
 
-db = PostgreSQL()
 clerk_auth = ClerkAuthentication(db.engine)
 
 def require_auth(request: Request) -> RequestState:
