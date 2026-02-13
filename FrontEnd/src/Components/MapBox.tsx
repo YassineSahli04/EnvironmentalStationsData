@@ -517,7 +517,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
 
     geoDataRef.current = geojson;
 
-    if (!mapRef.current.getSource("stations")) {
+    if (!mapRef.current.getSource("earthquakes")) {
       addStationLayers();
       addInteractions();
     }
@@ -680,26 +680,33 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
 
   const applyParamMode = useCallback(() => {
     if (!mapRef.current || !isMapLoaded) return;
+
+    const map = mapRef.current;
+    const requiredLayers = [
+      "clusters",
+      "cluster-count",
+      "unclustered-point",
+      "station-param-points",
+    ];
+
+    if (requiredLayers.some((layerId) => !map.getLayer(layerId))) return;
+
     switch (selectedParam !== undefined) {
       case true:
-        mapRef.current.setLayoutProperty("clusters", "visibility", "none");
-        mapRef.current.setLayoutProperty("cluster-count", "visibility", "none");
-        mapRef.current.setLayoutProperty("unclustered-point", "visibility", "none");
+        map.setLayoutProperty("clusters", "visibility", "none");
+        map.setLayoutProperty("cluster-count", "visibility", "none");
+        map.setLayoutProperty("unclustered-point", "visibility", "none");
 
-        mapRef.current.setLayoutProperty("station-param-points", "visibility", "visible");
-        mapRef.current.setPaintProperty(
-          "station-param-points",
-          "circle-color",
-          getParamColorScale()
-        );
-        mapRef.current.flyTo({ center: [11.08813, 34.13523], zoom: 5.54 });
+        map.setLayoutProperty("station-param-points", "visibility", "visible");
+        map.setPaintProperty("station-param-points", "circle-color", getParamColorScale());
+        map.flyTo({ center: [11.08813, 34.13523], zoom: 5.54 });
         break;
       case false:
-        mapRef.current.setLayoutProperty("clusters", "visibility", "visible");
-        mapRef.current.setLayoutProperty("cluster-count", "visibility", "visible");
-        mapRef.current.setLayoutProperty("unclustered-point", "visibility", "visible");
+        map.setLayoutProperty("clusters", "visibility", "visible");
+        map.setLayoutProperty("cluster-count", "visibility", "visible");
+        map.setLayoutProperty("unclustered-point", "visibility", "visible");
 
-        mapRef.current.setLayoutProperty("station-param-points", "visibility", "none");
+        map.setLayoutProperty("station-param-points", "visibility", "none");
         break;
     }
   }, [selectedParam, isMapLoaded, getParamColorScale]);
@@ -887,3 +894,4 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
     </Box>
   );
 }
+
