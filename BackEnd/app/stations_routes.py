@@ -1,12 +1,12 @@
 from clerk_backend_api import RequestState
 from fastapi import APIRouter, Depends, Query, HTTPException
-from BackEnd.PostgreSQL.PostgreSQL import PostgreSQL
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject, StationSerializable
 from datetime import datetime
 import  logging, traceback
 from BackEnd.PostgreSQL.User import UserRole
 from BackEnd.Utils.DateTimeHelper import DateTimeHelper
 from BackEnd.app.user_routes import require_role
+from BackEnd.app.db import db
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +14,6 @@ router = APIRouter(
     prefix="/api/stations",
     tags=["stations"],
 )
-db = PostgreSQL()
-
 @router.get('/all')
 def get_stations(typeFilter:list[str]= Query(None, alias="type[]")):
     try:
@@ -144,5 +142,4 @@ def update_station(stationId: int, station: StationSerializable, auth: RequestSt
 ### SCHEDULER CODE FOR UPDATING THE DB FROM THE SERVER 
 @router.post("/server/update-db")
 def update_db():
-    db = PostgreSQL()
     db.create_update_all_stations_data_tables()

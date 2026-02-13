@@ -39,6 +39,9 @@ class PostgreSQL:
         self.engine = create_engine(
             connection_string,
             connect_args={"options": "-c timezone=UTC"},
+            pool_pre_ping=True,
+            pool_recycle=1800,
+            pool_timeout=30,
         )
     
     def get_all_station_objects(self, typeFilter = None) -> list[StationDbObject]:
