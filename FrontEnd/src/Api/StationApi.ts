@@ -1,6 +1,6 @@
 import { QueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import type { StationObj, StationSensorObj } from "./Objects/StationObj";
+import type { SensorDataRow, StationObj, StationSensorObj } from "./Objects/StationObj";
 
 export const WeatherParam = {
   TEMPERATURE: "Temperature",
@@ -57,11 +57,11 @@ export async function getStationSensorsData(
   dataGroup?: string,
   startDtUTC?: Date | string,
   endDtUTC?: Date | string
-): Promise<StationSensorObj | null> {
+): Promise<SensorDataRow[] | null> {
   const sensorsUrl = `${url}/station/${stationId}/sensors`;
 
   try {
-    const res = await axios.get<StationSensorObj>(sensorsUrl, {
+    const res = await axios.get<SensorDataRow[]>(sensorsUrl, {
       params: {
         sensorsId,
         dataGroup,
@@ -87,9 +87,47 @@ export async function getStationSensorsData(
   }
 }
 
+export async function getStationSensor(
+  stationId: string,
+  sensorId: string,
+  dataGroup?: string,
+  startDtUTC?: Date | string,
+  endDtUTC?: Date | string
+): Promise<StationSensorObj | null> {
+  const sensorsUrl = `${url}/station/${stationId}/sensor`;
+
+  try {
+    const res = await axios.get<StationSensorObj>(sensorsUrl, {
+      params: {
+        sensorId,
+        dataGroup,
+        startDtUTC: startDtUTC instanceof Date ? startDtUTC.toISOString() : startDtUTC,
+        endDtUTC: endDtUTC instanceof Date ? endDtUTC.toISOString() : endDtUTC,
+      },
+    });
+
+    return res.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      console.error("Failed to fetch station sensor data:", {
+        stationId,
+        sensorId,
+        status: err.response?.status,
+        detail: err.response?.data?.detail ?? err.message,
+      });
+      return null;
+    }
+
+    console.error("Unexpected error while fetching station sensor data:", err);
+    return null;
+  }
+}
+
 export async function updateStationInfo(
   token: string,
+
   station: StationObj,
+
   queryClient: QueryClient
 ) {
   try {
