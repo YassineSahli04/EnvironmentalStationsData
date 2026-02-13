@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAllStations, getStationSensorsData } from "../Api/StationApi";
 import type { SensorDataRow } from "../Api/Objects/StationObj";
+import { useAllStations, getStationSensorsData } from "../Api/StationApi";
 import AmbianceChart from "../Components/Charts/AmbianceChart";
 import EventsChart from "../Components/Charts/EventsChart";
 import StressChart from "../Components/Charts/StressChart";
@@ -60,9 +60,9 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
         startDate,
         endDate
       );
-      setAmbianceData(resAmbianceData?.data ?? []);
-      setStressData(resStressData?.data ?? []);
-      setEventsData(resEventsData?.data ?? []);
+      setAmbianceData(resAmbianceData ?? []);
+      setStressData(resStressData ?? []);
+      setEventsData(resEventsData ?? []);
       setIsChartLoading(false);
     })();
   };

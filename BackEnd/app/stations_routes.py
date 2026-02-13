@@ -62,7 +62,7 @@ def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]"
 
     
 @router.get('/station/{stationId}/sensors')
-def get_station_sensons_data(stationId: str, sensorsId: list[str] | None = Query(None, alias="sensorsId[]"), dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)):     
+def get_station_sensors_data(stationId: str, sensorsId: list[str] | None = Query(None, alias="sensorsId[]"), dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)):     
     try: 
         station = StationDbObject(db.engine, int(stationId))
 
@@ -71,12 +71,35 @@ def get_station_sensons_data(stationId: str, sensorsId: list[str] | None = Query
 
         if sensorsId is None or len(sensorsId) == 0: 
             raise Exception("Sensors are not defined.")  
-        if len(sensorsId) == 1:
-            sensorId = sensorsId[0]
-            return station.getSensorAllDataColumns(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
-        if len(sensorsId) > 1:
-            return station.getSensonsDefaultDataColumns(sensorIdsList=sensorsId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+        return station.getSensonsDefaultDataColumns(sensorIdsList=sensorsId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
     
+    except ValueError as e:
+        logger.warning(
+            "%s FROM:%s - To:%s ", e, startDtUTC, endDtUTC
+        )
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        tb_last = traceback.extract_tb(e.__traceback__)[-1]
+        logger.error(
+            "Error while getting sensor data: station=%s (%s) at %s:%s in %s",
+            stationId,
+            e,
+            tb_last.filename,
+            tb_last.lineno,
+            tb_last.name,
+        )
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@router.get('/station/{stationId}/sensor')
+def get_station_sensor(stationId: str, sensorId: str | None = Query(None), dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)):     
+    try: 
+        station = StationDbObject(db.engine, int(stationId))
+
+        startDtUTC = DateTimeHelper.to_utc(startDtUTC)
+        endDtUTC = DateTimeHelper.to_utc(endDtUTC)
+
+        return station.getSensorAllDataColumns(sensorId=sensorId, dataGroup=dataGroup, startDtUTC=startDtUTC, endDtUTC=endDtUTC) # type: ignore
+
     except ValueError as e:
         logger.warning(
             "%s FROM:%s - To:%s ", e, startDtUTC, endDtUTC
