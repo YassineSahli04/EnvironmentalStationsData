@@ -7,6 +7,7 @@ from enum import Enum
 class UserRole(Enum):
     User = 'user'
     Admin = 'admin'
+    Guest = 'guest'
 
 @dataclass
 class UserSerializable:
@@ -90,6 +91,12 @@ class User:
         if newRole is not None:
             self.Role = UserRole(newRole)
         
+    @classmethod
+    def getGuestUser(cls, engine: _engine.Engine) -> "User":
+        guest = cls(engine)
+        guest.Role = UserRole.Guest
+        return guest
+
     
     def getSerializableUser(self):
         return UserSerializable(

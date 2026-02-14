@@ -75,15 +75,12 @@ class ClerkAuthentication():
                 }
             )
 
-    def getClerkUserRole(self, requestState: RequestState | None) -> UserRole | None:
+    def getClerkUser(self, requestState: RequestState | None) -> User:
         if requestState is None or requestState.is_signed_in != True:
-            logging.warning('User Not Authenticated!')
-            raise HTTPException(status_code=401, detail="User Not Authenticated!")
-
+            return User.getGuestUser(self.engine)
+        
         user_id = requestState.payload["sub"]  # type: ignore
-
-        user = User.from_clerk_id(self.engine, user_id)
-        return user.Role
+        return  User.from_clerk_id(self.engine, user_id)
 
             
 

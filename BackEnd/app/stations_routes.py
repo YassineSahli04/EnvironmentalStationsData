@@ -117,8 +117,8 @@ def get_station_sensor(stationId: str, sensorId: str | None = Query(None), dataG
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-@router.put('/update/{stationId}')
-def update_station(stationId: int, station: StationSerializable, auth: RequestState = Depends(require_role(UserRole.Admin))):
+@router.put('/update/{stationId}', dependencies=[Depends(require_role(UserRole.Admin))])
+def update_station(stationId: int, station: StationSerializable):
     try:
         st = StationDbObject(db.engine, stationId)
         st.updateStateInfo(station)
