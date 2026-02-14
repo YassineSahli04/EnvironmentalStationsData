@@ -2,6 +2,7 @@ import { queryClient } from "./AppQueryClient.ts";
 import type { SensorDataRow } from "./Objects/StationObj";
 import { getStations, getStationSensor } from "./StationApi.ts";
 import { WeatherParam } from "./StationApi.ts";
+import { TypeFilter } from "./StationApi.ts";
 
 export async function getMapDataForParam(param: WeatherParam, date: Date) {
   const startOfDay = new Date(
@@ -13,8 +14,8 @@ export async function getMapDataForParam(param: WeatherParam, date: Date) {
   );
 
   const stations = await queryClient.fetchQuery({
-    queryKey: ["allStationsObj"],
-    queryFn: getStations,
+    queryKey: ["allStationsObj", [...TypeFilter]],
+    queryFn: () => getStations([...TypeFilter]),
   });
 
   const pairs = await getDataInBatches(stations, 8, async (st) => {

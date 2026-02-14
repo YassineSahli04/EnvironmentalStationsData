@@ -12,22 +12,22 @@ export const WeatherParam = {
 
 export type WeatherParam = (typeof WeatherParam)[keyof typeof WeatherParam];
 
-const TypeFilter = [
+export const TypeFilter = [
   "Pyranometer",
   "Pluviometer",
   "Meteorological",
   "Meteorological/Pluviometer",
   // "Drill and Drop",
   // "Aquachek",
-];
+] as const;
 const API_URL = import.meta.env.VITE_API_URL;
 const url = `${API_URL}/api/stations`;
 
-export async function getStations(): Promise<StationObj[]> {
+export async function getStations(typeFilter: string[] | undefined): Promise<StationObj[]> {
   const allStationsUrl = `${url}/all`;
   try {
     const response = await axios.get<StationObj[]>(allStationsUrl, {
-      params: { type: TypeFilter },
+      params: { type: typeFilter },
     });
     return response.data;
   } catch (err) {
@@ -36,10 +36,10 @@ export async function getStations(): Promise<StationObj[]> {
   }
 }
 
-export function useAllStations() {
+export function useAllStations(types: string[] | undefined) {
   return useQuery<StationObj[]>({
-    queryKey: ["allStationsObj"],
-    queryFn: getStations,
+    queryKey: ["allStationsObj", types],
+    queryFn: () => getStations(types),
   });
 }
 
@@ -125,9 +125,7 @@ export async function getStationSensor(
 
 export async function updateStationInfo(
   token: string,
-
   station: StationObj,
-
   queryClient: QueryClient
 ) {
   try {

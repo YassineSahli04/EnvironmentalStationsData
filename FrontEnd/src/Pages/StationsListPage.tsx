@@ -16,7 +16,7 @@ type StationsListPageProps = {
 
 export default function StationsListPage({ isSideBarCollapsed }: StationsListPageProps) {
   void isSideBarCollapsed;
-  const { data: stations, isLoading: isStationLoading } = useAllStations();
+  const { data: stations, isLoading: isStationLoading } = useAllStations(undefined);
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredStations = useMemo(() => {
@@ -175,7 +175,9 @@ function EditableCell({
           variant="standard"
           type={type}
           value={value ?? ""}
-          onChange={(e) => onChange(type === "number" ? parseFloat(e.target.value) : e.target.value)}
+          onChange={(e) =>
+            onChange(type === "number" ? parseFloat(e.target.value) : e.target.value)
+          }
           onBlur={onSave}
           onKeyDown={(e) => {
             if (e.key === "Enter") onSave();
@@ -183,7 +185,7 @@ function EditableCell({
           }}
           className="edit-input futuristic-input"
           slotProps={{ input: { disableUnderline: true } }}
-          sx={{ minWidth: '80px', maxWidth: '200px' }}
+          sx={{ minWidth: "80px", maxWidth: "200px" }}
         />
       ) : (
         <>
