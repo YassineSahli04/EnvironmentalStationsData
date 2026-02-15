@@ -1,11 +1,10 @@
-from clerk_backend_api import RequestState
 from fastapi import APIRouter, Depends, Query, HTTPException
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject, StationSerializable
 from datetime import datetime
 import  logging, traceback
 from BackEnd.PostgreSQL.User import UserRole
 from BackEnd.Utils.DateTimeHelper import DateTimeHelper
-from BackEnd.app.user_routes import require_role
+from BackEnd.app.auth import require_type_filter, require_role
 from BackEnd.app.db import db
 
 logger = logging.getLogger(__name__)
@@ -14,9 +13,9 @@ router = APIRouter(
     prefix="/api/stations",
     tags=["stations"],
 )
-@router.get('/all')
-def get_stations(typeFilter:list[str]= Query(None, alias="type[]")):
-    try:
+@router.get("/all", dependencies=[Depends(require_type_filter())])
+def get_stations(typeFilter: list[str] = Query(default=[], alias="type[]")):
+    try:      
         stations = db.get_all_station_objects(typeFilter)
         stsSerializable = []
         for st in stations:
@@ -57,8 +56,7 @@ def get_stations_geojson(typeFilter: list[str]|None = Query(None, alias="type[]"
             tb_last.name,
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
-
-    
+   
 @router.get('/station/{stationId}/sensors')
 def get_station_sensors_data(stationId: str, sensorsId: list[str] | None = Query(None, alias="sensorsId[]"), dataGroup: str | None = Query(None), startDtUTC: datetime | None = Query(None), endDtUTC: datetime | None = Query(None)):     
     try: 
@@ -115,7 +113,6 @@ def get_station_sensor(stationId: str, sensorId: str | None = Query(None), dataG
             tb_last.name,
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
-
 
 @router.put('/update/{stationId}', dependencies=[Depends(require_role(UserRole.Admin))])
 def update_station(stationId: int, station: StationSerializable):

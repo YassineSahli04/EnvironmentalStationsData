@@ -1,10 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from clerk_backend_api import RequestState
-
 import logging, traceback
-
 from BackEnd.PostgreSQL.User import User, UserRole
-from BackEnd.app.ClerkAuthentication import ClerkAuthentication
+from BackEnd.app.auth import clerk_auth, require_auth, require_role
 from BackEnd.app.db import db
 from pydantic import BaseModel
 
@@ -15,33 +13,12 @@ router = APIRouter(
     tags=["users"],
 )
 
-clerk_auth = ClerkAuthentication(db.engine)
-
-def require_auth(request: Request) -> RequestState:
-    request_state = clerk_auth.authenticate(request)
-    if request_state is None:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return request_state
-
-def require_role(*allowed: UserRole):
-    def guard(request_state: RequestState = Depends(require_auth)):
-        role = clerk_auth.getClerkUser(request_state).Role
-
-        allowedRoleValues = [role.value for role in allowed]
-        if role is None or role.value not in allowedRoleValues:
-            raise HTTPException(status_code=403, detail="Forbidden")
-        
-    return guard 
-
-
 @router.post("/sync")
 def syncUser(auth: RequestState = Depends(require_auth)):
     try:
         clerk_auth.get_or_create_user(auth)
-        role = clerk_auth.getClerkUser(auth).Role
-        if role is None:
-            return { "id": auth.payload["sub"], "role": None } # type: ignore
-        return { "id": auth.payload["sub"], "role": role.value } # type: ignore
+        user = clerk_auth.getClerkUser(auth)
+        return { "id": auth.payload["sub"], "role": user.Role.value, "typeFilter":  user.TypeFilter} # type: ignore
     
     except HTTPException:
         raise

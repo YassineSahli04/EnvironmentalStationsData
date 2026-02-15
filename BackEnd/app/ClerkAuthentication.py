@@ -30,7 +30,7 @@ class ClerkAuthentication():
                     secret_key = self.clerkSecretKey
                 )
             )
-
+            print(request_state)
             return request_state
 
         except Exception as e:
@@ -75,8 +75,8 @@ class ClerkAuthentication():
                 }
             )
 
-    def getClerkUser(self, requestState: RequestState | None) -> User:
-        if requestState is None or requestState.is_signed_in != True:
+    def getClerkUser(self, requestState: RequestState) -> User:
+        if requestState.is_signed_in != True:
             return User.getGuestUser(self.engine)
         
         user_id = requestState.payload["sub"]  # type: ignore
