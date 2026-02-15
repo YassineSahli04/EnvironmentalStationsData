@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import type { SensorDataRow } from "../Api/Objects/StationObj";
-import { useAllStations, getStationSensorsData, TypeFilter } from "../Api/StationApi";
+import { useAllStations, getStationSensorsData, MapStationsTypeFilter } from "../Api/StationApi";
 import AmbianceChart from "../Components/Charts/AmbianceChart";
 import EventsChart from "../Components/Charts/EventsChart";
 import StressChart from "../Components/Charts/StressChart";
@@ -22,7 +22,9 @@ export default function StationOverviewPage({ isSideBarCollapsed }: StationOverv
   const navigate = useNavigate();
   const chartRef = useRef<any>(null);
 
-  const { data: stations, isLoading: isStationLoading } = useAllStations([...TypeFilter]);
+  const { data: stations, isLoading: isStationLoading } = useAllStations([
+    ...MapStationsTypeFilter,
+  ]);
 
   const station = useMemo(() => stations?.find((st) => st.Id === id), [stations, id]);
 

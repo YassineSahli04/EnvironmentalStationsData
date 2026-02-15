@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { StationObj, StationStatus } from "../Api/Objects/StationObj";
 import { updateStationInfo, useAllStations } from "../Api/StationApi";
 import { OverlayLoader } from "../Components/Global/OverlayLoader";
+import { useAppUser } from "../Context/AppUserContext";
 import "./StationsListPage.scss";
 
 type StationsListPageProps = {
@@ -16,7 +17,10 @@ type StationsListPageProps = {
 
 export default function StationsListPage({ isSideBarCollapsed }: StationsListPageProps) {
   void isSideBarCollapsed;
-  const { data: stations, isLoading: isStationLoading } = useAllStations(undefined);
+
+  const { appUser } = useAppUser();
+
+  const { data: stations, isLoading: isStationLoading } = useAllStations(appUser?.typeFilter);
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredStations = useMemo(() => {

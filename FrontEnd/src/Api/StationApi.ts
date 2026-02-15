@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/clerk-react";
 import { QueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import type { SensorDataRow, StationObj, StationSensorObj } from "./Objects/StationObj";
@@ -12,21 +13,24 @@ export const WeatherParam = {
 
 export type WeatherParam = (typeof WeatherParam)[keyof typeof WeatherParam];
 
-export const TypeFilter = [
+export const MapStationsTypeFilter = [
   "Pyranometer",
   "Pluviometer",
   "Meteorological",
   "Meteorological/Pluviometer",
-  // "Drill and Drop",
-  // "Aquachek",
 ] as const;
+
 const API_URL = import.meta.env.VITE_API_URL;
 const url = `${API_URL}/api/stations`;
 
-export async function getStations(typeFilter: string[] | undefined): Promise<StationObj[]> {
+export async function getStations(
+  typeFilter: string[] | undefined,
+  token: string | null
+): Promise<StationObj[]> {
   const allStationsUrl = `${url}/all`;
   try {
     const response = await axios.get<StationObj[]>(allStationsUrl, {
+      headers: { Authorization: `Bearer ${token}` },
       params: { type: typeFilter },
     });
     return response.data;
@@ -37,16 +41,21 @@ export async function getStations(typeFilter: string[] | undefined): Promise<Sta
 }
 
 export function useAllStations(types: string[] | undefined) {
+  const { getToken } = useAuth();
+
   return useQuery<StationObj[]>({
     queryKey: ["allStationsObj", types],
-    queryFn: () => getStations(types),
+    queryFn: async () => {
+      const token = await getToken();
+      return getStations(types, token);
+    },
   });
 }
 
 export async function getStationsGeojson() {
   const geojsonUrl = `${url}/geojson`;
   const res = await axios.get(geojsonUrl, {
-    params: { type: TypeFilter },
+    params: { type: MapStationsTypeFilter },
   });
   return res.data;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography, Slider } from "@mui/material";
-import { TypeFilter, useAllStations } from "../../Api/StationApi.ts";
 import type { StationObj } from "../../Api/Objects/StationObj.ts";
+import { MapStationsTypeFilter, useAllStations } from "../../Api/StationApi.ts";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -34,7 +34,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
 }
 
 const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSidePanelProps) => {
-  const { data: allLoadedStations } = useAllStations([...TypeFilter]);
+  const { data: allLoadedStations } = useAllStations([...MapStationsTypeFilter]);
   const [allStations, setAllStations] = useState<StationObj[]>([]);
 
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
