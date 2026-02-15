@@ -24,7 +24,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 const url = `${API_URL}/api/stations`;
 
 export async function getStations(
-  typeFilter: string[] | undefined,
+  typeFilter: string[],
   token: string | null
 ): Promise<StationObj[]> {
   const allStationsUrl = `${url}/all`;
@@ -40,14 +40,15 @@ export async function getStations(
   }
 }
 
-export function useAllStations(types: string[] | undefined) {
+export function useAllStations(types: string[] | undefined, enabled = true) {
   const { getToken } = useAuth();
 
   return useQuery<StationObj[]>({
     queryKey: ["allStationsObj", types],
+    enabled: enabled && types !== undefined,
     queryFn: async () => {
       const token = await getToken();
-      return getStations(types, token);
+      return getStations(types ?? [], token);
     },
   });
 }

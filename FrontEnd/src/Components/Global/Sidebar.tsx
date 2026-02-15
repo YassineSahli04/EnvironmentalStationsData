@@ -242,23 +242,25 @@ const Sidebar: React.FC<SidebarProps> = ({
               setSelected={setSelected}
               onClickExtra={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
             />
-            {appUser?.role === "admin" && <Item
+            <Item
               title="Stations List"
               to="/stations"
               icon={<ListAltOutlinedIcon />}
               selected={selected}
               setSelected={setSelected}
               onClickExtra={() => setIsFilterPanelOpen(false)}
-            />}
+            />
 
-            {appUser?.role === "admin" && <Item
-              title="Users Dashboard"
-              to="/users"
-              icon={<PeopleAltOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
-              onClickExtra={() => setIsFilterPanelOpen(false)}
-            />}
+            {appUser?.role === "admin" && (
+              <Item
+                title="Users Dashboard"
+                to="/users"
+                icon={<PeopleAltOutlinedIcon />}
+                selected={selected}
+                setSelected={setSelected}
+                onClickExtra={() => setIsFilterPanelOpen(false)}
+              />
+            )}
 
             <Item
               title="Contacts Information"
@@ -356,4 +358,3 @@ const Sidebar: React.FC<SidebarProps> = ({
 };
 
 export default Sidebar;
-

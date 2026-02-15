@@ -14,10 +14,6 @@ export function useAuthSync() {
   const { appUser, setAppUser } = useAppUser();
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !user || hasSynced.current) {
-      return;
-    }
-
     const syncUser = async () => {
       try {
         const token = await getToken();

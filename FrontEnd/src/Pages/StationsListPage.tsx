@@ -19,8 +19,11 @@ export default function StationsListPage({ isSideBarCollapsed }: StationsListPag
   void isSideBarCollapsed;
 
   const { appUser } = useAppUser();
-
-  const { data: stations, isLoading: isStationLoading } = useAllStations(appUser?.typeFilter);
+  const isAdmin = appUser?.role === "admin";
+  const { data: stations, isLoading: isStationLoading } = useAllStations(
+    appUser?.typeFilter,
+    !!appUser
+  );
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredStations = useMemo(() => {
@@ -114,7 +117,7 @@ export default function StationsListPage({ isSideBarCollapsed }: StationsListPag
             {/* Table Body */}
             <Box className="table-body">
               {filteredStations.map((station, index) => (
-                <StationRow key={station.Id} station={station} index={index} />
+                <StationRow key={station.Id} station={station} index={index} canEdit={isAdmin} />
               ))}
             </Box>
           </Box>
@@ -150,6 +153,7 @@ function StatCard({ label, value, variant }: StatCardProps) {
 type StationRowProps = {
   station: StationObj;
   index: number;
+  canEdit: boolean;
 };
 
 function EditableCell({
@@ -161,6 +165,7 @@ function EditableCell({
   onSave,
   onCancel,
   displayComponent,
+  editable = true,
 }: {
   value: any;
   isEditing: boolean;
@@ -170,9 +175,13 @@ function EditableCell({
   onSave: () => void;
   onCancel: () => void;
   displayComponent?: React.ReactNode;
+  editable?: boolean;
 }) {
   return (
-    <div className={`editable-content ${isEditing ? "editing" : ""}`} onClick={onEdit}>
+    <div
+      className={`editable-content ${editable ? "editable" : "readonly"} ${isEditing ? "editing" : ""}`}
+      onClick={editable ? onEdit : undefined}
+    >
       {isEditing ? (
         <TextField
           autoFocus
@@ -220,17 +229,19 @@ async function UpdateStationAsync(
   }
 }
 
-function StationRow({ station, index }: StationRowProps) {
+function StationRow({ station, index, canEdit }: StationRowProps) {
   const [editingField, setEditingField] = useState<keyof StationObj | null>(null);
   const [editedStation, setEditedStation] = useState(station);
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
 
   const handleEdit = (field: keyof StationObj) => {
+    if (!canEdit) return;
     setEditingField(field);
   };
 
   const handleSave = () => {
+    if (!canEdit) return;
     UpdateStationAsync(getToken, editedStation, queryClient);
     setEditingField(null);
   };
@@ -249,22 +260,24 @@ function StationRow({ station, index }: StationRowProps) {
       <Box className="row-cell cell-name">
         <EditableCell
           value={editedStation.Name}
-          isEditing={editingField === "Name"}
+          isEditing={canEdit && editingField === "Name"}
           onEdit={() => handleEdit("Name")}
           onChange={(val) => handleChange("Name", val)}
           onSave={handleSave}
           onCancel={handleCancel}
+          editable={canEdit}
           displayComponent={<span className="station-name">{editedStation.Name || "—"}</span>}
         />
       </Box>
       <Box className="row-cell cell-location">
         <EditableCell
           value={editedStation.Location}
-          isEditing={editingField === "Location"}
+          isEditing={canEdit && editingField === "Location"}
           onEdit={() => handleEdit("Location")}
           onChange={(val) => handleChange("Location", val)}
           onSave={handleSave}
           onCancel={handleCancel}
+          editable={canEdit}
         />
       </Box>
       <Box className="row-cell cell-manufacturer">
@@ -274,36 +287,39 @@ function StationRow({ station, index }: StationRowProps) {
       <Box className="row-cell cell-coords">
         <EditableCell
           value={editedStation.Latitude}
-          isEditing={editingField === "Latitude"}
+          isEditing={canEdit && editingField === "Latitude"}
           type="number"
           onEdit={() => handleEdit("Latitude")}
           onChange={(val) => handleChange("Latitude", val)}
           onSave={handleSave}
           onCancel={handleCancel}
+          editable={canEdit}
           displayComponent={<CoordValue value={editedStation.Latitude} />}
         />
       </Box>
       <Box className="row-cell cell-coords">
         <EditableCell
           value={editedStation.Longitude}
-          isEditing={editingField === "Longitude"}
+          isEditing={canEdit && editingField === "Longitude"}
           type="number"
           onEdit={() => handleEdit("Longitude")}
           onChange={(val) => handleChange("Longitude", val)}
           onSave={handleSave}
           onCancel={handleCancel}
+          editable={canEdit}
           displayComponent={<CoordValue value={editedStation.Longitude} />}
         />
       </Box>
       <Box className="row-cell cell-altitude">
         <EditableCell
           value={editedStation.Altitude}
-          isEditing={editingField === "Altitude"}
+          isEditing={canEdit && editingField === "Altitude"}
           type="number"
           onEdit={() => handleEdit("Altitude")}
           onChange={(val) => handleChange("Altitude", val)}
           onSave={handleSave}
           onCancel={handleCancel}
+          editable={canEdit}
           displayComponent={<AltitudeValue value={editedStation.Altitude} />}
         />
       </Box>
