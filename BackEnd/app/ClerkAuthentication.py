@@ -30,7 +30,6 @@ class ClerkAuthentication():
                     secret_key = self.clerkSecretKey
                 )
             )
-            print(request_state)
             return request_state
 
         except Exception as e:
