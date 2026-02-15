@@ -437,17 +437,24 @@ $glass-blur: blur(16px);
 
 // Editable Cell
 .editable-content {
-  cursor: pointer;
   padding: 6px 10px;
   margin: -6px -10px;
   border-radius: 6px;
   transition: all 0.2s ease;
   width: fit-content;
   min-width: 100%;
-  
-  &:hover,
-  &.editing {
-    background: rgba(255,255,255,0.08);
+
+  &.editable {
+    cursor: pointer;
+
+    &:hover,
+    &.editing {
+      background: rgba(255,255,255,0.08);
+    }
+  }
+
+  &.readonly {
+    cursor: default;
   }
   
   .edit-input {

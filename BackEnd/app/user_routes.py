@@ -1,10 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from clerk_backend_api import RequestState
-
 import logging, traceback
-
 from BackEnd.PostgreSQL.User import User, UserRole
-from BackEnd.app.ClerkAuthentication import ClerkAuthentication
+from BackEnd.app.auth import clerk_auth, require_auth, require_role
 from BackEnd.app.db import db
 from pydantic import BaseModel
 
@@ -15,33 +13,13 @@ router = APIRouter(
     tags=["users"],
 )
 
-clerk_auth = ClerkAuthentication(db.engine)
-
-def require_auth(request: Request) -> RequestState:
-    request_state = clerk_auth.authenticate(request)
-    if request_state is None or not request_state.is_signed_in:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return request_state
-
-def require_role(*allowed: UserRole):
-    def guard(request_state: RequestState = Depends(require_auth)):
-        role = clerk_auth.getClerkUserRole(request_state)
-
-        allowedRoleValues = [role.value for role in allowed]
-        if role is None or role.value not in allowedRoleValues:
-            raise HTTPException(status_code=403, detail="Forbidden")
-        return request_state
-    return guard 
-
-
 @router.post("/sync")
 def syncUser(auth: RequestState = Depends(require_auth)):
     try:
         clerk_auth.get_or_create_user(auth)
-        role = clerk_auth.getClerkUserRole(auth)
-        if role is None:
-            return { "id": auth.payload["sub"], "role": None } # type: ignore
-        return { "id": auth.payload["sub"], "role": role.value } # type: ignore
+        user = clerk_auth.getClerkUser(auth)
+
+        return { "id": user.ClerkId, "role": user.Role.value, "typeFilter":  user.TypeFilter} # type: ignore
     
     except HTTPException:
         raise
@@ -59,8 +37,8 @@ def syncUser(auth: RequestState = Depends(require_auth)):
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.get("/all")
-def get_all_users(auth: RequestState = Depends(require_role(UserRole.Admin))):
+@router.get("/all", dependencies=[Depends(require_role(UserRole.Admin))])
+def get_all_users():
     try:
         users = db.get_all_user_objects()
         usersSerializable = []
@@ -80,8 +58,8 @@ class UpdateUserPayload(BaseModel):
     IsSubscribedToStationAlerts: bool | None = None
     Role: str | None = None
 
-@router.patch("/update/{userId}")
-def update_user(userId: str, payload: UpdateUserPayload, auth: RequestState = Depends(require_role(UserRole.Admin))):
+@router.patch("/update/{userId}", dependencies=[Depends(require_role(UserRole.Admin))])
+def update_user(userId: str, payload: UpdateUserPayload):
     try:
         user = User.from_id(db.engine, userId)
         user.updateUser(payload.IsSubscribedToStationAlerts, payload.Role)

@@ -1,4 +1,4 @@
-export type AppUser = { id: string; role: "user" | "admin" };
+export type AppUser = { id: string; role: "user" | "admin"; typeFilter: string[] };
 
 export type UserDetails = {
   Id: string;
@@ -8,4 +8,5 @@ export type UserDetails = {
   Role: "user" | "admin";
   CreatedAt: Date;
   IsSubscribedToStationAlerts: boolean;
+  TypeFilter: string[];
 };

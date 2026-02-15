@@ -5,6 +5,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import { PrefetchData } from "./Api/PrefetchData";
 import { useAuthSync } from "./Api/useAuthSync";
 import "./App.css";
+import ProtectedRoute from "./Components/Global/ProtectedRoute";
 import Sidebar from "./Components/Global/Sidebar";
 import Topbar from "./Components/Global/Topbar";
 import MapBox from "./Components/MapBox";
@@ -12,7 +13,6 @@ import StationOverviewPage from "./Pages/StationOverviewPage";
 import StationsListPage from "./Pages/StationsListPage";
 import UsersPage from "./Pages/UsersPage";
 import { ColorModeContext, useMode } from "./theme";
-import ProtectedRoute from "./Components/Global/ProtectedRoute";
 
 type LocationFocus = { center: [number, number]; radiusKm: number };
 
@@ -68,18 +68,14 @@ function App() {
                 />
                 <Route
                   path="/stations"
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <StationsListPage isSideBarCollapsed={isSideBarCollapsed} />
-                    </ProtectedRoute>
-                  }
+                  element={<StationsListPage isSideBarCollapsed={isSideBarCollapsed} />}
                 />
                 <Route
                   path="/users"
                   element={
-                  <ProtectedRoute requiredRole="admin">
-                    <UsersPage isSideBarCollapsed={isSideBarCollapsed} />
-                  </ProtectedRoute>
+                    <ProtectedRoute requiredRole="admin">
+                      <UsersPage isSideBarCollapsed={isSideBarCollapsed} />
+                    </ProtectedRoute>
                   }
                 />
               </Routes>

@@ -7,6 +7,7 @@ from enum import Enum
 class UserRole(Enum):
     User = 'user'
     Admin = 'admin'
+    Guest = 'guest'
 
 @dataclass
 class UserSerializable:
@@ -17,6 +18,7 @@ class UserSerializable:
     Role: str
     CreatedAt: datetime
     IsSubscribedToStationAlerts: bool
+    TypeFilter: list[str]
 
 class User:
     Id: str
@@ -27,6 +29,7 @@ class User:
     Role: UserRole
     CreatedAt: datetime
     IsSubscribedToStationAlerts: bool
+    TypeFilter: list[str]
 
     def __init__(
         self,
@@ -64,6 +67,8 @@ class User:
         self.Role = UserRole(row.get("role")) # type: ignore
         self.CreatedAt = row.get("created_at") # type: ignore
         self.IsSubscribedToStationAlerts  = row.get("issubscribedtostationalerts") # type: ignore
+        self.TypeFilter = row.get("type_filter") # type: ignore
+
     
     def updateUser(self, newSubscription: bool | None = None, newRole: str | None = None):
         updates = []
@@ -90,6 +95,20 @@ class User:
         if newRole is not None:
             self.Role = UserRole(newRole)
         
+    @classmethod
+    def getGuestUser(cls, engine: _engine.Engine) -> "User":
+        guest = cls(engine)
+        guest.ClerkId = 'guestClerkId'
+        guest.Email = 'guest@gmail.com'
+        guest.Role = UserRole.Guest
+        guest.TypeFilter = [
+            "Pyranometer",
+            "Pluviometer",
+            "Meteorological",
+            "Meteorological/Pluviometer",
+        ] 
+        return guest
+
     
     def getSerializableUser(self):
         return UserSerializable(
@@ -99,5 +118,6 @@ class User:
             Email=self.Email,
             Role=self.Role.value,
             CreatedAt=self.CreatedAt,
-            IsSubscribedToStationAlerts=self.IsSubscribedToStationAlerts
+            IsSubscribedToStationAlerts=self.IsSubscribedToStationAlerts,
+            TypeFilter=self.TypeFilter
         )

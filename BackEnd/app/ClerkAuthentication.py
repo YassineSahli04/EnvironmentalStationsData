@@ -30,7 +30,6 @@ class ClerkAuthentication():
                     secret_key = self.clerkSecretKey
                 )
             )
-
             return request_state
 
         except Exception as e:
@@ -40,7 +39,7 @@ class ClerkAuthentication():
     def get_or_create_user(self, requestState: RequestState | None):
         if requestState is None or requestState.is_signed_in != True:
             logging.warning('User Not Authenticated!')
-            raise HTTPException(status_code=401, detail="User Not Authenticated!")
+            return
 
         with Clerk(bearer_auth=self.clerkSecretKey) as clerk:
             user_id = requestState.payload["sub"]  # type: ignore
@@ -75,15 +74,12 @@ class ClerkAuthentication():
                 }
             )
 
-    def getClerkUserRole(self, requestState: RequestState | None) -> UserRole | None:
-        if requestState is None or requestState.is_signed_in != True:
-            logging.warning('User Not Authenticated!')
-            raise HTTPException(status_code=401, detail="User Not Authenticated!")
-
+    def getClerkUser(self, requestState: RequestState) -> User:
+        if requestState.is_signed_in != True:
+            return User.getGuestUser(self.engine)
+        
         user_id = requestState.payload["sub"]  # type: ignore
-
-        user = User.from_clerk_id(self.engine, user_id)
-        return user.Role
+        return  User.from_clerk_id(self.engine, user_id)
 
             
 

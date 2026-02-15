@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/clerk-react";
 import { QueryClient, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import type { SensorDataRow, StationObj, StationSensorObj } from "./Objects/StationObj";
@@ -12,22 +13,25 @@ export const WeatherParam = {
 
 export type WeatherParam = (typeof WeatherParam)[keyof typeof WeatherParam];
 
-const TypeFilter = [
+export const MapStationsTypeFilter = [
   "Pyranometer",
   "Pluviometer",
   "Meteorological",
   "Meteorological/Pluviometer",
-  // "Drill and Drop",
-  // "Aquachek",
-];
+] as const;
+
 const API_URL = import.meta.env.VITE_API_URL;
 const url = `${API_URL}/api/stations`;
 
-export async function getStations(): Promise<StationObj[]> {
+export async function getStations(
+  typeFilter: string[],
+  token: string | null
+): Promise<StationObj[]> {
   const allStationsUrl = `${url}/all`;
   try {
     const response = await axios.get<StationObj[]>(allStationsUrl, {
-      params: { type: TypeFilter },
+      headers: { Authorization: `Bearer ${token}` },
+      params: { type: typeFilter },
     });
     return response.data;
   } catch (err) {
@@ -36,17 +40,23 @@ export async function getStations(): Promise<StationObj[]> {
   }
 }
 
-export function useAllStations() {
+export function useAllStations(types: string[] | undefined, enabled = true) {
+  const { getToken } = useAuth();
+
   return useQuery<StationObj[]>({
-    queryKey: ["allStationsObj"],
-    queryFn: getStations,
+    queryKey: ["allStationsObj", types],
+    enabled: enabled && types !== undefined,
+    queryFn: async () => {
+      const token = await getToken();
+      return getStations(types ?? [], token);
+    },
   });
 }
 
 export async function getStationsGeojson() {
   const geojsonUrl = `${url}/geojson`;
   const res = await axios.get(geojsonUrl, {
-    params: { type: TypeFilter },
+    params: { type: MapStationsTypeFilter },
   });
   return res.data;
 }
@@ -125,9 +135,7 @@ export async function getStationSensor(
 
 export async function updateStationInfo(
   token: string,
-
   station: StationObj,
-
   queryClient: QueryClient
 ) {
   try {

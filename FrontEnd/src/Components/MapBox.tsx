@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import SatelliteAltIcon from "@mui/icons-material/SatelliteAlt";
 import { Box, IconButton } from "@mui/material";
@@ -8,10 +9,10 @@ import mapboxgl from "mapbox-gl";
 import { GeoJSONSource } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useNavigate } from "react-router-dom";
-import { getStationsGeojson } from "../Api/StationApi";
-import { WeatherParam } from "../Api/StationApi";
 import { getMapDataForParam } from "../Api/DataHandling";
 import type { SensorDataRow } from "../Api/Objects/StationObj";
+import { getStationsGeojson } from "../Api/StationApi";
+import { WeatherParam } from "../Api/StationApi";
 import { OverlayLoader } from "./Global/OverlayLoader";
 import MapParamPanel from "./MapParamPanel";
 import "./SCSS/MapBox.scss";
@@ -29,6 +30,7 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProps) {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
 
   const [loading, setLoading] = useState(false);
 
@@ -439,10 +441,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
       });
     });
   }, []);
-  const {
-    data: geojson,
-    isLoading,
-  } = useQuery({
+  const { data: geojson, isLoading } = useQuery({
     queryKey: ["allStationsGeojson"],
     queryFn: () => getStationsGeojson(),
     enabled: true,
@@ -753,7 +752,8 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
     if (!source) return;
 
     if (param !== prevParamRef.current || date !== prevDateRef.current) {
-      paramDataRef.current = await getMapDataForParam(param, date);
+      const token = await getToken();
+      paramDataRef.current = await getMapDataForParam(param, date, token);
       prevParamRef.current = param;
       prevDateRef.current = date;
     }
@@ -894,4 +894,3 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
     </Box>
   );
 }
-
