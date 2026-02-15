@@ -40,7 +40,7 @@ class ClerkAuthentication():
     def get_or_create_user(self, requestState: RequestState | None):
         if requestState is None or requestState.is_signed_in != True:
             logging.warning('User Not Authenticated!')
-            raise HTTPException(status_code=401, detail="User Not Authenticated!")
+            return
 
         with Clerk(bearer_auth=self.clerkSecretKey) as clerk:
             user_id = requestState.payload["sub"]  # type: ignore

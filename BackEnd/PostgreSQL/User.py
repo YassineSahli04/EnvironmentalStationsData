@@ -98,6 +98,7 @@ class User:
     @classmethod
     def getGuestUser(cls, engine: _engine.Engine) -> "User":
         guest = cls(engine)
+        guest.ClerkId = 'guestClerkId'
         guest.Email = 'guest@gmail.com'
         guest.Role = UserRole.Guest
         guest.TypeFilter = [

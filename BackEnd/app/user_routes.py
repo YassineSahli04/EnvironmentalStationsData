@@ -18,7 +18,8 @@ def syncUser(auth: RequestState = Depends(require_auth)):
     try:
         clerk_auth.get_or_create_user(auth)
         user = clerk_auth.getClerkUser(auth)
-        return { "id": auth.payload["sub"], "role": user.Role.value, "typeFilter":  user.TypeFilter} # type: ignore
+
+        return { "id": user.ClerkId, "role": user.Role.value, "typeFilter":  user.TypeFilter} # type: ignore
     
     except HTTPException:
         raise
