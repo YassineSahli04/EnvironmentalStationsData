@@ -1,8 +1,8 @@
 import requests
 import json
+import pandas as pd
 
-
-
+# List of params: T2M T2MDEW WS2M RH2M ALLSKY_SFC_SW_DWN PRECTOTCORR
 class NasaPowerApiCalls:
     # NASA Base Endpoint
     BASE_URL = "https://power.larc.nasa.gov/api/temporal/Hourly/point"
@@ -20,8 +20,8 @@ class NasaPowerApiCalls:
         Instead of getBody(), we have get_params() to build the query string.
         """
         return {
-            "parameters": "T2M,RH2M,PRECTOTCORR,ALLSKY_SFC_SW_DWN", 
-            "community": "AG", # AG = Agrometeorology
+            "parameters": "T2M,T2MDEW,WS2M,RH2M,ALLSKY_SFC_SW_DWN,PRECTOTCORR", 
+            "community": "RE", 
             "longitude": self.lon,
             "latitude": self.lat,
             "start": self.start,
@@ -37,4 +37,5 @@ class NasaPowerApiCalls:
             timeout=10
         )
         response.raise_for_status() # Crash immediately if NASA is down (404/500)
-        return response.json()S
+        return response.json()
+
