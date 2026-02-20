@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, Button, Divider, TextField, Typography, Slider } from "@mui/material";
-import { useAllStations } from "../../Api/Api.ts";
 import type { StationObj } from "../../Api/Objects/StationObj.ts";
+import { MapStationsTypeFilter, useAllStations } from "../../Api/StationApi.ts";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -34,7 +34,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
 }
 
 const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSidePanelProps) => {
-  const { data: allLoadedStations, isLoading } = useAllStations();
+  const { data: allLoadedStations } = useAllStations([...MapStationsTypeFilter]);
   const [allStations, setAllStations] = useState<StationObj[]>([]);
 
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -142,7 +142,7 @@ const SearchSidePanel = ({ colors, onViewData, onLocationSelected }: SearchSideP
 
     for (let station of stationsInRadius) {
       const name: string = station.Id + "-" + station.Name;
-      const option: Option = { label: name, id: station.Id };
+      const option: Option = { label: name, id: String(station.Id) };
 
       if (station.Type) typeOptions.add(station.Type);
 

@@ -1,4 +1,5 @@
 from datetime import datetime
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.Utils.TransformData import TransformData
 import pandas as pd
 from sqlalchemy import text
@@ -195,45 +196,49 @@ class C2aiTableCreator:
             return False
     
     def addStationColumnsToTable(self):
+        stationIdQuery = text('SELECT "StationId" FROM "Stations" WHERE "HardwareId" = :hwid')
+        with self.engine.begin() as conn:
+            stationId = conn.execute(stationIdQuery, {"hwid": self.newTableName}).scalar()
+
         query = text(""" 
             INSERT INTO "StationColumn"
-            ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
+            ("table_name","column_name","data_type","unit","aggregation","param","confidence","source", "station_id")
             VALUES
                 -- volt
-                (:station_id,'battery_voltage','NUMERIC(10,3)','V',NULL,'battery',NULL,'manufacturer_template'),
-                (:station_id,'supply_voltage','NUMERIC(10,3)','V',NULL,'supply',NULL,'manufacturer_template'),
+                (:table_name,'battery_voltage','NUMERIC(10,3)','V',NULL,'battery',NULL,'manufacturer_template', :stationId),
+                (:table_name,'supply_voltage','NUMERIC(10,3)','V',NULL,'supply',NULL,'manufacturer_template', :stationId),
 
                 -- wind
-                (:station_id,'wind_speed','NUMERIC(10,3)','m/s',ARRAY['avg','min','max']::TEXT[],'wind speed',NULL,'manufacturer_template'),
-                (:station_id,'wind_direction','NUMERIC(10,3)','deg',NULL,'wind direction',NULL,'manufacturer_template'),
+                (:table_name,'wind_speed','NUMERIC(10,3)','m/s',ARRAY['avg','min','max']::TEXT[],'wind speed',NULL,'manufacturer_template', :stationId),
+                (:table_name,'wind_direction','NUMERIC(10,3)','deg',NULL,'wind direction',NULL,'manufacturer_template', :stationId),
 
                 -- air
-                (:station_id,'air_temperature','NUMERIC(10,3)','°C',ARRAY['avg','min','max']::TEXT[],'temperature',NULL,'manufacturer_template'),
-                (:station_id,'relative_humidity','NUMERIC(10,3)','%',ARRAY['avg','min','max']::TEXT[],'relative humidity',NULL,'manufacturer_template'),
-                (:station_id,'dew_point','NUMERIC(10,3)','°C',NULL,'dew point',NULL,'manufacturer_template'),
+                (:table_name,'air_temperature','NUMERIC(10,3)','°C',ARRAY['avg','min','max']::TEXT[],'temperature',NULL,'manufacturer_template', :stationId),
+                (:table_name,'relative_humidity','NUMERIC(10,3)','%',ARRAY['avg','min','max']::TEXT[],'relative humidity',NULL,'manufacturer_template', :stationId),
+                (:table_name,'dew_point','NUMERIC(10,3)','°C',NULL,'dew point',NULL,'manufacturer_template', :stationId),
 
                 -- radiation / pressure
-                (:station_id,'solar_radiation','NUMERIC(10,3)','W/m²',ARRAY['sum']::TEXT[],'solar radiation',NULL,'manufacturer_template'),
-                (:station_id,'atmospheric_pressure','NUMERIC(10,3)','hPa',NULL,'atmospheric pressure',NULL,'manufacturer_template'),
+                (:table_name,'solar_radiation','NUMERIC(10,3)','W/m²',ARRAY['sum']::TEXT[],'solar radiation',NULL,'manufacturer_template', :stationId),
+                (:table_name,'atmospheric_pressure','NUMERIC(10,3)','hPa',NULL,'atmospheric pressure',NULL,'manufacturer_template', :stationId),
 
                 -- ET
-                (:station_id,'hourly_evapotranspiration','NUMERIC(10,3)','mm/h',NULL,'evapotranspiration',NULL,'manufacturer_template'),
-                (:station_id,'daily_evapotranspiration','NUMERIC(10,3)','mm/d',NULL,'daily evapotranspiration',NULL,'manufacturer_template'),
+                (:table_name,'hourly_evapotranspiration','NUMERIC(10,3)','mm/h',NULL,'evapotranspiration',NULL,'manufacturer_template', :stationId),
+                (:table_name,'daily_evapotranspiration','NUMERIC(10,3)','mm/d',NULL,'daily evapotranspiration',NULL,'manufacturer_template', :stationId),
 
                 -- rain
-                (:station_id,'rain_intensity','NUMERIC(10,3)','mm/h',NULL,'rain intensity',NULL,'manufacturer_template'),
-                (:station_id,'daily_rainfall','NUMERIC(10,3)','mm',ARRAY['sum']::TEXT[],'precipitation',NULL,'manufacturer_template'),
-                (:station_id,'total_rainfall','NUMERIC(10,3)','mm',NULL,'total rainfall',NULL,'manufacturer_template'),
+                (:table_name,'rain_intensity','NUMERIC(10,3)','mm/h',NULL,'rain intensity',NULL,'manufacturer_template', :stationId),
+                (:table_name,'daily_rainfall','NUMERIC(10,3)','mm',ARRAY['sum']::TEXT[],'precipitation',NULL,'manufacturer_template'),
+                (:table_name,'total_rainfall','NUMERIC(10,3)','mm',NULL,'total rainfall',NULL,'manufacturer_template', :stationId),
 
                 -- microclimate
-                (:station_id,'microclimate_temperature','NUMERIC(10,3)','°C',NULL,'microclimate temperature',NULL,'manufacturer_template'),
-                (:station_id,'microclimate_relative_humidity','NUMERIC(10,3)','%',NULL,'microclimate relative humidity',NULL,'manufacturer_template'),
-                (:station_id,'microclimate_dew_point','NUMERIC(10,3)','°C',NULL,'microclimate dew point',NULL,'manufacturer_template'),
-                (:station_id,'microclimate_absolute_humidity','NUMERIC(10,3)','g/m³',NULL,'microclimate absolute humidity',NULL,'manufacturer_template'),
-                (:station_id,'microclimate_upper_leaf_wetness','NUMERIC(10,3)','%',NULL,'microclimate upper leaf wetness',NULL,'manufacturer_template'),
-                (:station_id,'microclimate_lower_leaf_wetness','NUMERIC(10,3)','%',NULL,'microclimate lower leaf wetness',NULL,'manufacturer_template')
+                (:table_name,'microclimate_temperature','NUMERIC(10,3)','°C',NULL,'microclimate temperature',NULL,'manufacturer_template', :stationId),
+                (:table_name,'microclimate_relative_humidity','NUMERIC(10,3)','%',NULL,'microclimate relative humidity',NULL,'manufacturer_template', :stationId),
+                (:table_name,'microclimate_dew_point','NUMERIC(10,3)','°C',NULL,'microclimate dew point',NULL,'manufacturer_template', :stationId),
+                (:table_name,'microclimate_absolute_humidity','NUMERIC(10,3)','g/m³',NULL,'microclimate absolute humidity',NULL,'manufacturer_template', :stationId),
+                (:table_name,'microclimate_upper_leaf_wetness','NUMERIC(10,3)','%',NULL,'microclimate upper leaf wetness',NULL,'manufacturer_template', :stationId),
+                (:table_name,'microclimate_lower_leaf_wetness','NUMERIC(10,3)','%',NULL,'microclimate lower leaf wetness',NULL,'manufacturer_template', :stationId)
 
-            ON CONFLICT ("station_id","column_name")
+            ON CONFLICT ("table_name","column_name")
             DO UPDATE SET
                 "data_type"    = EXCLUDED."data_type",
                 "unit"         = EXCLUDED."unit",
@@ -241,6 +246,7 @@ class C2aiTableCreator:
                 "param"        = EXCLUDED."param",
                 "confidence"   = EXCLUDED."confidence",
                 "source"       = EXCLUDED."source",
+                "station_id"   = EXCLUDED."station_id",
                 "updated_at"   = NOW()
             WHERE
                 "StationColumn"."data_type"    IS DISTINCT FROM EXCLUDED."data_type"
@@ -248,13 +254,14 @@ class C2aiTableCreator:
                 OR "StationColumn"."aggregation" IS DISTINCT FROM EXCLUDED."aggregation"
                 OR "StationColumn"."param"     IS DISTINCT FROM EXCLUDED."param"
                 OR "StationColumn"."confidence" IS DISTINCT FROM EXCLUDED."confidence"
-                OR "StationColumn"."source"    IS DISTINCT FROM EXCLUDED."source";
+                OR "StationColumn"."source"    IS DISTINCT FROM EXCLUDED."source"
+                OR "StationColumn"."station_id" IS DISTINCT FROM EXCLUDED."station_id";
         """)
 
         with self.engine.begin() as connection:
             connection.execute(
                 query,
-                {"station_id": self.newTableName}
+                {"table_name": self.newTableName, "stationId": stationId}
             )
         
     
@@ -327,13 +334,13 @@ class C2aiTableCreator:
                 else:
                     lastDailyRainfallVal = cellDailyRainFall
         return df
-
     
-    def getFullDataDf(self, startQueryTime : datetime | None = None):
+    def getFullDataDf(self, isUpdate: bool = False):
         dfList = []
         unixStartTime = None
-        if startQueryTime is not None:
-            unixStartTime = int(startQueryTime.timestamp())
+        if isUpdate:
+            startQueryTime = StationDbObject.getStationHardwareLastDataPoint(self.engine, self.newTableName) # type: ignore
+            unixStartTime = int(startQueryTime.timestamp()) # type: ignore
         if unixStartTime is None: unixStartTime = self.get_highest_starting_timestamp()
         for table in self.edTablesDict:
             dfList.append(self.get_table_data(table, unixStartTime))

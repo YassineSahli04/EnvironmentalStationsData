@@ -1,11 +1,11 @@
 import { useContext } from "react";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
-import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import { Box, IconButton, useTheme, Typography } from "@mui/material";
+import { Box, IconButton, useTheme, Typography, Button } from "@mui/material";
 import InputBase from "@mui/material/InputBase";
 import { ColorModeContext, tokens } from "../../theme";
 
@@ -50,7 +50,7 @@ const Topbar = () => {
       </Box>
 
       {/* RIGHT: icons */}
-      <Box sx={{ position: "relative" }} display="flex">
+      <Box sx={{ position: "relative" }} display="flex" alignItems="center">
         <IconButton onClick={colorMode.toggleColorMode}>
           {theme.palette.mode === "dark" ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
         </IconButton>
@@ -60,9 +60,29 @@ const Topbar = () => {
         <IconButton>
           <SettingsOutlinedIcon />
         </IconButton>
-        <IconButton>
-          <PersonOutlinedIcon />
-        </IconButton>
+        <SignedOut>
+          <SignInButton mode="modal">
+            <Button
+              variant="outlined"
+              size="small"
+              sx={{
+                ml: 1,
+                color: colors.grey[100],
+                borderColor: colors.grey[600],
+                "&:hover": {
+                  borderColor: colors.grey[400],
+                },
+              }}
+            >
+              Sign In
+            </Button>
+          </SignInButton>
+        </SignedOut>
+        <SignedIn>
+          <Box sx={{ ml: 1, display: "flex", alignItems: "center" }}>
+            <UserButton afterSignOutUrl="/" />
+          </Box>
+        </SignedIn>
       </Box>
     </Box>
   );

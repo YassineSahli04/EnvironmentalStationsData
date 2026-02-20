@@ -8,8 +8,8 @@ import type { StationObj, StationStatus } from "../../Api/Objects/StationObj";
 type StationSummaryBarProps = {
   station: StationObj | null;
   isLoading: boolean;
-  onStationChange?: (stationId: string) => void;
-  availableStations?: { id: string; name: string }[];
+  onStationChange?: (stationId: number) => void;
+  availableStations?: { id: number; name: string }[];
 };
 
 const statusColors: Record<StationStatus, "success" | "error"> = {
@@ -39,7 +39,7 @@ export default function StationSummaryBar({
   onStationChange,
   availableStations = [],
 }: StationSummaryBarProps) {
-  const handleStationChange = (event: SelectChangeEvent<string>) => {
+  const handleStationChange = (event: SelectChangeEvent<number>) => {
     onStationChange?.(event.target.value);
   };
 

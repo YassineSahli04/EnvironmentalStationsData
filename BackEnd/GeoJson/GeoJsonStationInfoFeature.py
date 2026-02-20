@@ -8,6 +8,7 @@ class GeoJsonStationInfoFeature(Feature):
         self.add_property("name", station.Name) # type: ignore
         self.add_property("manufacturer", station.Manufacturer) # type: ignore
         self.add_property("type", station.Type) # type: ignore
+        self.add_property("state", station.State) # type: ignore
         
         
                                                 

@@ -31,13 +31,13 @@ class PostgreSQL:
             connect_args={"options": "-c timezone=UTC"},
         )
 
-    def updateParamInStationColumnTable(self, stationId, columnName, param, score):
+    def updateParamInStationColumnTable(self, hardwareId, columnName, param, score):
         query = text("""
             UPDATE "StationColumn"
             SET "param" = :param,
                 "confidence" = :score,
                 "updated_at" = NOW()
-            WHERE "station_id" = :stationId
+            WHERE "table_name" = :tableName
             AND "column_name" = :columnName
             AND (
                 "param" IS DISTINCT FROM :param
@@ -49,7 +49,7 @@ class PostgreSQL:
             res = connection.execute(query, {
                 "param": param,
                 "score": score,
-                "stationId": stationId,
+                "tableName": hardwareId,
                 "columnName": columnName,
             })
             return res.rowcount

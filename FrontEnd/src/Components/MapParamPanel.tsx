@@ -18,7 +18,7 @@ import {
   Divider,
   useTheme,
 } from "@mui/material";
-import { WeatherParam } from "../Api/Api.ts";
+import { WeatherParam } from "../Api/StationApi.ts";
 import { tokens } from "../theme";
 
 const OPTIONS = {
@@ -323,6 +323,7 @@ export default function MapParamPanel({ onSelectedParamChange }: MapParamPanelPr
             {options.map((option) => {
               return (
                 <ListItemButton
+                  key={`${selectedParam ?? "param"}-${option}`}
                   selected={selectedOption === option}
                   onClick={() => setSelectedOption(option)}
                   sx={{
@@ -355,3 +356,4 @@ function isDateEqual(d1: Date, d2: Date) {
     d1.getDate() === d2.getDate()
   );
 }
+

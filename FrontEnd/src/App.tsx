@@ -3,16 +3,21 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { PrefetchData } from "./Api/PrefetchData";
+import { useAuthSync } from "./Api/useAuthSync";
 import "./App.css";
+import ProtectedRoute from "./Components/Global/ProtectedRoute";
 import Sidebar from "./Components/Global/Sidebar";
 import Topbar from "./Components/Global/Topbar";
 import MapBox from "./Components/MapBox";
 import StationOverviewPage from "./Pages/StationOverviewPage";
+import StationsListPage from "./Pages/StationsListPage";
+import UsersPage from "./Pages/UsersPage";
 import { ColorModeContext, useMode } from "./theme";
 
 type LocationFocus = { center: [number, number]; radiusKm: number };
 
 function App() {
+  useAuthSync();
   const [theme, colorMode] = useMode();
   const [isSideBarCollapsed, setIsSideBarCollapsed] = useState(false);
 
@@ -60,6 +65,18 @@ function App() {
                 <Route
                   path="/station/:stationId"
                   element={<StationOverviewPage isSideBarCollapsed={isSideBarCollapsed} />}
+                />
+                <Route
+                  path="/stations"
+                  element={<StationsListPage isSideBarCollapsed={isSideBarCollapsed} />}
+                />
+                <Route
+                  path="/users"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <UsersPage isSideBarCollapsed={isSideBarCollapsed} />
+                    </ProtectedRoute>
+                  }
                 />
               </Routes>
             </main>

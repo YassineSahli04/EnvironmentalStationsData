@@ -1,7 +1,8 @@
-from BackEnd.ClimateFieldStations.API.CfStationAPI import CfStationAPI, CfStationAPIDataGroup
+from BackEnd.ClimateFieldStations.API.CfHardwareStationAPI import CfHardwareStationAPI, CfStationAPIDataGroup
 from sqlalchemy import text
 import sqlalchemy.engine as _engine
 from BackEnd.Utils.TransformData import TransformData
+from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 from BackEnd.ClimateFieldStations.Data.CfSensorObject import CfSensorDataInfo, CfSensorObject, CfDataType
 from datetime import datetime, timedelta, timezone
 import pandas as pd
@@ -12,10 +13,11 @@ from redis import Redis
 from rq import Queue
 
 class CfTableCreator:
-    station : CfStationAPI
-    def __init__(self,engine : _engine.Engine, stationId :str) -> None:
-        self.station = CfStationAPI(stationId)
-        self.newTableName = stationId
+    hardwareStation : CfHardwareStationAPI
+    newTableName: str
+    def __init__(self,engine : _engine.Engine, hardwareId :str) -> None:
+        self.hardwareStation = CfHardwareStationAPI(hardwareId)
+        self.newTableName = hardwareId
         self.engine = engine
 
         redisUrl = os.environ.get("REDIS_URL")
@@ -25,39 +27,40 @@ class CfTableCreator:
         self.workerQueue = Queue(name="SemanticSearchQueue", connection=redisConn)
 
     def add_station_to_stations_table(self):
-        query = f"INSERT INTO \"Stations\" (\"Id\", \"Name\", \"Manufacturer\", \"Type\", \"Latitude\", \"Longitude\", \"Altitude\", \"DataTableName\") VALUES (:id, :name, :manufacturer, :type, :latitude, :longitude, :altitude, :tablename)"
+        query = f"INSERT INTO \"Stations\" (\"HardwareId\", \"Name\", \"Manufacturer\", \"Type\", \"Latitude\", \"Longitude\", \"Altitude\", \"DataTableName\") VALUES (:id, :name, :manufacturer, :type, :latitude, :longitude, :altitude, :tablename)"
         with self.engine.connect() as connection: # type: ignore
             connection.execute(
             text(query),
                 {
-                    "id": self.station.Id,
-                    "name": self.station.Name,
-                    "manufacturer": self.station.Manufacturer,
-                    "type": self.station.Type,
-                    "latitude": self.station.Latitude,
-                    "longitude": self.station.Longitude,
-                    "altitude": self.station.Altitude,
-                    "tablename": self.station.DataTableName,
+                    "id": self.hardwareStation.Id,
+                    "name": self.hardwareStation.Name,
+                    "manufacturer": self.hardwareStation.Manufacturer,
+                    "type": self.hardwareStation.Type,
+                    "latitude": self.hardwareStation.Latitude,
+                    "longitude": self.hardwareStation.Longitude,
+                    "altitude": self.hardwareStation.Altitude,
+                    "tablename": self.hardwareStation.DataTableName,
                 }
             )
             connection.commit()
 
-    def getFullDataDf(self, startQueryTime: datetime | None = None, dataGroup :CfStationAPIDataGroup = CfStationAPIDataGroup.hourly):
-        minMaxTimeStamps = self.station.get_station_min_max_timestamps_from_api()
+    def getFullDataDf(self, isUpdate: bool = False, dataGroup :CfStationAPIDataGroup = CfStationAPIDataGroup.hourly):
+        minMaxTimeStamps = self.hardwareStation.get_station_min_max_timestamps_from_api()
         max_str = minMaxTimeStamps["max_date"]  # type: ignore
       
-        now = datetime.now(self.station.DataTimeZone)
-        if startQueryTime is None:
-            isNewTable = True
-            startQueryTime = now - timedelta(self.station.DATA_ACCESS_DAYS_LIMIT)
-        else:
+        now = datetime.now(self.hardwareStation.DataTimeZone)
+        if isUpdate:
             isNewTable = False
-            startQueryTime += timedelta(minutes=1)
-        max = datetime.strptime(max_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.station.DataTimeZone)
+            startQueryTime = StationDbObject.getStationHardwareLastDataPoint(self.engine, self.newTableName) + timedelta(minutes=1) # type: ignore          
+        else:
+            isNewTable = True
+            startQueryTime = now - timedelta(self.hardwareStation.DATA_ACCESS_DAYS_LIMIT)
+            
+        max = datetime.strptime(max_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.hardwareStation.DataTimeZone)
 
         if startQueryTime >= max:
             if not self.isStationColumnsDefinedInStationColumnTable():
-                cols = StationColumnConverter.getStationTableAvailableColumns(self.engine, self.station.Id)
+                cols = StationColumnConverter.getStationTableAvailableColumns(self.engine, self.hardwareStation.Id)
                 cols.remove('date_time')
                 self.addStationColumnInStationColumnTable(cols)
             return None
@@ -65,19 +68,19 @@ class CfTableCreator:
         dfDataBatches = []
         start = startQueryTime
         while start <= max:
-            end = start + timedelta(days=self.station.QUERY_DAYS_LIMIT_HOURLY)
+            end = start + timedelta(days=self.hardwareStation.QUERY_DAYS_LIMIT_HOURLY)
             if (end > max):
                 end = max
             if (start == end):
                 break
             try: 
 
-                df = self.station.get_station_data_df(
+                df = self.hardwareStation.get_station_data_df(
                     dataGroup,
                     start,
                     end
                 )
-                if self.station.Type not in ('Aquachek', 'Drill and Drop'):
+                if self.hardwareStation.Type not in ('Aquachek', 'Drill and Drop'):
                     df = CfSensorObject.remove_duplicated_columns(df)
                 dfDataBatches.append(df)
             except Exception as e:
@@ -91,7 +94,7 @@ class CfTableCreator:
             cols = self.getDfSpecificCols(finalDf)
             self.addStationColumnInStationColumnTable(cols)
         elif not self.isStationColumnsDefinedInStationColumnTable():
-            cols = StationColumnConverter.getStationTableAvailableColumns(self.engine, self.station.Id)
+            cols = StationColumnConverter.getStationTableAvailableColumns(self.engine, self.hardwareStation.Id)
             cols.remove('date_time')
             self.addStationColumnInStationColumnTable(cols)
 
@@ -134,7 +137,7 @@ class CfTableCreator:
         query = text(f"""
             SELECT COUNT(*) 
             FROM "StationColumn"
-            WHERE "station_id" = '{self.newTableName}'
+            WHERE "table_name" = '{self.newTableName}'
             """)
         with self.engine.begin() as connection:
             res = connection.execute(query).scalar()
@@ -144,12 +147,12 @@ class CfTableCreator:
             
     def getColDataStats(self, allCols) -> dict[str, CfSensorDataInfo]:
         allSpecificCols = self.getSpecificCols(allCols)
-        minMaxTimeStamps = self.station.get_station_min_max_timestamps_from_api()
+        minMaxTimeStamps = self.hardwareStation.get_station_min_max_timestamps_from_api()
         max_str = minMaxTimeStamps["max_date"]  # type: ignore
       
         now = datetime.now(timezone.utc)
-        startQueryTime = (now - timedelta(self.station.DATA_ACCESS_DAYS_LIMIT)).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        max = datetime.strptime(max_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.station.DataTimeZone)
+        startQueryTime = (now - timedelta(self.hardwareStation.DATA_ACCESS_DAYS_LIMIT)).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        max = datetime.strptime(max_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.hardwareStation.DataTimeZone)
 
         if startQueryTime >= max:
             return {}
@@ -164,7 +167,7 @@ class CfTableCreator:
 
             startTimestamp = int(start.astimezone(timezone.utc).timestamp())
             endTimestamp = int(end.astimezone(timezone.utc).timestamp())     
-            st_dataJsonObject = self.station.get_station_data_in_timestamp_from_api(CfStationAPIDataGroup.hourly.value, startTimestamp, endTimestamp) # type: ignore
+            st_dataJsonObject = self.hardwareStation.get_station_data_in_timestamp_from_api(CfStationAPIDataGroup.hourly.value, startTimestamp, endTimestamp) # type: ignore
             if (st_dataJsonObject.get("message")): # type: ignore
                 start += timedelta(days=1)
                 continue
@@ -189,16 +192,20 @@ class CfTableCreator:
         return colsData
     
     def addStationColumnInStationColumnTable(self, cols):
-        if self.station.Type not in ('Aquachek', 'Drill and Drop'):
+        stationIdQuery = text('SELECT "StationId" FROM "Stations" WHERE "HardwareId" = :hwid')
+        with self.engine.begin() as conn:
+            stationId = conn.execute(stationIdQuery, {"hwid": self.newTableName}).scalar()
+
+        if self.hardwareStation.Type not in ('Aquachek', 'Drill and Drop'):
 
             colsData = self.getColDataStats(cols)
             query = text("""
                 INSERT INTO "StationColumn"
-                ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
+                ("table_name","column_name","data_type","unit","aggregation","param","confidence","source", "station_id")
                 VALUES
-                (:station_id, :column_name, 'NUMERIC(10,3)', :unit, :aggregation, 'In Process', NULL, 'inferred')
+                (:table_name, :column_name, 'NUMERIC(10,3)', :unit, :aggregation, 'In Process', NULL, 'inferred', :stationId)
 
-                ON CONFLICT ("station_id","column_name")
+                ON CONFLICT ("table_name","column_name")
                 DO UPDATE SET
                     "data_type"    = EXCLUDED."data_type",
                     "unit"         = EXCLUDED."unit",
@@ -206,6 +213,7 @@ class CfTableCreator:
                     "param"        = EXCLUDED."param",
                     "confidence"   = EXCLUDED."confidence",
                     "source"       = EXCLUDED."source",
+                    "station_id"       = EXCLUDED."station_id",
                     "updated_at"   = NOW()
                 WHERE
                     "StationColumn"."data_type"   IS DISTINCT FROM EXCLUDED."data_type"
@@ -213,6 +221,7 @@ class CfTableCreator:
                     OR "StationColumn"."aggregation" IS DISTINCT FROM EXCLUDED."aggregation"
                     OR "StationColumn"."param"    IS DISTINCT FROM EXCLUDED."param"
                     OR "StationColumn"."confidence" IS DISTINCT FROM EXCLUDED."confidence"
+                    OR "StationColumn"."station_id" IS DISTINCT FROM EXCLUDED."station_id"
                     OR "StationColumn"."source"   IS DISTINCT FROM EXCLUDED."source";
             """)
             with self.engine.begin() as connection:
@@ -224,17 +233,17 @@ class CfTableCreator:
                     aggCorrected = CfAggregationCorrector.correctAggregation(specificCol, agg)
                     connection.execute(
                         query,
-                        {"station_id": self.newTableName, "column_name":col, "unit": sensorData.unit, "aggregation": [aggCorrected]}
+                        {"table_name": self.newTableName, "column_name":col, "unit": sensorData.unit, "aggregation": [aggCorrected], "stationId": stationId}
                     )
         else:
             colsData = self.getColDataStats(cols)
             query = text("""
                 INSERT INTO "StationColumn"
-                ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
+                ("table_name","column_name","data_type","unit","aggregation","param","confidence","source", "station_id")
                 VALUES
-                (:station_id,:column_name,'NUMERIC(10,3)',:unit, :aggregation,:param,NULL,'manufacturer_template')
+                (:table_name,:column_name,'NUMERIC(10,3)',:unit, :aggregation,:param,NULL,'manufacturer_template', :stationId)
          
-                ON CONFLICT ("station_id","column_name")
+                ON CONFLICT ("table_name","column_name")
                 DO UPDATE SET
                     "data_type"    = EXCLUDED."data_type",
                     "unit"         = EXCLUDED."unit",
@@ -242,6 +251,7 @@ class CfTableCreator:
                     "param"        = EXCLUDED."param",
                     "confidence"   = EXCLUDED."confidence",
                     "source"       = EXCLUDED."source",
+                    "station_id"       = EXCLUDED."station_id",
                     "updated_at"   = NOW()
                 WHERE
                     "StationColumn"."data_type"   IS DISTINCT FROM EXCLUDED."data_type"
@@ -249,6 +259,7 @@ class CfTableCreator:
                     OR "StationColumn"."aggregation" IS DISTINCT FROM EXCLUDED."aggregation"
                     OR "StationColumn"."param"    IS DISTINCT FROM EXCLUDED."param"
                     OR "StationColumn"."confidence" IS DISTINCT FROM EXCLUDED."confidence"
+                    OR "StationColumn"."station_id" IS DISTINCT FROM EXCLUDED."station_id"
                     OR "StationColumn"."source"   IS DISTINCT FROM EXCLUDED."source";
             """)
             with self.engine.begin() as connection:
@@ -256,7 +267,7 @@ class CfTableCreator:
                     sensorData = colsData[id]
                     connection.execute(
                         query,
-                        {"station_id": self.newTableName, "column_name":id, "unit": sensorData.unit, "aggregation": sensorData.aggregationsType, "param":id.lower()}
+                        {"table_name": self.newTableName, "column_name":id, "unit": sensorData.unit, "aggregation": sensorData.aggregationsType, "param":id.lower(), "stationId": stationId}
                     )
     def enqueueSemanticSearchJob(self, columnName, sensorData: CfSensorDataInfo):
         payload = {
@@ -268,7 +279,7 @@ class CfTableCreator:
 
         self.workerQueue.enqueue(
             "Worker.jobs.setColumParam",
-            self.station.Id,
+            self.hardwareStation.Id,
             columnName,
             payload,
             job_timeout=600,

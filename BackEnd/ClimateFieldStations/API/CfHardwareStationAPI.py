@@ -9,7 +9,7 @@ class CfStationAPIDataGroup(Enum):
     daily = "daily"
     monthly = "monthly"
 
-class CfStationAPI:
+class CfHardwareStationAPI:
     DATA_ACCESS_DAYS_LIMIT = 365
     QUERY_DAYS_LIMIT_HOURLY = 30
 
@@ -20,7 +20,7 @@ class CfStationAPI:
         self.Id = stationId
         info = self.get_station_info_from_api()
         if (info.get("message")): # type: ignore
-            raise Exception(f"Error Occured for station [{id}]: "+ info.get("message")) # type: ignore
+            raise Exception(f"Error Occured for station [{self.Id}]: "+ info.get("message")) # type: ignore
         self.Name = info.get("name").get("custom") # type: ignore
         self.Manufacturer = "Pessl" # type: ignore
         self.Longitude = info.get("position").get("geo").get("coordinates")[0] # type: ignore
@@ -84,7 +84,7 @@ class CfStationAPI:
             
         st_dataJsonObject = self.get_station_data_in_timestamp_from_api(dataGroup.value, startTimestamp, endTimestamp) # type: ignore
         if (st_dataJsonObject.get("message")): # type: ignore
-            raise Exception(f"Error Occured for station [{id}]: "+ st_dataJsonObject.get("message")) # type: ignore
+            raise Exception(f"Error Occured for station [{self.Id}]: "+ st_dataJsonObject.get("message")) # type: ignore
         return CfSensorObject.transform_data_to_df_or_csv(st_dataJsonObject, isColomnHeaderCombined=True)
         
 

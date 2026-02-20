@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 @dataclass
 class SensorSerializable:
-    stationId: str
+    stationId: int
     sensor: str
     unit: str
     aggregationsType: list
@@ -24,6 +24,7 @@ class SensorDbObject:
     aggregationsType: set;
     unit: str;
     columnNames: dict
+    tableName: str
     def __init__(self, station: StationDbObject, sensor :str, isDataInDf = True) -> None:
         self.engine = station.engine
         self.isDataInDf = isDataInDf
@@ -31,14 +32,13 @@ class SensorDbObject:
         self.station = station
         self.setColumnsMetadata()
 
-
     def getSensorAllDataColumns(self, dataGroup:str, startDtUTC :datetime, endDtUTC:datetime):
         if len(self.columnNames) == 0:
             raise ValueError(f"{self.sensor} Sensor data not available for Station {self.station.Id}.")
     
         aggSelects = ",\n".join([f'{elem}("{self.columnNames[elem]}") AS "{elem}"' for elem in self.columnNames])
 
-        df = SensorDbObject.getdfFromQueryResult(self.engine, self.station.Id, aggSelects, dataGroup, startDtUTC, endDtUTC)
+        df = SensorDbObject.getdfFromQueryResult(self.engine, self.tableName, aggSelects, dataGroup, startDtUTC, endDtUTC)
         
         if self.isDataInDf:
             return df
@@ -61,7 +61,10 @@ class SensorDbObject:
         is_today_utc = startDtUTC.date() == nowUTC.date()
 
         for _, row in df.iterrows():
-            values = {a: (None if pd.isna(row[a]) else row[a]) for a in cols}
+            values = {
+                c: (None if c not in df.columns or pd.isna(row[c]) else row[c])
+                for c in cols
+            }
 
             if is_today_utc and lastMeasuredKey is not None:
                 values[lastMeasuredKey] = lastSensorData
@@ -114,7 +117,7 @@ class SensorDbObject:
         
         query = text(f"""
                 SELECT "date_time", "{col}"
-                FROM "{self.station.Id}"
+                FROM "{self.tableName}"
                 WHERE "{col}" IS NOT NULL
                 ORDER BY "date_time" DESC
                 LIMIT 1;
@@ -127,7 +130,7 @@ class SensorDbObject:
     
     def setColumnsMetadata(self):
         query = text(f"""
-            SELECT "column_name", "unit", "aggregation"
+            SELECT "table_name", "column_name", "unit", "aggregation"
             FROM "StationColumn"
             WHERE "station_id" = '{self.station.Id}'
             AND "param" = '{self.sensor}'
@@ -139,7 +142,7 @@ class SensorDbObject:
         self.aggregationsType = set()
         self.columnNames = {}
         for colRow in res:
-            colName, unit, aggrList = colRow
+            tableName, colName, unit, aggrList = colRow
             if aggrList is None:
                 self.aggregationsType.add('avg')
                 self.columnNames['avg'] = colName
@@ -148,6 +151,7 @@ class SensorDbObject:
                 self.aggregationsType.add(aggr)
                 self.columnNames[aggr] = colName
         self.unit = unit
+        self.tableName = tableName
     
     def getSerializableObj(self, data:  list | None) -> SensorSerializable:
         return SensorSerializable(
