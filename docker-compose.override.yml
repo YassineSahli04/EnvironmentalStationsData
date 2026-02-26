@@ -81,10 +81,12 @@ services:
     volumes:
       - ./PlaygroundFile.ipynb:/app/PlaygroundFile.ipynb
       - ./BackEnd:/app/BackEnd
+      - ./Secrets/openAi_key:/run/secrets/openAi_key:ro
       - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
       - ./Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
       - ./Secrets/clerk_secret_key:/run/secrets/clerk_secret_key:ro
     environment:
+      - OPENAI_KEY_PATH=/run/secrets/openAi_key
       - CLERK_KEY_PATH=/run/secrets/clerk_secret_key
       - DBINFO_PATH=/run/secrets/DbInfo.json
       - C2AIINFO_PATH=/run/secrets/C2aiInfo.json

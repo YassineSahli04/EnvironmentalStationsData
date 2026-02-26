@@ -1,42 +1,99 @@
 from langchain_ollama import ChatOllama
-from langchain.agents import create_agent
-from langgraph.checkpoint.memory import InMemorySaver
-from langchain_core.messages import HumanMessage, SystemMessage
+from BackEnd.AiAgent.Graph import build_graph
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
+from pydantic import SecretStr
+from BackEnd.PostgreSQL.User import User
+from langchain_openai import ChatOpenAI
+import os
 
-def Agent():
-    def __init__(self):
-        checkpointer = InMemorySaver()
+class Agent():
+    def __init__(self, user: User, isOpenAi = False):
+        if isOpenAi :
+            key_path = os.getenv("OPENAI_KEY_PATH")
+            if not key_path:
+                raise RuntimeError("OPENAI_KEY_PATH not set")
 
-        llm = ChatOllama(
-            model="phi3.5",
-            base_url="http://100.67.117.80:11434",
-            temperature=0.2
+            with open(key_path, "r") as f:
+                self.openAiKey = f.read().strip()
+
+        self.user = user
+
+        if isOpenAi:
+            llm = ChatOpenAI(
+                model="gpt-4.1-mini",
+                api_key=SecretStr(self.openAiKey),
+                temperature=0.2
+            )
+        else:
+            llm = ChatOllama(
+                model="qwen2.5:7b",
+                base_url="http://host.docker.internal:11434",
+                temperature=0.2
             )
 
-        self.agent = create_agent(
-            model=llm,
-            checkpointer=checkpointer
-            )
+        self.graph = build_graph(llm)
 
-        config: RunnableConfig = {"configurable": {"thread_id": "1"}}
+        config: RunnableConfig = {"configurable": {"thread_id": user.ClerkId}}
         self.config = config
 
-        self.agent.invoke(
-            {"messages": [SystemMessage(content="You are a helpful assistant. All your answers will need to be short and concise.")]},
-            config= config
-        )
-
     def initializeChat(self):
+        print(f"Bot:  Hi {self.user.FirstName}, Which station do you want to analyse?")
         while(True):
             userMessage = input("User: ").strip()
             if userMessage.lower() == "exit":
                 break
 
-            print("Bot: ", end="", flush=True)
-            response = self.agent.invoke(
-                    {"messages":[HumanMessage(content=userMessage)]},
-                    config=self.config
-                )
-            print(response["messages"][-1].content, end="", flush=True)  # type: ignore
+            print("\n--- Agent Steps ---")
+            for step in self.graph.stream(
+                {"messages": [HumanMessage(content=userMessage)]},
+                config=self.config,
+                stream_mode="updates",
+            ):
+                self._print_step(step)
+            print("--- End Steps ---\n")
+
+            snapshot = self.graph.get_state(self.config)
+            messages = snapshot.values.get("messages", []) if snapshot and snapshot.values else []
+            if not messages:
+                print("Bot: <no response>")
+                continue
+
+            print("Bot: ", self.last_ai_text(messages), sep="")
             print()
+
+    def _print_step(self, step):
+        if not isinstance(step, dict):
+            return
+
+        for node_name, update in step.items():
+            print(f"[step] {node_name}")
+            if not isinstance(update, dict):
+                continue
+
+            messages = update.get("messages", [])
+            if not messages:
+                continue
+
+            last = messages[-1]
+            content = getattr(last, "content", None)
+            if content:
+                print(f"  [message] {content}")
+            tool_calls = getattr(last, "tool_calls", None) or []
+            for call in tool_calls:
+                tool_name = call.get("name")
+                tool_args = call.get("args")
+                print(f"  [tool_call] {tool_name} args={tool_args}")
+
+            if getattr(last, "type", None) == "tool":
+                print(f"  [tool_result] {getattr(last, 'name', 'unknown')} -> {last.content}")
+
+    def last_ai_text(self, messages):
+        for m in reversed(messages):
+            if isinstance(m, AIMessage) and (m.content or ""):
+                return m.content
+        return "<no assistant text>"
+
+
+
+

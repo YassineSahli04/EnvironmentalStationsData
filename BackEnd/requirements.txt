@@ -11,3 +11,5 @@ rq
 clerk-backend-api
 langchain-ollama
 langchain
+langchain_openai
+langgraph
