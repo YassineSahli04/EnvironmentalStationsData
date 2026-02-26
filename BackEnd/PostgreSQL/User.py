@@ -100,6 +100,7 @@ class User:
         guest = cls(engine)
         guest.ClerkId = 'guestClerkId'
         guest.Email = 'guest@gmail.com'
+        guest.FirstName = 'Guest'
         guest.Role = UserRole.Guest
         guest.TypeFilter = [
             "Pyranometer",
