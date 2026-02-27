@@ -23,6 +23,7 @@ class State(TypedDict):
 
     data_validation_status: Optional[str]
     data_entry_model_resolve_attempted: bool
-    data_validation_issues: Optional[list[dict]]
+    data_validation_request_model_issues: Optional[list[dict]]
+    data_validation_failed_issues: Optional[list[dict]]
 
 

@@ -89,46 +89,56 @@ def validate_fields(state: State) -> dict:
     time_verif, time_mess = _verify_timerange_entry(time_range)
     datagroup_verif, dataGroup_mess = _verify_datagroup_entry(dataGroup)
 
-    if not data_entry_model_resolve_attempted or data_entry_model_resolve_attempted == False:
-        if vars_verif == VerifState.RequestModel or time_verif == VerifState.RequestModel or datagroup_verif == VerifState.RequestModel:
-            data_validation_issues = []
-            if vars_verif == VerifState.RequestModel:
-                data_validation_issues.append({"field":"variables_selected","reason":vars_mess})
-            if time_verif == VerifState.RequestModel:
-                data_validation_issues.append({"field":"time_range","reason":time_mess})
-            if datagroup_verif == VerifState.RequestModel:
-                data_validation_issues.append({"field":"dataGroup","reason":dataGroup_mess})
+    request_model_issues = []
+    failed_issues = []
 
+    if vars_verif == VerifState.RequestModel:
+        request_model_issues.append({"field":"variables_selected","reason":vars_mess})
+    if vars_verif == VerifState.Failed:
+        failed_issues.append({"field":"variables_selected","reason":vars_mess})
+    if time_verif == VerifState.RequestModel:
+        request_model_issues.append({"field":"time_range","reason":time_mess})
+    if time_verif == VerifState.Failed:
+        failed_issues.append({"field":"time_range","reason":time_mess})
+    if datagroup_verif == VerifState.RequestModel:
+        request_model_issues.append({"field":"dataGroup","reason":dataGroup_mess})
+    if datagroup_verif == VerifState.Failed:
+        failed_issues.append({"field":"dataGroup","reason":dataGroup_mess})
+
+    if request_model_issues:
+        if not data_entry_model_resolve_attempted:
             return {
                 "data_validation_status": VerifState.RequestModel.value,
-                "data_validation_issues": data_validation_issues,
+                "data_validation_request_model_issues": request_model_issues,
+                "data_validation_failed_issues": failed_issues,
             }
-
-
-    if vars_verif == VerifState.Failed or time_verif == VerifState.Failed or datagroup_verif == VerifState.Failed:
-        data_validation_issues = []
-        if vars_verif == VerifState.Failed:
-            data_validation_issues.append({"field":"variables_selected","reason":vars_mess})
-        if time_verif == VerifState.Failed:
-            data_validation_issues.append({"field":"time_range","reason":time_mess})
-        if datagroup_verif == VerifState.Failed:
-            data_validation_issues.append({"field":"dataGroup","reason":dataGroup_mess})
+        # Second pass after resolver: unresolved request-model issues require user update.
         return {
             "data_entry_model_resolve_attempted" : False,
             "data_validation_status": VerifState.Failed.value,
-            "data_validation_issues": data_validation_issues,
+            "data_validation_request_model_issues": request_model_issues,
+            "data_validation_failed_issues": failed_issues,
+        }
+
+    if failed_issues:
+        return {
+            "data_entry_model_resolve_attempted" : False,
+            "data_validation_status": VerifState.Failed.value,
+            "data_validation_request_model_issues": [],
+            "data_validation_failed_issues": failed_issues,
         }
     
     return {
         "data_entry_model_resolve_attempted" : False,
         "data_validation_status": VerifState.Passed.value,
-        "data_validation_issues": [],
+        "data_validation_request_model_issues": [],
+        "data_validation_failed_issues": [],
     }
 
 
 def try_resolve_data_entry_fields_factory(model):
     def try_resolve_data_entry_fields(state: State) -> dict:
-        issues = state.get("data_validation_issues") or []
+        issues = state.get("data_validation_request_model_issues") or []
         metadata = state.get("station_meta") or {}
         available_sensors = _extract_available_sensors(metadata)
 
@@ -196,18 +206,32 @@ def try_resolve_data_entry_fields_factory(model):
     return try_resolve_data_entry_fields
 
 def ask_for_data_entry_field_update(state: State) -> State:
-    issues = state.get("data_validation_issues") or []
-    if not issues:
+    failed_issues = state.get("data_validation_failed_issues") or []
+    unresolved_request_model_issues = state.get("data_validation_request_model_issues") or []
+
+    if not failed_issues and not unresolved_request_model_issues:
         msg = "Please update your request fields (variables, time range, or data group)."
     else:
-        reasons = []
-        for issue in issues:
+        failed_reasons = []
+        unresolved_reasons = []
+        for issue in failed_issues:
             if isinstance(issue, dict):
                 field = issue.get("field")
                 reason = issue.get("reason")
                 if field and reason:
-                    reasons.append(f"{field}: {reason}")
-        msg = "I couldn't safely auto-correct some fields. Please update: " + "; ".join(reasons)
+                    failed_reasons.append(f"{field}: {reason}")
+        for issue in unresolved_request_model_issues:
+            if isinstance(issue, dict):
+                field = issue.get("field")
+                reason = issue.get("reason")
+                if field and reason:
+                    unresolved_reasons.append(f"{field}: {reason}")
+        sections = []
+        if failed_reasons:
+            sections.append("Failed checks: " + "; ".join(failed_reasons))
+        if unresolved_reasons:
+            sections.append("Could not auto-resolve: " + "; ".join(unresolved_reasons))
+        msg = "Please update your request. " + " | ".join(sections)
     state["messages"].append(AIMessage(content=msg))
     return state
         
@@ -216,6 +240,4 @@ def ask_for_station(state: State) -> State:
         AIMessage(content="Pick a station first (type 'list stations' or search by name), then ask for charts/tables.")
     )
     return state
-
-
 
