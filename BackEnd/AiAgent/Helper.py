@@ -7,9 +7,9 @@ import ast
 from BackEnd.PostgreSQL.StationDbObject import StationDataGroup
 
 class VerifState(Enum):
-    Passed= 0;
-    RequestModel= 1;
-    Failed= 2;
+    Passed= 'Passed';
+    RequestModel= 'RequestModel';
+    Failed= 'Failed';
 
 def _verify_variables_selected(variables_selected: List[str] | None, stationMetadata : dict) -> tuple[VerifState, str | None]:
     if not variables_selected:
@@ -17,7 +17,7 @@ def _verify_variables_selected(variables_selected: List[str] | None, stationMeta
     
     sensorsObj = stationMetadata.get("SensorsList")
     if not sensorsObj:
-        return VerifState.Failed, 'Available Station Sensors are not defined'
+        return VerifState.Failed, 'Available Station Sensors are not defined. You should maybe look for an other station.'
     
     availableSensors = []
     for sensor in sensorsObj:
@@ -26,14 +26,14 @@ def _verify_variables_selected(variables_selected: List[str] | None, stationMeta
             availableSensors.append(sensorName.strip().lower())
     
     if not availableSensors:
-        return VerifState.Failed, "No readable sensor names found in station metadata."
+        return VerifState.Failed, "No readable sensor names found in station metadata. You should maybe look for an other station."
 
     requestModel = False
     verif_mess = ""
     for var in variables_selected:
         v = var.strip().lower()
         if v not in availableSensors:
-            requestModel = False
+            requestModel = True
             verif_mess += f"'{var}' is not an available sensor. "
 
     if requestModel:

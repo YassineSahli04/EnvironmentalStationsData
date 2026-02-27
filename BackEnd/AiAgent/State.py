@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, Optional, List, TypedDict
+from typing import Annotated, Dict, Optional, List, TypedDict
 from langgraph.graph import add_messages
 
 
@@ -20,5 +20,9 @@ class State(TypedDict):
     time_range: TimeRange
     variables_selected: List[str]
     dataGroup: Optional[str]
+
+    data_validation_status: Optional[str]
+    data_entry_model_resolve_attempted: bool
+    data_validation_issues: Optional[list[dict]]
 
 
