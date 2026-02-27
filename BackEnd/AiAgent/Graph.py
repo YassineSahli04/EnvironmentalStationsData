@@ -1,7 +1,16 @@
 from langgraph.graph import END, START, StateGraph
 from typing import Any
 
-from BackEnd.AiAgent.Node import ask_for_station, call_model_factory, execute_tools, route_after_model
+from BackEnd.AiAgent.Node import (
+    ask_for_station,
+    call_model_factory,
+    execute_tools,
+    route_after_model,
+    validate_fields,
+    route_after_validate,
+    try_resolve_data_entry_fields_factory,
+    ask_for_data_entry_field_update,
+)
 from BackEnd.AiAgent.State import State
 from langgraph.checkpoint.memory import InMemorySaver
 
@@ -21,6 +30,9 @@ def build_graph(model) -> Any:
     graph.add_node("call_model", call_model_factory(model, SYSTEM))
     graph.add_node("execute_tools", execute_tools)
     graph.add_node("ask_for_station", ask_for_station)
+    graph.add_node("validate_fields", validate_fields)
+    graph.add_node("try_resolve_data_entry_fields", try_resolve_data_entry_fields_factory(model))
+    graph.add_node("ask_for_data_entry_field_update", ask_for_data_entry_field_update)
 
     graph.add_edge(START, "call_model")
 
@@ -31,14 +43,27 @@ def build_graph(model) -> Any:
             "end": END,
             "tools": "execute_tools",
             "ask_for_station": "ask_for_station",
+            "validate_fields": "validate_fields",
+        },
+    )
+
+    graph.add_conditional_edges(
+        "validate_fields",
+        route_after_validate,
+        {
+            "tools": "execute_tools",
+            "try_resolve_data_entry_fields": "try_resolve_data_entry_fields",
+            "ask_for_data_entry_field_update": "ask_for_data_entry_field_update",
         },
     )
 
     # Loop: after tools, go back to model
     graph.add_edge("execute_tools", "call_model")
+    graph.add_edge("try_resolve_data_entry_fields", "validate_fields")
 
     # If we asked for station, end the turn
     graph.add_edge("ask_for_station", END)
+    graph.add_edge("ask_for_data_entry_field_update", END)
 
     checkpointer = InMemorySaver()
     return graph.compile(checkpointer=checkpointer)

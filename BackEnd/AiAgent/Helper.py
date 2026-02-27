@@ -11,6 +11,17 @@ class VerifState(Enum):
     RequestModel= 'RequestModel';
     Failed= 'Failed';
 
+def _extract_available_sensors(stationMetadata : dict) -> list[str]:
+    sensorsObj = stationMetadata.get("SensorsList")
+    availableSensors = []
+    if sensorsObj:
+        for sensor in sensorsObj:
+            sensorName = sensor.get('sensor')
+            if sensorName and str(sensorName).strip():
+                availableSensors.append(sensorName.strip().lower())
+
+    return sorted(set(availableSensors))
+
 def _verify_variables_selected(variables_selected: List[str] | None, stationMetadata : dict) -> tuple[VerifState, str | None]:
     if not variables_selected:
         return VerifState.Failed, 'No variables are selected.'
@@ -19,11 +30,7 @@ def _verify_variables_selected(variables_selected: List[str] | None, stationMeta
     if not sensorsObj:
         return VerifState.Failed, 'Available Station Sensors are not defined. You should maybe look for an other station.'
     
-    availableSensors = []
-    for sensor in sensorsObj:
-        sensorName = sensor.get('sensor')
-        if sensorName and str(sensorName).strip():
-            availableSensors.append(sensorName.strip().lower())
+    availableSensors = _extract_available_sensors(stationMetadata)
     
     if not availableSensors:
         return VerifState.Failed, "No readable sensor names found in station metadata. You should maybe look for an other station."
