@@ -1,12 +1,11 @@
 from typing import Dict, List, Literal
 from datetime import datetime
 import json
-from AiAgent.src.agent.State import State, TimeRange
-from AiAgent.src.agent.Tools import get_available_stations, set_station
+from agent.State import State, TimeRange
+from agent.Tools import get_available_stations, set_station
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import BaseMessage, ToolMessage, AIMessage, SystemMessage, HumanMessage
-from BackEnd.PostgreSQL.StationDbObject import StationDataGroup
-from BackEnd.AiAgent.Helper import _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected, VerifState, _extract_available_sensors
+from agent.Helper import _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected, VerifState, _extract_available_sensors, StationDataGroup
 
 
 STATION_TOOLS = [get_available_stations, set_station]
@@ -240,4 +239,3 @@ def ask_for_station(state: State) -> State:
         AIMessage(content="Pick a station first (type 'list stations' or search by name), then ask for charts/tables.")
     )
     return state
-

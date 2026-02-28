@@ -1,10 +1,37 @@
 from typing import List
 from datetime import datetime
 from enum import Enum
-from BackEnd.AiAgent.State import TimeRange
+from agent.State import TimeRange
 import json
 import ast
-from BackEnd.PostgreSQL.StationDbObject import StationDataGroup
+
+class StationDataGroup(Enum):
+    hourly= 'hour'
+    daily =  'day'
+    weekly= 'week'
+    monthly = 'month'
+
+    @classmethod
+    def parse(cls, raw: object) -> str:
+        if isinstance(raw, cls):
+            return raw.value
+        if isinstance(raw, str):
+            s = raw.strip().lower()
+
+            if s in cls.__members__:
+                return cls.__members__[s].value
+
+            for e in cls:
+                if e.value == s:
+                    return e.value
+            
+        allowed_names = list(cls.__members__.keys())
+        allowed_values = [e.value for e in cls]
+        raise ValueError(
+            f"Invalid dataGroup {raw!r}. "
+            f"Allowed names: {allowed_names}. Allowed values: {allowed_values}."
+        )
+
 
 class VerifState(Enum):
     Passed= 'Passed';
