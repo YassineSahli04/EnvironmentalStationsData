@@ -1,8 +1,8 @@
 from langgraph.graph import END, START, StateGraph
 from typing import Any
 
-from BackEnd.AiAgent.Node import ask_for_station, call_model_factory, execute_tools, route_after_model
-from BackEnd.AiAgent.State import State
+from AiAgent.src.agent.Node import ask_for_station, call_model_factory, execute_tools, route_after_model
+from AiAgent.src.agent.State import State
 from langgraph.checkpoint.memory import InMemorySaver
 
 def build_graph(model) -> Any:
