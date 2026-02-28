@@ -1,14 +1,13 @@
 from langchain_ollama import ChatOllama
-from BackEnd.AiAgent.Graph import build_graph
+from AiAgent.src.agent.Graph import build_graph
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import SecretStr
-from BackEnd.PostgreSQL.User import User
 from langchain_openai import ChatOpenAI
 import os
 
 class Agent():
-    def __init__(self, user: User, isOpenAi = False):
+    def __init__(self, isOpenAi = False):
         if isOpenAi :
             key_path = os.getenv("OPENAI_KEY_PATH")
             if not key_path:
@@ -16,8 +15,6 @@ class Agent():
 
             with open(key_path, "r") as f:
                 self.openAiKey = f.read().strip()
-
-        self.user = user
 
         if isOpenAi:
             llm = ChatOpenAI(
@@ -34,11 +31,11 @@ class Agent():
 
         self.graph = build_graph(llm)
 
-        config: RunnableConfig = {"configurable": {"thread_id": user.ClerkId}}
+        config: RunnableConfig = {"configurable": {"thread_id": 'TestId'}}
         self.config = config
 
     def initializeChat(self):
-        print(f"Bot:  Hi {self.user.FirstName}, Which station do you want to analyse?")
+        print(f"Bot:  Hi, Which station do you want to analyse?")
         while(True):
             userMessage = input("User: ").strip()
             if userMessage.lower() == "exit":
