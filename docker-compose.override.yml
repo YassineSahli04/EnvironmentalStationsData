@@ -81,16 +81,28 @@ services:
     volumes:
       - ./PlaygroundFile.ipynb:/app/PlaygroundFile.ipynb
       - ./BackEnd:/app/BackEnd
-      - ./Secrets/openAi_key:/run/secrets/openAi_key:ro
       - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
       - ./Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
       - ./Secrets/clerk_secret_key:/run/secrets/clerk_secret_key:ro
     environment:
-      - OPENAI_KEY_PATH=/run/secrets/openAi_key
       - CLERK_KEY_PATH=/run/secrets/clerk_secret_key
       - DBINFO_PATH=/run/secrets/DbInfo.json
       - C2AIINFO_PATH=/run/secrets/C2aiInfo.json
       - REDIS_URL=redis://redis:6379/0
+
+  ai-agent:
+    build:
+      context: ./AiAgent
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./AiAgent:/app/AiAgent
+      - ./Secrets/openAi_key:/run/secrets/openAi_key:ro
+    environment:
+      - OPENAI_KEY_PATH=/run/secrets/openAi_key
+      - BACKEND_URL=http://localhost:8000
+    command: uv run uvicorn agent.api:app --host 0.0.0.0 --port 8080 --reload
 
 volumes:
   vite_node_modules:

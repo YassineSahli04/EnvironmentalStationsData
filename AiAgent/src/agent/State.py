@@ -16,6 +16,7 @@ class State(TypedDict):
 
     station_id: Optional[str]
     station_meta: Optional[dict]
+    station_meta: Optional[dict]
 
     time_range: TimeRange
     variables_selected: List[str]

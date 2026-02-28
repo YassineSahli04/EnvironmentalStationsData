@@ -1,7 +1,7 @@
 from langgraph.graph import END, START, StateGraph
 from typing import Any
 
-from BackEnd.AiAgent.Node import (
+from AiAgent.src.agent.Node import (
     ask_for_station,
     call_model_factory,
     execute_tools,
@@ -11,7 +11,7 @@ from BackEnd.AiAgent.Node import (
     try_resolve_data_entry_fields_factory,
     ask_for_data_entry_field_update,
 )
-from BackEnd.AiAgent.State import State
+from AiAgent.src.agent.State import State
 from langgraph.checkpoint.memory import InMemorySaver
 
 def build_graph(model) -> Any:
