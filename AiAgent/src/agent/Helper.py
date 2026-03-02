@@ -1,7 +1,10 @@
-from typing import List
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage, HumanMessage
+
+from agent.State import State, TimeRange
+
+from typing import List, Optional
 from datetime import datetime
 from enum import Enum
-from agent.State import TimeRange
 import json
 import ast
 
@@ -107,7 +110,13 @@ def _verify_datagroup_entry(dataGroup: str | None) -> tuple[VerifState, str | No
         return (VerifState.RequestModel, str(e))
 
 
-
+def _get_last_user_message_text(state: State) -> Optional[str]:
+    for msg in reversed(state["messages"]):
+        if isinstance(msg, HumanMessage):
+            content = getattr(msg, "content", None)
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+    return None
 
 
 

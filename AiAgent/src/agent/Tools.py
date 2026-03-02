@@ -1,15 +1,13 @@
 from typing import Optional
-
-from langchain.tools import tool
 from urllib import error, request
 import json
 import os
 from datetime import datetime, timedelta
 
-
-
+from langchain.tools import tool
 
 def _backend_base_url() -> str:
+    # 0.0.0.0 is a server bind address, not a client destination.
     return os.getenv("BACKEND_URL", "http://127.0.0.1:8001").rstrip("/")
 
 

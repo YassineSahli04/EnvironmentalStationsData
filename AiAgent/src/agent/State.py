@@ -21,6 +21,7 @@ class State(TypedDict):
     time_range: TimeRange
     variables_selected: List[str]
     dataGroup: Optional[str]
+    output_kind: Optional[str]
 
     is_data_request: bool
     data_validation_status: Optional[str]
@@ -31,3 +32,11 @@ class State(TypedDict):
 
 class IntentResult(BaseModel):
     is_data_request: bool
+
+
+class ExtractedRequestResult(BaseModel):
+    variables_selected: Optional[list[str]] = None
+    dataGroup: Optional[str] = None
+    start: Optional[str] = None
+    end: Optional[str] = None
+    output_kind: Optional[str] = None
