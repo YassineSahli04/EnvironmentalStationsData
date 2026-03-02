@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Annotated, Optional, List, TypedDict
 from langgraph.graph import add_messages
+from pydantic import BaseModel
 
 
 @dataclass
@@ -16,15 +17,17 @@ class State(TypedDict):
 
     station_id: Optional[str]
     station_meta: Optional[dict]
-    station_meta: Optional[dict]
 
     time_range: TimeRange
     variables_selected: List[str]
     dataGroup: Optional[str]
 
+    is_data_request: bool
     data_validation_status: Optional[str]
     data_entry_model_resolve_attempted: bool
     data_validation_request_model_issues: Optional[list[dict]]
     data_validation_failed_issues: Optional[list[dict]]
 
 
+class IntentResult(BaseModel):
+    is_data_request: bool

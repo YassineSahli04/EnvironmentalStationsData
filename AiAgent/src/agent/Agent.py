@@ -1,35 +1,15 @@
-from langchain_ollama import ChatOllama
 from agent.Graph import build_graph
+from agent.Model import Model
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
-from pydantic import SecretStr
-from langchain_openai import ChatOpenAI
 import os
 
 class Agent():
     def __init__(self, isOpenAi = False):
-        if isOpenAi :
-            key_path = os.getenv("OPENAI_KEY_PATH")
-            if not key_path:
-                raise RuntimeError("OPENAI_KEY_PATH not set")
+        os.environ["USE_OPENAI"] = str(isOpenAi).lower()
 
-            with open(key_path, "r") as f:
-                self.openAiKey = f.read().strip()
-
-        if isOpenAi:
-            llm = ChatOpenAI(
-                model="gpt-4.1-mini",
-                api_key=SecretStr(self.openAiKey),
-                temperature=0.2
-            )
-        else:
-            llm = ChatOllama(
-                model="qwen2.5:7b",
-                base_url="http://host.docker.internal:11434",
-                temperature=0.2
-            )
-
-        self.graph = build_graph(llm)
+        model = Model.build_default_model()
+        self.graph = build_graph(model)
 
         config: RunnableConfig = {"configurable": {"thread_id": 'TestId'}}
         self.config = config

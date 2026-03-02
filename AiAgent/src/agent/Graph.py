@@ -1,5 +1,10 @@
 from langgraph.graph import END, START, StateGraph
+from langchain_core.language_models import BaseChatModel
+from langgraph.checkpoint.memory import InMemorySaver
+
 from typing import Any
+
+
 
 from agent.Node import (
     ask_for_station,
@@ -8,13 +13,23 @@ from agent.Node import (
     route_after_model,
     validate_fields,
     route_after_validate,
+    try_resolve_time_range_factory,
     try_resolve_data_entry_fields_factory,
     ask_for_data_entry_field_update,
 )
 from agent.State import State
-from langgraph.checkpoint.memory import InMemorySaver
+from agent.Model import Model
 
-def build_graph(model) -> Any:
+
+
+def _trace_node(name: str, fn):
+    def traced(*args, **kwargs):
+        print(f"[node] {name}", flush=True)
+        return fn(*args, **kwargs)
+
+    return traced
+
+def build_graph(model : BaseChatModel) -> Any:
     SYSTEM = """
         You are a Meteorological Assistant.
         Keep answers short (max 2-3 sentences).
@@ -25,18 +40,28 @@ def build_graph(model) -> Any:
         3) Never invent station IDs or data; only use tool results.
     """
 
-    graph = StateGraph(State)
+    workflow = StateGraph(State)
 
-    graph.add_node("call_model", call_model_factory(model, SYSTEM))
-    graph.add_node("execute_tools", execute_tools)
-    graph.add_node("ask_for_station", ask_for_station)
-    graph.add_node("validate_fields", validate_fields)
-    graph.add_node("try_resolve_data_entry_fields", try_resolve_data_entry_fields_factory(model))
-    graph.add_node("ask_for_data_entry_field_update", ask_for_data_entry_field_update)
+    workflow.add_node("call_model", _trace_node("call_model", call_model_factory(model, SYSTEM)))
+    workflow.add_node("execute_tools", _trace_node("execute_tools", execute_tools))
+    workflow.add_node("ask_for_station", _trace_node("ask_for_station", ask_for_station))
+    workflow.add_node("validate_fields", _trace_node("validate_fields", validate_fields))
+    workflow.add_node(
+        "try_resolve_time_range",
+        _trace_node("try_resolve_time_range", try_resolve_time_range_factory(model)),
+    )
+    workflow.add_node(
+        "try_resolve_data_entry_fields",
+        _trace_node("try_resolve_data_entry_fields", try_resolve_data_entry_fields_factory(model)),
+    )
+    workflow.add_node(
+        "ask_for_data_entry_field_update",
+        _trace_node("ask_for_data_entry_field_update", ask_for_data_entry_field_update),
+    )
 
-    graph.add_edge(START, "call_model")
+    workflow.add_edge(START, "call_model")
 
-    graph.add_conditional_edges(
+    workflow.add_conditional_edges(
         "call_model",
         route_after_model,
         {
@@ -47,23 +72,28 @@ def build_graph(model) -> Any:
         },
     )
 
-    graph.add_conditional_edges(
+    workflow.add_conditional_edges(
         "validate_fields",
         route_after_validate,
         {
             "tools": "execute_tools",
+            "try_resolve_time_range": "try_resolve_time_range",
             "try_resolve_data_entry_fields": "try_resolve_data_entry_fields",
             "ask_for_data_entry_field_update": "ask_for_data_entry_field_update",
         },
     )
 
     # Loop: after tools, go back to model
-    graph.add_edge("execute_tools", "call_model")
-    graph.add_edge("try_resolve_data_entry_fields", "validate_fields")
+    workflow.add_edge("execute_tools", "call_model")
+    workflow.add_edge("try_resolve_time_range", "validate_fields")
+    workflow.add_edge("try_resolve_data_entry_fields", "validate_fields")
 
     # If we asked for station, end the turn
-    graph.add_edge("ask_for_station", END)
-    graph.add_edge("ask_for_data_entry_field_update", END)
+    workflow.add_edge("ask_for_station", END)
+    workflow.add_edge("ask_for_data_entry_field_update", END)
 
     checkpointer = InMemorySaver()
-    return graph.compile(checkpointer=checkpointer)
+    return workflow.compile(checkpointer=checkpointer)
+
+def graph():
+    return build_graph(Model.build_default_model())
