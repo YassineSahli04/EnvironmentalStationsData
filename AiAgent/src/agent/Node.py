@@ -5,7 +5,7 @@ from agent.State import State, TimeRange
 from agent.Tools import get_available_stations, get_timeseries, make_chart, make_table, prepare_data_request, set_station
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import BaseMessage, ToolMessage, AIMessage, SystemMessage, HumanMessage
-from agent.Helper import _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected, VerifState, _extract_available_sensors, StationDataGroup
+from agent.Helper import _has_request_model_issue, _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected, VerifState, _extract_available_sensors, StationDataGroup
 
 
 STATION_TOOLS = [get_available_stations, set_station]
@@ -101,12 +101,6 @@ def route_after_model(state: State) -> Literal["end", "tools", "ask_for_station"
             return "validate_fields"          
 
     return "tools"
-
-def _has_request_model_issue(issues: list[dict], field_name: str) -> bool:
-    for issue in issues:
-        if isinstance(issue, dict) and issue.get("field") == field_name:
-            return True
-    return False
 
 
 def route_after_validate(state: State) -> Literal["tools", "try_resolve_time_range", "try_resolve_data_entry_fields", "ask_for_data_entry_field_update"]:

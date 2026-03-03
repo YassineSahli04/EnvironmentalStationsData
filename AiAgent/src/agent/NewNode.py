@@ -6,7 +6,7 @@ from langgraph.prebuilt import ToolNode
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, STATION_TOOLS
-from agent.Helper import _get_last_user_message_text, _parse_tool_content
+from agent.Helper import VerifState, _get_last_user_message_text, _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected
 
 tool_node = ToolNode(ALL_TOOLS)
 model = Model.build_default_model()
@@ -59,17 +59,6 @@ def classify_intent(state: State) -> Dict[str, bool]:
 
     return {"is_data_request": result.is_data_request} # type: ignore
 
-def route_after_classify(state: State) -> Literal['call_model', 'ask_for_station', 'extract_data_request']:
-    is_data_request = state.get('is_data_request')
-    station_id = state.get('station_id')
- 
-    if is_data_request:
-        if not station_id:
-            return 'ask_for_station'
-        return 'extract_data_request'
-    
-    return 'call_model'
-
 def call_model(state:State) -> Dict[str, List[BaseMessage]]:
     station_id = state.get("station_id")
 
@@ -82,15 +71,6 @@ def call_model(state:State) -> Dict[str, List[BaseMessage]]:
         [SystemMessage(content=prompt)] + state["messages"]
     )
     return {"messages": [response]}
-
-def route_after_model(state: State) -> Literal['end', 'tools', 'ask_for_station']:
-    last = state["messages"][-1]
-
-    tool_calls = getattr(last, "tool_calls", None) or []
-    if not tool_calls:
-        return 'end'      
-
-    return "tools"
 
 def execute_tools(state: State) -> State:
     result = tool_node.invoke(state)
@@ -135,12 +115,14 @@ def extract_data_request(state: State) -> State:
         "Do not choose defaults.\n"
         "\n"
         "Field rules:\n"
-        "1. variables_selected:\n"
+        "1. extracted_variables_selected:\n"
+        "Write the result into the field named extracted_variables_selected.\n"
         "Extract only the actual requested measurement names or variables explicitly mentioned by the user.\n"
         "Examples: temperature, humidity, wind speed, rainfall.\n"
         "If the user does not explicitly name a variable, return null.\n"
         "\n"
-        "2. dataGroup:\n"
+        "2. extracted_dataGroup:\n"
+        "Write the result into the field named extracted_dataGroup.\n"
         "This means the aggregation granularity of the data: how the data is grouped or concatenated over time.\n"
         "Typical examples are hourly, daily, weekly, monthly.\n"
         "Extract this only if the user explicitly names that grouping style.\n"
@@ -150,7 +132,8 @@ def extract_data_request(state: State) -> State:
         "Example: 'daily temperature data' means dataGroup='daily'.\n"
         "If no data group is explicitly stated, return null.\n"
         "\n"
-        "3. start and end:\n"
+        "3. extracted_start and extracted_end:\n"
+        "Write the values into the fields named extracted_start and extracted_end.\n"
         "Use these for any explicit time constraint stated by the user.\n"
         "Copy the user's wording as-is into the correct side of the range.\n"
         "The values do NOT need to be in date format.\n"
@@ -163,16 +146,17 @@ def extract_data_request(state: State) -> State:
         "Examples: on 2026-02-01 -> start='2026-02-01', end=null.\n"
         "Do not convert relative phrases into dates in this step.\n"
         "\n"
-        "4. output_kind:\n"
+        "4. extracted_output_kind:\n"
+        "Write the result into the field named extracted_output_kind.\n"
         "Extract this only if the user explicitly asks for a presentation format.\n"
         "Examples: chart, graph, plot, table.\n"
         "If the user asks only to check or view data without naming a format, return null.\n"
         "\n"
         "Important examples:\n"
-        "- 'I want to check the temp data' -> variables_selected=['temperature']; dataGroup=null; start=null; end=null; output_kind=null.\n"
-        "- 'Show me a humidity chart for last week' -> variables_selected=['humidity']; dataGroup=null; start='last week'; end=null; output_kind='chart'.\n"
-        "- 'Show daily temperature data from last week to today' -> variables_selected=['temperature']; dataGroup='daily'; start='last week'; end='today'; output_kind=null.\n"
-        "- 'Give me weekly rainfall data from 2026-02-01 to 2026-02-07' -> variables_selected=['rainfall']; dataGroup='weekly'; start='2026-02-01'; end='2026-02-07'; output_kind=null.\n"
+        "- 'I want to check the temp data' -> extracted_variables_selected=['temperature']; extracted_dataGroup=null; extracted_start=null; extracted_end=null; extracted_output_kind=null.\n"
+        "- 'Show me a humidity chart for last week' -> extracted_variables_selected=['humidity']; extracted_dataGroup=null; extracted_start='last week'; extracted_end=null; extracted_output_kind='chart'.\n"
+        "- 'Show daily temperature data from last week to today' -> extracted_variables_selected=['temperature']; extracted_dataGroup='daily'; extracted_start='last week'; extracted_end='today'; extracted_output_kind=null.\n"
+        "- 'Give me weekly rainfall data from 2026-02-01 to 2026-02-07' -> extracted_variables_selected=['rainfall']; extracted_dataGroup='weekly'; extracted_start='2026-02-01'; extracted_end='2026-02-07'; extracted_output_kind=null.\n"
         "\n"
         "Return structured output only."
     )
@@ -186,24 +170,92 @@ def extract_data_request(state: State) -> State:
 
     updates: dict = {}
 
-    raw_vars = extracted.variables_selected # type: ignore
+    raw_vars = extracted.extracted_variables_selected
     if isinstance(raw_vars, list):
         normalized_vars = [str(v).strip().lower() for v in raw_vars if str(v).strip()]
         if normalized_vars:
+            updates["extracted_variables_selected"] = normalized_vars
             updates["variables_selected"] = normalized_vars
 
-    if isinstance(extracted.dataGroup, str) and extracted.dataGroup.strip(): # type: ignore
-        updates["dataGroup"] = extracted.dataGroup.strip() # type: ignore
+    if isinstance(extracted.extracted_dataGroup, str) and extracted.extracted_dataGroup.strip():
+        normalized_group = extracted.extracted_dataGroup.strip().lower()
+        updates["extracted_dataGroup"] = normalized_group
+        updates["dataGroup"] = normalized_group
 
-    if isinstance(extracted.output_kind, str) and extracted.output_kind.strip(): # type: ignore
-        updates["output_kind"] = extracted.output_kind.strip().lower() # type: ignore
+    if isinstance(extracted.extracted_output_kind, str) and extracted.extracted_output_kind.strip():
+        normalized_output_kind = extracted.extracted_output_kind.strip().lower()
+        updates["extracted_output_kind"] = normalized_output_kind
+        updates["output_kind"] = normalized_output_kind
 
-    start = extracted.start.strip() if isinstance(extracted.start, str) else None # type: ignore
-    end = extracted.end.strip() if isinstance(extracted.end, str) else None # type: ignore
+    start = extracted.extracted_start.strip() if isinstance(extracted.extracted_start, str) else None
+    end = extracted.extracted_end.strip() if isinstance(extracted.extracted_end, str) else None
+    if start:
+        updates["extracted_start"] = start
+    if end:
+        updates["extracted_end"] = end
     if start or end:
         updates["time_range"] = TimeRange(start=start, end=end)
 
     return updates # type: ignore
+
+def validate_fields(state: State) -> dict:
+    is_data_entry_first_pass = False if state.get("is_data_entry_first_pass") else True 
+
+    time_range = state.get("time_range")
+    extracted_start_time = time_range.start if time_range and time_range.start else state.get("extracted_start")
+    extracted_end_time = time_range.end if time_range and time_range.end else state.get("extracted_end")
+
+    effective_variables_selected = state.get("variables_selected") or state.get("extracted_variables_selected")
+    effective_dataGroup = state.get("dataGroup") or state.get("extracted_dataGroup")
+    metadata = state.get("station_meta") or {}
+
+    vars_verif, vars_mess = _verify_variables_selected(effective_variables_selected, metadata)
+    time_verif, time_mess = _verify_timerange_entry(TimeRange(extracted_start_time, extracted_end_time))
+    datagroup_verif, dataGroup_mess = _verify_datagroup_entry(effective_dataGroup)
+
+    updates: dict = {}
+    updates["time_range"] = TimeRange(extracted_start_time, extracted_end_time)
+    updates["variables_selected"] = effective_variables_selected
+    updates["dataGroup"] = effective_dataGroup
+
+    request_model_issues = []
+    failed_issues = []
+
+    if vars_verif == VerifState.RequestModel:
+        request_model_issues.append({"field":"variables_selected","reason":vars_mess})
+    if vars_verif == VerifState.Failed:
+        failed_issues.append({"field":"variables_selected","reason":vars_mess})
+    if time_verif == VerifState.RequestModel:
+        request_model_issues.append({"field":"time_range","reason":time_mess})
+    if time_verif == VerifState.Failed:
+        failed_issues.append({"field":"time_range","reason":time_mess})
+    if datagroup_verif == VerifState.RequestModel:
+        request_model_issues.append({"field":"dataGroup","reason":dataGroup_mess})
+    if datagroup_verif == VerifState.Failed:
+        failed_issues.append({"field":"dataGroup","reason":dataGroup_mess})
+
+    if is_data_entry_first_pass and request_model_issues:
+        updates.update({
+            "is_data_entry_first_pass": True,
+            "data_validation_status": VerifState.RequestModel.value,
+            "data_validation_issues": request_model_issues,
+        })
+        return updates
+
+    if failed_issues:
+        updates.update({
+            "data_entry_resolve_trial": False,
+            "data_validation_status": VerifState.Failed.value,
+            "data_validation_issues": failed_issues,
+        })
+        return updates
+    
+    updates.update({
+        "data_entry_resolve_trial" : False,
+        "data_validation_status": VerifState.Passed.value,
+        "data_validation_issues": [],
+    })
+    return updates
 
 
         

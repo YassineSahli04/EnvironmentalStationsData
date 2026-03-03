@@ -18,6 +18,12 @@ class State(TypedDict):
     station_id: Optional[str]
     station_meta: Optional[dict]
 
+    extracted_variables_selected: Optional[List[str]]
+    extracted_dataGroup: Optional[str]
+    extracted_start: Optional[str]
+    extracted_end: Optional[str]
+    extracted_output_kind: Optional[str]
+
     time_range: TimeRange
     variables_selected: List[str]
     dataGroup: Optional[str]
@@ -25,9 +31,9 @@ class State(TypedDict):
 
     is_data_request: bool
     data_validation_status: Optional[str]
-    data_entry_model_resolve_attempted: bool
-    data_validation_request_model_issues: Optional[list[dict]]
-    data_validation_failed_issues: Optional[list[dict]]
+
+    is_data_entry_first_pass: bool
+    data_validation_issues: Optional[list[dict]]
 
 
 class IntentResult(BaseModel):
@@ -35,8 +41,8 @@ class IntentResult(BaseModel):
 
 
 class ExtractedRequestResult(BaseModel):
-    variables_selected: Optional[list[str]] = None
-    dataGroup: Optional[str] = None
-    start: Optional[str] = None
-    end: Optional[str] = None
-    output_kind: Optional[str] = None
+    extracted_variables_selected: Optional[list[str]] = None
+    extracted_dataGroup: Optional[str] = None
+    extracted_start: Optional[str] = None
+    extracted_end: Optional[str] = None
+    extracted_output_kind: Optional[str] = None
