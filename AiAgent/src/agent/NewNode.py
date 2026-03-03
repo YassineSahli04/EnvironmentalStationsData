@@ -1,3 +1,5 @@
+from datetime import datetime
+import json
 from typing import Dict, List, Literal, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage, HumanMessage
@@ -5,8 +7,8 @@ from langgraph.prebuilt import ToolNode
 
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
-from agent.Tools import ALL_TOOLS, STATION_TOOLS
-from agent.Helper import VerifState, _get_last_user_message_text, _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected
+from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS
+from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, _get_last_user_message_text, _has_request_model_issue, _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected
 
 tool_node = ToolNode(ALL_TOOLS)
 model = Model.build_default_model()
@@ -170,31 +172,31 @@ def extract_data_request(state: State) -> State:
 
     updates: dict = {}
 
-    raw_vars = extracted.extracted_variables_selected
+    extracted_dict = getattr(extracted, "model_dump", lambda: extracted)()
+    raw_vars = extracted_dict.get("extracted_variables_selected") # type: ignore
     if isinstance(raw_vars, list):
         normalized_vars = [str(v).strip().lower() for v in raw_vars if str(v).strip()]
         if normalized_vars:
             updates["extracted_variables_selected"] = normalized_vars
-            updates["variables_selected"] = normalized_vars
 
-    if isinstance(extracted.extracted_dataGroup, str) and extracted.extracted_dataGroup.strip():
-        normalized_group = extracted.extracted_dataGroup.strip().lower()
+    data_group = extracted_dict.get("extracted_dataGroup") # type: ignore
+    if isinstance(data_group, str) and data_group.strip():
+        normalized_group = data_group.strip().lower()
         updates["extracted_dataGroup"] = normalized_group
-        updates["dataGroup"] = normalized_group
 
-    if isinstance(extracted.extracted_output_kind, str) and extracted.extracted_output_kind.strip():
-        normalized_output_kind = extracted.extracted_output_kind.strip().lower()
+    output_kind = extracted_dict.get("extracted_output_kind") # type: ignore
+    if isinstance(output_kind, str) and output_kind.strip():
+        normalized_output_kind = output_kind.strip().lower()
         updates["extracted_output_kind"] = normalized_output_kind
-        updates["output_kind"] = normalized_output_kind
 
-    start = extracted.extracted_start.strip() if isinstance(extracted.extracted_start, str) else None
-    end = extracted.extracted_end.strip() if isinstance(extracted.extracted_end, str) else None
+    start = extracted_dict.get("extracted_start") # type: ignore
+    end = extracted_dict.get("extracted_end") # type: ignore
+    start = start.strip() if isinstance(start, str) else None
+    end = end.strip() if isinstance(end, str) else None
     if start:
         updates["extracted_start"] = start
     if end:
         updates["extracted_end"] = end
-    if start or end:
-        updates["time_range"] = TimeRange(start=start, end=end)
 
     return updates # type: ignore
 
@@ -223,15 +225,15 @@ def validate_fields(state: State) -> dict:
 
     if vars_verif == VerifState.RequestModel:
         request_model_issues.append({"field":"variables_selected","reason":vars_mess})
-    if vars_verif == VerifState.Failed:
+    if vars_verif == VerifState.Failed or not is_data_entry_first_pass:
         failed_issues.append({"field":"variables_selected","reason":vars_mess})
     if time_verif == VerifState.RequestModel:
         request_model_issues.append({"field":"time_range","reason":time_mess})
-    if time_verif == VerifState.Failed:
+    if time_verif == VerifState.Failed or not is_data_entry_first_pass:
         failed_issues.append({"field":"time_range","reason":time_mess})
     if datagroup_verif == VerifState.RequestModel:
         request_model_issues.append({"field":"dataGroup","reason":dataGroup_mess})
-    if datagroup_verif == VerifState.Failed:
+    if datagroup_verif == VerifState.Failed or not is_data_entry_first_pass:
         failed_issues.append({"field":"dataGroup","reason":dataGroup_mess})
 
     if is_data_entry_first_pass and request_model_issues:
@@ -257,5 +259,155 @@ def validate_fields(state: State) -> dict:
     })
     return updates
 
+def try_resolve_data_entry_fields(state: State) -> dict:
+    issues = state.get("data_validation_issues") or []
+    if not any(_has_request_model_issue(issues, field) for field in ("variables_selected", "dataGroup")):
+        return {}
+    
+    metadata = state.get("station_meta") or {}
+    available_sensors = _extract_available_sensors(metadata)
 
-        
+    payload = {
+        "issues": issues,
+        "current": {
+            "variables_selected": state.get("variables_selected"),
+            "dataGroup": state.get("dataGroup"),
+            "time_range": {
+                "start": state.get("time_range").start if state.get("time_range") else None,  # type: ignore
+                "end": state.get("time_range").end if state.get("time_range") else None,  # type: ignore
+            },
+        },
+        "constraints": {
+            "allowed_sensors": available_sensors,
+        },
+    }
+
+    resolver_prompt = (
+        "Resolve only obvious typos/format issues.\n"
+        "Never invent values outside constraints.\n"
+        "Return ONLY valid JSON with keys: "
+        "{\"variables_selected\": list|null, \"dataGroup\": str|null}. "
+        "Use null for fields you cannot safely resolve."
+    )
+
+    response = model.invoke(
+        [
+            SystemMessage(content=resolver_prompt),
+            HumanMessage(content=json.dumps(payload)),
+        ]
+    )
+    model_data = _parse_tool_content(getattr(response, "content", ""))
+
+    updates: dict = {"data_entry_model_resolve_attempted": True}
+
+    candidate_vars = model_data.get("variables_selected") if isinstance(model_data, dict) else None
+    if isinstance(candidate_vars, list) and candidate_vars and available_sensors:
+        normalized_vars = [str(v).strip().lower() for v in candidate_vars if str(v).strip()]
+        if normalized_vars and all(v in available_sensors for v in normalized_vars):
+            updates["variables_selected"] = normalized_vars
+
+    candidate_group = model_data.get("dataGroup") if isinstance(model_data, dict) else None
+    if isinstance(candidate_group, str) and candidate_group.strip():
+        try:
+            updates["dataGroup"] = StationDataGroup.parse(candidate_group)
+        except ValueError:
+            pass
+
+    return updates
+    
+def try_resolve_time_range(state: State) -> dict:
+    issues = state.get("data_validation_issues") or []
+    if not _has_request_model_issue(issues, "time_range"):
+        return {}
+    current_range = state.get("time_range")
+
+    payload = {
+        "issues": [issue for issue in (issues) if isinstance(issue, dict) and issue.get("field") == "time_range"],
+        "current_time_range": {
+            "start": current_range.start if current_range else None,  # type: ignore
+            "end": current_range.end if current_range else None,  # type: ignore
+        },
+        "current_datetime": datetime.now().isoformat(),
+    }
+
+    resolver_prompt = (
+        "Resolve only the time_range field.\n"
+        "Convert relative date phrases like today, yesterday, last week, and last month into concrete ISO 8601 datetimes.\n"
+        "Use the current system datetime provided by the caller as the reference.\n"
+        "Return ONLY valid JSON with this shape: "
+        "{\"time_range\": {\"start\": str|null, \"end\": str|null}|null}. "
+        "If you cannot safely resolve it, return {\"time_range\": null}."
+    )
+
+    response = model.invoke(
+        [
+            SystemMessage(content=resolver_prompt),
+            HumanMessage(content=json.dumps(payload)),
+        ]
+    )
+
+    model_data = _parse_tool_content(getattr(response, "content", ""))
+    updates: dict = {}
+
+    candidate_range = model_data.get("time_range") if isinstance(model_data, dict) else None
+    if isinstance(candidate_range, dict):
+        st_raw = candidate_range.get("start")
+        end_raw = candidate_range.get("end")
+        if isinstance(st_raw, str) and isinstance(end_raw, str):
+            try:
+                st = st_raw.strip()
+                end = end_raw.strip()
+                if st and end:
+                    parsed_start = datetime.fromisoformat(st)
+                    parsed_end = datetime.fromisoformat(end)
+                    if parsed_start < parsed_end:
+                        updates["time_range"] = TimeRange(start=st, end=end)
+            except ValueError:
+                pass
+
+    return updates
+
+def ask_for_data_entry_field_update(state: State) -> State:
+    issues = state.get("data_validation_issues") or []
+
+    if not issues:
+        msg = "Please update your request fields (variables, time range, or data group)."
+    else:
+        failed_reasons = []
+        for issue in issues:
+            if isinstance(issue, dict):
+                field = issue.get("field")
+                reason = issue.get("reason")
+                if field and reason:
+                    failed_reasons.append(f"{field}: {reason}")
+        sections = []
+        if failed_reasons:
+            sections.append("Failed checks: " + "; ".join(failed_reasons))
+        msg = "Please update your request. " + " | ".join(sections)
+    state["messages"].append(AIMessage(content=msg))
+    state["is_data_entry_first_pass"] = False
+    state["data_validation_issues"] = []
+    state["data_validation_status"] = None
+
+    state["extracted_variables_selected"] = None
+    state["extracted_dataGroup"] = None
+    state["extracted_start"] = None
+    state["extracted_end"] = None
+
+    return state
+
+def ask_for_output_kind(state: State) -> State:
+    options = ", ".join(OUTPUT_TYPE)
+    message = (
+        "Pick how you want to visualize the data. "
+        f"Choose one of: {options}."
+    )
+
+    state["messages"].append(
+        AIMessage(content=message)
+    )
+    return state
+
+def execute_requested_tool(state: State) -> dict:
+    # Placeholder: tool execution not implemented yet
+    return {}
