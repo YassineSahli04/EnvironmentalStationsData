@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from BackEnd.app.agent_routes import router as agent_router
 from BackEnd.app.stations_routes import router as stations_router
 from BackEnd.app.user_routes import router as users_router
 import logging
@@ -14,6 +15,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(agent_router)
 app.include_router(stations_router)
 app.include_router(users_router)
 

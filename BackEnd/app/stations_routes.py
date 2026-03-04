@@ -13,6 +13,7 @@ router = APIRouter(
     prefix="/api/stations",
     tags=["stations"],
 )
+
 @router.get("/all", dependencies=[Depends(require_type_filter())])
 def get_stations(typeFilter: list[str] = Query(default=[], alias="type[]")):
     try:      

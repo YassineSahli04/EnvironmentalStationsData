@@ -1,63 +1,61 @@
-from langchain_ollama import ChatOllama
-from AiAgent.src.agent.Graph import build_graph
+from agent.Graph import build_graph
+from agent.Model import Model
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
-from pydantic import SecretStr
-from langchain_openai import ChatOpenAI
 import os
 
 class Agent():
     def __init__(self, isOpenAi = False):
-        if isOpenAi :
-            key_path = os.getenv("OPENAI_KEY_PATH")
-            if not key_path:
-                raise RuntimeError("OPENAI_KEY_PATH not set")
+        os.environ["USE_OPENAI"] = str(isOpenAi).lower()
 
-            with open(key_path, "r") as f:
-                self.openAiKey = f.read().strip()
-
-        if isOpenAi:
-            llm = ChatOpenAI(
-                model="gpt-4.1-mini",
-                api_key=SecretStr(self.openAiKey),
-                temperature=0.2
-            )
-        else:
-            llm = ChatOllama(
-                model="qwen2.5:7b",
-                base_url="http://host.docker.internal:11434",
-                temperature=0.2
-            )
-
-        self.graph = build_graph(llm)
+        model = Model.build_default_model()
+        self.graph = build_graph(model)
 
         config: RunnableConfig = {"configurable": {"thread_id": 'TestId'}}
         self.config = config
 
     def initializeChat(self):
         print(f"Bot:  Hi, Which station do you want to analyse?")
+        single_prompt = (os.getenv("AGENT_PROMPT") or "").strip()
+        if single_prompt:
+            self._handle_user_message(single_prompt)
+            return
+
         while(True):
-            userMessage = input("User: ").strip()
+            try:
+                userMessage = input("User: ").strip()
+            except EOFError:
+                print("Bot: No interactive stdin detected. Set AGENT_PROMPT to run one request or start the container with stdin attached.")
+                return
+
+            if not userMessage:
+                continue
             if userMessage.lower() == "exit":
                 break
 
-            print("\n--- Agent Steps ---")
-            for step in self.graph.stream(
-                {"messages": [HumanMessage(content=userMessage)]},
-                config=self.config,
-                stream_mode="updates",
-            ):
-                self._print_step(step)
-            print("--- End Steps ---\n")
+            self._handle_user_message(userMessage)
 
-            snapshot = self.graph.get_state(self.config)
-            messages = snapshot.values.get("messages", []) if snapshot and snapshot.values else []
-            if not messages:
-                print("Bot: <no response>")
-                continue
+    def _handle_user_message(self, userMessage: str):
+        print(f"User: {userMessage}")
 
-            print("Bot: ", self.last_ai_text(messages), sep="")
+        print("\n--- Agent Steps ---")
+        for step in self.graph.stream(
+            {"messages": [HumanMessage(content=userMessage)]},
+            config=self.config,
+            stream_mode="updates",
+        ):
+            self._print_step(step)
+        print("--- End Steps ---\n")
+
+        snapshot = self.graph.get_state(self.config)
+        messages = snapshot.values.get("messages", []) if snapshot and snapshot.values else []
+        if not messages:
+            print("Bot: <no response>")
             print()
+            return
+
+        print("Bot: ", self.last_ai_text(messages), sep="")
+        print()
 
     def _print_step(self, step):
         if not isinstance(step, dict):
@@ -91,6 +89,7 @@ class Agent():
                 return m.content
         return "<no assistant text>"
 
-
-
-
+if __name__ == "__main__":
+    use_openai = os.getenv("USE_OPENAI", "true").lower() == "true"
+    agent = Agent(isOpenAi=use_openai)
+    agent.initializeChat()
