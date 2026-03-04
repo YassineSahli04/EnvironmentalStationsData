@@ -252,6 +252,15 @@ def validate_fields(state: State) -> dict:
         })
         return updates
     
+    
+    extracted_output_kind = state.get('extracted_output_kind') or ""
+    if extracted_output_kind.strip().lower() in OUTPUT_TYPE:
+        updates.update({
+            "output_kind": extracted_output_kind.strip().lower(),
+            "extracted_output_kind": None
+        })
+        
+    
     updates.update({
         "data_entry_resolve_trial" : False,
         "data_validation_status": VerifState.Passed.value,
