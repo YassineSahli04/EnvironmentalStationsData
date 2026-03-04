@@ -225,15 +225,15 @@ def validate_fields(state: State) -> dict:
 
     if vars_verif == VerifState.RequestModel:
         request_model_issues.append({"field":"variables_selected","reason":vars_mess})
-    if vars_verif == VerifState.Failed or not is_data_entry_first_pass:
+    if vars_verif == VerifState.Failed or (vars_verif == VerifState.RequestModel and not is_data_entry_first_pass):
         failed_issues.append({"field":"variables_selected","reason":vars_mess})
     if time_verif == VerifState.RequestModel:
         request_model_issues.append({"field":"time_range","reason":time_mess})
-    if time_verif == VerifState.Failed or not is_data_entry_first_pass:
+    if time_verif == VerifState.Failed or (time_verif == VerifState.RequestModel and not is_data_entry_first_pass):
         failed_issues.append({"field":"time_range","reason":time_mess})
     if datagroup_verif == VerifState.RequestModel:
         request_model_issues.append({"field":"dataGroup","reason":dataGroup_mess})
-    if datagroup_verif == VerifState.Failed or not is_data_entry_first_pass:
+    if datagroup_verif == VerifState.Failed  or (datagroup_verif == VerifState.RequestModel and not is_data_entry_first_pass):
         failed_issues.append({"field":"dataGroup","reason":dataGroup_mess})
 
     if is_data_entry_first_pass and request_model_issues:
@@ -377,6 +377,8 @@ def ask_for_data_entry_field_update(state: State) -> State:
         for issue in issues:
             if isinstance(issue, dict):
                 field = issue.get("field")
+                if field:
+                    state[field] = None
                 reason = issue.get("reason")
                 if field and reason:
                     failed_reasons.append(f"{field}: {reason}")
