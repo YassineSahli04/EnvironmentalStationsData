@@ -1,29 +1,30 @@
 from typing import Optional
-from urllib import error, request
-import json
 import os
+import requests
 from datetime import datetime, timedelta
 
 from langchain.tools import tool
 
 def _backend_base_url() -> str:
-    # 0.0.0.0 is a server bind address, not a client destination.
     return os.getenv("BACKEND_URL", "http://127.0.0.1:8001").rstrip("/")
 
-
-def _get_json(path: str):
-    url = f"{_backend_base_url()}{path}"
-    req = request.Request(url, method="GET")
+def _get_json(path: str, params: list[tuple[str, str]] | None = None,  timeout: int = 10):
+    base = _backend_base_url().rstrip("/")
+    url = f"{base}/{path.lstrip('/')}"
 
     try:
-        with request.urlopen(req, timeout=10) as response:
-            return json.load(response)
-    except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        if exc.code == 404:
-            raise ValueError("Station not found") from exc
-        raise RuntimeError(f"Backend request failed ({exc.code}): {detail}") from exc
-    except error.URLError as exc:
+        resp = requests.get(url, params=params or None, timeout=timeout)
+        if resp.status_code == 404:
+            raise ValueError("Request not found.")
+
+        resp.raise_for_status()
+        return resp.json()
+
+    except requests.exceptions.HTTPError as exc:
+        detail = exc.response.text if exc.response is not None else ""
+        raise RuntimeError(f"Backend request failed ({resp.status_code}): {detail}") from exc
+
+    except requests.exceptions.RequestException as exc:
         raise RuntimeError(f"Unable to reach backend at {url}") from exc
 
 @tool("get_available_stations", description="Get a list of stations with their metadata.")
@@ -46,6 +47,20 @@ def get_available_stations() -> list[dict]:
 def set_station(station_id: str) -> dict:
     return _get_json(f"/api/agent/stations/{int(station_id)}")
 
+def get_station_data(
+    station_id: str,
+    sensors: list[str],
+    data_group: str,
+    start_dt_utc: str,
+    end_dt_utc: str,
+) -> list[dict] | None:
+    path = f"/api/stations/station/{station_id}/sensors"
+
+    params = [("sensorsId[]", s) for s in sensors]
+    params += [("dataGroup", data_group), ("startDtUTC", start_dt_utc), ("endDtUTC", end_dt_utc)]
+
+    data = _get_json(path=path, params=params)
+    return data
 
 @tool("prepare_data_request", 
         description=(
