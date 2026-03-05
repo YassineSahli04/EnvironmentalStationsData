@@ -33,7 +33,6 @@ def get_all_stations_for_agent():
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-
 @router.get("/stations/{stationId}")
 def get_station_for_agent(stationId: int):
     try:

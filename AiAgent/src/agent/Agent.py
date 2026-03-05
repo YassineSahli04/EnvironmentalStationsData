@@ -1,5 +1,4 @@
 from agent.Graph import build_graph
-from agent.Model import Model
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 import os
@@ -7,9 +6,7 @@ import os
 class Agent():
     def __init__(self, isOpenAi = False):
         os.environ["USE_OPENAI"] = str(isOpenAi).lower()
-
-        model = Model.build_default_model()
-        self.graph = build_graph(model)
+        self.graph = build_graph()
 
         config: RunnableConfig = {"configurable": {"thread_id": 'TestId'}}
         self.config = config
