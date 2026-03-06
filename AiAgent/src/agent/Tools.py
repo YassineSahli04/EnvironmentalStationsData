@@ -210,8 +210,7 @@ def make_table(
 
 
 STATION_TOOLS = [get_available_stations, set_station]
-DATA_TOOLS = [get_timeseries, make_chart, make_table]
-ALL_TOOLS = STATION_TOOLS + DATA_TOOLS + [prepare_data_request]
+ALL_TOOLS = STATION_TOOLS  + [prepare_data_request]
 
 REQUEST_TOOL_NAMES = {"prepare_data_request"}
 OUTPUT_TYPE = ["chart", "table", "data"]

@@ -1,0 +1,6 @@
+{
+  "antv": {
+    "url": "http://localhost:1123/sse",
+    "transport": "sse"
+  }
+}

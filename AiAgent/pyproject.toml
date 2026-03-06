@@ -16,6 +16,9 @@ dependencies = [
     "langchain-openai>=0.3.0",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.1",
+    "langchain-mcp-adapters>=0.2.1",
+    "mcp>=1.26.0",
+    "asyncio>=4.0.0",
 ]
 
 
