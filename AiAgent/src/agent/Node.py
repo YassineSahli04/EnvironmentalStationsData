@@ -1,16 +1,18 @@
 from datetime import datetime
+import asyncio
 import json
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage, HumanMessage
 from langgraph.prebuilt import ToolNode
 
+from agent.McpTools import ANTV_TOOLS
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS, get_station_data
 from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, _get_last_user_message_text, _has_request_model_issue, _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected
 
-tool_node = ToolNode(ALL_TOOLS)
+tool_node = ToolNode(ALL_TOOLS + ANTV_TOOLS)
 model = Model.build_default_model()
 
 SYSTEM = """
@@ -63,8 +65,13 @@ def classify_intent(state: State) -> Dict[str, bool]:
 
 def call_model(state:State) -> Dict[str, List[BaseMessage]]:
     station_id = state.get("station_id")
+    station_meta = state.get('station_meta')
+    is_data_request = bool(state.get("is_data_request"))
 
-    model_with_tools = model.bind_tools(STATION_TOOLS)
+    if station_id and station_meta and is_data_request:
+        model_with_tools = model.bind_tools(STATION_TOOLS + ANTV_TOOLS)
+    else:
+        model_with_tools = model.bind_tools(STATION_TOOLS)
 
     prompt = f"""{SYSTEM}
         CURRENT STATION LOCKED: {station_id or "NONE"}"""
@@ -419,7 +426,7 @@ def ask_for_output_kind(state: State) -> State:
     )
     return state
 
-def execute_requested_tool(state: State) -> dict:
+async def execute_requested_tool(state: State) -> State:
     station_id = state.get('station_id')
     sensors = state.get('variables_selected')
     dataGroup = state.get('dataGroup')
@@ -427,5 +434,72 @@ def execute_requested_tool(state: State) -> dict:
 
     station_data = []
     if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
-        station_data = get_station_data(station_id, sensors, dataGroup, time_range.start, time_range.end)
-    return {"station_data" : station_data}
+        station_data = await asyncio.to_thread(
+            get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
+        )
+
+    if not ANTV_TOOLS:
+        return {
+            "station_data": station_data,
+            "messages": [AIMessage(content="No MCP tools are available right now.")],
+        } # type: ignore
+
+    payload = {
+        "station_id": station_id,
+        "variables_selected": sensors,
+        "dataGroup": dataGroup,
+        "start": time_range.start if time_range else None, # type: ignore
+        "end": time_range.end if time_range else None, # type: ignore
+        "output_kind": state.get("output_kind"),
+        "rows": station_data,
+    }
+
+    model_with_mcp = model.bind_tools(ANTV_TOOLS)
+    ai = await model_with_mcp.ainvoke([
+        SystemMessage(content=(
+            "You are a data-visualization planner for meteorological data. "
+            "Call exactly one MCP visualization tool and use only fields from the provided payload. "
+            "Do not invent fields or values.\n"
+            "\n"
+            "Chart quality requirements:\n"
+            "- Prefer a clean, minimal chart with high readability.\n"
+            "- Keep titles concise and informative.\n"
+            "- Format numeric values to 1-2 decimals max.\n"
+            "- Avoid dense value labels on every point; show labels only when necessary.\n"
+            "- Use a subtle grid and strong contrast for the main series.\n"
+            "- Keep axis labels short and human-friendly.\n"
+            "- Avoid overlapping text and clutter.\n"
+            "- If dates are dense, reduce x-axis tick density for readability.\n"
+            "- Use a neutral background and a professional palette.\n"
+            "\n"
+            "Output target:\n"
+            "- If output_kind is chart, generate a clean line chart optimized for readability.\n"
+            "- If output_kind is table or data, choose the matching visualization/tool behavior.\n"
+            "\n"
+            "Return a tool call only."
+        )),
+        HumanMessage(content=json.dumps(payload)),
+    ])
+
+    result = await ToolNode(ANTV_TOOLS).ainvoke({"messages": [ai]})
+    tool_messages = [m for m in result.get("messages", []) if isinstance(m, ToolMessage)]
+    if tool_messages:
+        last_tool = tool_messages[-1]
+        is_chart_output = str(state.get("output_kind") or "").strip().lower() == "chart"
+        chart_reset = {
+            "time_range": None,
+            "variables_selected": None,
+            "dataGroup": None,
+            "output_kind": None,
+            "station_data": None,
+        } if is_chart_output else {"station_data": station_data}
+
+        return {
+            **chart_reset,
+            "messages": [ai, last_tool, AIMessage(content=f"Visualization generated with tool '{last_tool.text}'.")],
+        } # type: ignore
+
+    return {
+        "station_data": station_data,
+        "messages": [ai, AIMessage(content="No MCP tool execution result was returned.")],
+    } # type: ignore

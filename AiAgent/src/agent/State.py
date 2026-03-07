@@ -24,8 +24,8 @@ class State(TypedDict):
     extracted_end: Optional[str]
     extracted_output_kind: Optional[str]
 
-    time_range: TimeRange
-    variables_selected: List[str]
+    time_range: Optional[TimeRange]
+    variables_selected: Optional[List[str]]
     dataGroup: Optional[str]
     output_kind: Optional[str]
     station_data: Optional[list[dict]]

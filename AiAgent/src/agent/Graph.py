@@ -68,8 +68,8 @@ def build_graph() -> Any:
     workflow.add_edge("ask_for_data_entry_field_update", END)
     workflow.add_edge("execute_requested_tool", END)
 
-    checkpointer = InMemorySaver()
-    return workflow.compile(checkpointer=checkpointer)
+    # checkpointer = InMemorySaver()
+    return workflow.compile()
 
 def graph():
     return build_graph()
