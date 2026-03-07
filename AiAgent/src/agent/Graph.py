@@ -8,7 +8,7 @@ from typing import Any
 from langgraph.graph import StateGraph, END, START
 
 from agent.Route import route_after_validation, route_after_classify, route_after_model
-from agent.Node import ask_for_data_entry_field_update, ask_for_output_kind, ask_for_station, call_model, classify_intent, execute_requested_tool, execute_tools, extract_data_request, try_resolve_data_entry_fields, validate_fields, try_resolve_time_range
+from agent.Node import ask_for_data_entry_field_update, ask_for_output_kind, ask_for_station, call_model, classify_intent, execute_chart_tool, execute_excel_export, execute_tools, extract_data_request, try_resolve_data_entry_fields, validate_fields, try_resolve_time_range
 from agent.State import State
 
 
@@ -27,7 +27,8 @@ def build_graph() -> Any:
     workflow.add_node("ask_for_data_entry_field_update", ask_for_data_entry_field_update)
     workflow.add_node("ask_for_output_kind", ask_for_output_kind)
 
-    workflow.add_node("execute_requested_tool", execute_requested_tool)
+    workflow.add_node("execute_chart_tool", execute_chart_tool)
+    workflow.add_node("execute_excel_export", execute_excel_export)
 
     workflow.add_edge(START, "classify_intent")
     workflow.add_conditional_edges(
@@ -55,7 +56,8 @@ def build_graph() -> Any:
             "try_resolve_data_entry_fields": "try_resolve_data_entry_fields",
             "ask_for_data_entry_field_update": "ask_for_data_entry_field_update",
             "ask_for_output_kind": "ask_for_output_kind",
-            "execute_requested_tool": "execute_requested_tool",
+            "execute_chart_tool": "execute_chart_tool",
+            "execute_excel_export": "execute_excel_export",
         }
     )
 
@@ -66,10 +68,11 @@ def build_graph() -> Any:
     workflow.add_edge("ask_for_station", END)
     workflow.add_edge("ask_for_output_kind", END)
     workflow.add_edge("ask_for_data_entry_field_update", END)
-    workflow.add_edge("execute_requested_tool", END)
+    workflow.add_edge("execute_chart_tool", END)
+    workflow.add_edge("execute_excel_export", END)
 
-    # checkpointer = InMemorySaver()
-    return workflow.compile()
+    checkpointer = InMemorySaver()
+    return workflow.compile(checkpointer=checkpointer)
 
 def graph():
     return build_graph()

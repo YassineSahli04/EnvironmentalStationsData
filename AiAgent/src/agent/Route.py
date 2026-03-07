@@ -25,7 +25,7 @@ def route_after_classify(state: State) -> Literal['call_model', 'ask_for_station
     
     return 'call_model'
 
-def route_after_validation(state: State) -> Literal['try_resolve_data_entry_fields', 'ask_for_data_entry_field_update', 'ask_for_output_kind', 'execute_requested_tool']:
+def route_after_validation(state: State) -> Literal['try_resolve_data_entry_fields', 'ask_for_data_entry_field_update', 'ask_for_output_kind', 'execute_chart_tool', 'execute_excel_export']:
     validation_state = state.get('data_validation_status')
     is_data_entry_first_pass = True if state.get("is_data_entry_first_pass") else False 
 
@@ -33,7 +33,9 @@ def route_after_validation(state: State) -> Literal['try_resolve_data_entry_fiel
         output_kind = state.get("output_kind")
         if output_kind not in OUTPUT_TYPE:
             return "ask_for_output_kind"
-        return "execute_requested_tool"
+        if str(output_kind).strip().lower() == "excel":
+            return "execute_excel_export"
+        return "execute_chart_tool"
 
     elif is_data_entry_first_pass and validation_state == VerifState.RequestModel.value :
         return "try_resolve_data_entry_fields"    
