@@ -213,4 +213,4 @@ STATION_TOOLS = [get_available_stations, set_station]
 ALL_TOOLS = STATION_TOOLS  + [prepare_data_request]
 
 REQUEST_TOOL_NAMES = {"prepare_data_request"}
-OUTPUT_TYPE = ["chart", "table", "data"]
+OUTPUT_TYPE = ["chart", "excel"]

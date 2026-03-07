@@ -2,5 +2,10 @@
   "acuvity-mcp-server-chart": {
     "url": "http://host.docker.internal:8000/mcp",
     "transport": "streamable_http"
+  },
+  "excel-csv": {
+    "transport": "stdio",
+    "command": "npx",
+    "args": ["-y", "excel-csv-mcp-server"]
   }
 }

@@ -101,12 +101,14 @@ services:
       - "5678:5678"
     volumes:
       - ./AiAgent:/app/AiAgent
+      - ./AiAgent/output:/app/AiAgent/output
       - ai_agent_venv:/app/AiAgent/.venv
       - ./Secrets/openAi_key:/run/secrets/openAi_key:ro
     environment:
       - OPENAI_KEY_PATH=/run/secrets/openAi_key
       - USE_OPENAI=true
       - BACKEND_URL=http://api:8000
+      - EXPORT_DIR=/app/AiAgent/output
     command: uv run python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m agent.Agent
 
 volumes:

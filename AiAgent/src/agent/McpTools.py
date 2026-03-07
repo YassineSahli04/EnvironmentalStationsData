@@ -15,11 +15,11 @@ async def load_mcp_tools(config_path: str | Path):
     tools = await _MCP_CLIENT.get_tools()
     return tools
 
-ANTV_TOOLS = []
+MCP_TOOLS = []
 async def init_tool():
-    global ANTV_TOOLS
+    global MCP_TOOLS
     config_path = "mcp.servers.json"
-    ANTV_TOOLS = await load_mcp_tools(config_path)
+    MCP_TOOLS = await load_mcp_tools(config_path)
 
 asyncio.run(init_tool())
 

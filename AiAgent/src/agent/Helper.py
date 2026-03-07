@@ -2,8 +2,8 @@ from langchain_core.messages import HumanMessage
 
 from agent.State import State, TimeRange
 
-from typing import List, Optional
-from datetime import datetime
+from typing import Any, List, Optional
+from datetime import date, datetime, time
 from enum import Enum
 import json
 import ast
@@ -136,3 +136,45 @@ def _parse_tool_content(content):
             except Exception:
                 return {"_raw": s}
     return {"_raw": str(content)}
+
+def transform_timeseries_to_excel_payload(
+    rows: list[dict[str, Any]],
+    file_path: str,
+    sheet: str = "Data",
+    time_key: str = "time",
+    values_key: str = "values",
+) -> dict[str, Any]:
+    def _cell(value: Any) -> Any:
+        if value is None:
+            return ""
+        if isinstance(value, (datetime, date, time)):
+            return value.isoformat()
+        if isinstance(value, (str, int, float, bool)):
+            return value
+        try:
+            return json.dumps(value, ensure_ascii=False)
+        except TypeError:
+            return str(value)
+
+    if not isinstance(rows, list) or not rows:
+        return {
+            "filePath": file_path,
+            "sheet": sheet,
+            "headers": [],
+            "data": [],
+        }
+    
+    headers = [time_key] + list(rows[0][values_key].keys())
+
+    formatted_rows = []
+    for row in rows:
+        values = row.get(values_key, {})
+        row_values = [_cell(row.get(time_key))] + [_cell(values.get(k)) for k in headers[1:]]
+        formatted_rows.append(row_values)
+
+    return {
+        "filePath": file_path,
+        "sheet": sheet,
+        "headers": headers,
+        "data": formatted_rows,
+    }

@@ -1,18 +1,20 @@
 from datetime import datetime
 import asyncio
 import json
-from typing import Dict, List
+import os
+from pathlib import Path
+from typing import Any, Dict, List
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage, HumanMessage
 from langgraph.prebuilt import ToolNode
 
-from agent.McpTools import ANTV_TOOLS
+from agent.McpTools import MCP_TOOLS
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS, get_station_data
-from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, _get_last_user_message_text, _has_request_model_issue, _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected
+from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, _get_last_user_message_text, _has_request_model_issue, _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected, transform_timeseries_to_excel_payload
 
-tool_node = ToolNode(ALL_TOOLS + ANTV_TOOLS)
+tool_node = ToolNode(ALL_TOOLS + MCP_TOOLS)
 model = Model.build_default_model()
 
 SYSTEM = """
@@ -69,7 +71,7 @@ def call_model(state:State) -> Dict[str, List[BaseMessage]]:
     is_data_request = bool(state.get("is_data_request"))
 
     if station_id and station_meta and is_data_request:
-        model_with_tools = model.bind_tools(STATION_TOOLS + ANTV_TOOLS)
+        model_with_tools = model.bind_tools(STATION_TOOLS + MCP_TOOLS)
     else:
         model_with_tools = model.bind_tools(STATION_TOOLS)
 
@@ -158,12 +160,13 @@ def extract_data_request(state: State) -> State:
         "4. extracted_output_kind:\n"
         "Write the result into the field named extracted_output_kind.\n"
         "Extract this only if the user explicitly asks for a presentation format.\n"
-        "Examples: chart, graph, plot, table.\n"
+        "Examples: chart, graph, plot, table, excel.\n"
         "If the user asks only to check or view data without naming a format, return null.\n"
         "\n"
         "Important examples:\n"
         "- 'I want to check the temp data' -> extracted_variables_selected=['temperature']; extracted_dataGroup=null; extracted_start=null; extracted_end=null; extracted_output_kind=null.\n"
         "- 'Show me a humidity chart for last week' -> extracted_variables_selected=['humidity']; extracted_dataGroup=null; extracted_start='last week'; extracted_end=null; extracted_output_kind='chart'.\n"
+        "- 'Export the result to excel' -> extracted_variables_selected=null; extracted_dataGroup=null; extracted_start=null; extracted_end=null; extracted_output_kind='excel'.\n"
         "- 'Show daily temperature data from last week to today' -> extracted_variables_selected=['temperature']; extracted_dataGroup='daily'; extracted_start='last week'; extracted_end='today'; extracted_output_kind=null.\n"
         "- 'Give me weekly rainfall data from 2026-02-01 to 2026-02-07' -> extracted_variables_selected=['rainfall']; extracted_dataGroup='weekly'; extracted_start='2026-02-01'; extracted_end='2026-02-07'; extracted_output_kind=null.\n"
         "\n"
@@ -417,7 +420,7 @@ def ask_for_data_entry_field_update(state: State) -> State:
 def ask_for_output_kind(state: State) -> State:
     options = ", ".join(OUTPUT_TYPE)
     message = (
-        "Pick how you want to visualize the data. "
+        "Pick how you want the output. "
         f"Choose one of: {options}."
     )
 
@@ -426,7 +429,8 @@ def ask_for_output_kind(state: State) -> State:
     )
     return state
 
-async def execute_requested_tool(state: State) -> State:
+
+async def execute_excel_export(state: State) -> State:
     station_id = state.get('station_id')
     sensors = state.get('variables_selected')
     dataGroup = state.get('dataGroup')
@@ -438,7 +442,63 @@ async def execute_requested_tool(state: State) -> State:
             get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
         )
 
-    if not ANTV_TOOLS:
+    default_export_dir = Path(__file__).resolve().parents[2] / "output"
+    export_dir = Path(os.getenv("EXPORT_DIR", str(default_export_dir)))
+    export_dir.mkdir(parents=True, exist_ok=True)
+    output_path = str(export_dir / "out.xlsx")
+    sheet_name = "Data"
+
+    payload = transform_timeseries_to_excel_payload(
+        rows=station_data, # type: ignore
+        file_path=output_path,
+        sheet=sheet_name,
+    )
+
+    write_tool = next(
+        (
+            tool
+            for tool in MCP_TOOLS
+            if str(getattr(tool, "name", "")).strip() == "write_file"
+            or str(getattr(tool, "name", "")).strip().endswith("write_file")
+        ),
+        None,
+    )
+    if write_tool is None:
+        return {
+            "export_status": "failed",
+            "exported_file_path": None,
+            "messages": [AIMessage(content="Excel export failed because the MCP write tool is not available.")],
+        } # type: ignore
+
+    try:
+        await write_tool.ainvoke(payload) # type: ignore[arg-type]
+    except Exception as exc:
+        return {
+            "export_status": "failed",
+            "exported_file_path": None,
+            "messages": [AIMessage(content=f"Excel export failed: {str(exc)}")],
+        } # type: ignore
+
+    return {
+        "output_kind": None,
+        "export_status": "success",
+        "exported_file_path": output_path,
+        "messages": [AIMessage(content=f"Excel export created at '{output_path}' on sheet '{sheet_name}'.")],
+    } # type: ignore
+
+async def execute_chart_tool(state: State) -> State:
+    station_id = state.get('station_id')
+    sensors = state.get('variables_selected')
+    dataGroup = state.get('dataGroup')
+    time_range = state.get('time_range')
+
+    station_data = []
+    if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
+        station_data = await asyncio.to_thread(
+            get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
+        )
+
+    if not MCP_TOOLS:
         return {
             "station_data": station_data,
             "messages": [AIMessage(content="No MCP tools are available right now.")],
@@ -454,7 +514,7 @@ async def execute_requested_tool(state: State) -> State:
         "rows": station_data,
     }
 
-    model_with_mcp = model.bind_tools(ANTV_TOOLS)
+    model_with_mcp = model.bind_tools(MCP_TOOLS)
     ai = await model_with_mcp.ainvoke([
         SystemMessage(content=(
             "You are a data-visualization planner for meteorological data. "
@@ -481,7 +541,7 @@ async def execute_requested_tool(state: State) -> State:
         HumanMessage(content=json.dumps(payload)),
     ])
 
-    result = await ToolNode(ANTV_TOOLS).ainvoke({"messages": [ai]})
+    result = await ToolNode(MCP_TOOLS).ainvoke({"messages": [ai]})
     tool_messages = [m for m in result.get("messages", []) if isinstance(m, ToolMessage)]
     if tool_messages:
         last_tool = tool_messages[-1]
