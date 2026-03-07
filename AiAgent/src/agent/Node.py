@@ -457,8 +457,26 @@ async def execute_requested_tool(state: State) -> State:
     model_with_mcp = model.bind_tools(ANTV_TOOLS)
     ai = await model_with_mcp.ainvoke([
         SystemMessage(content=(
-            "You must call exactly one MCP visualization tool. "
-            "Use only the provided payload. Do not invent fields."
+            "You are a data-visualization planner for meteorological data. "
+            "Call exactly one MCP visualization tool and use only fields from the provided payload. "
+            "Do not invent fields or values.\n"
+            "\n"
+            "Chart quality requirements:\n"
+            "- Prefer a clean, minimal chart with high readability.\n"
+            "- Keep titles concise and informative.\n"
+            "- Format numeric values to 1-2 decimals max.\n"
+            "- Avoid dense value labels on every point; show labels only when necessary.\n"
+            "- Use a subtle grid and strong contrast for the main series.\n"
+            "- Keep axis labels short and human-friendly.\n"
+            "- Avoid overlapping text and clutter.\n"
+            "- If dates are dense, reduce x-axis tick density for readability.\n"
+            "- Use a neutral background and a professional palette.\n"
+            "\n"
+            "Output target:\n"
+            "- If output_kind is chart, generate a clean line chart optimized for readability.\n"
+            "- If output_kind is table or data, choose the matching visualization/tool behavior.\n"
+            "\n"
+            "Return a tool call only."
         )),
         HumanMessage(content=json.dumps(payload)),
     ])
@@ -467,9 +485,18 @@ async def execute_requested_tool(state: State) -> State:
     tool_messages = [m for m in result.get("messages", []) if isinstance(m, ToolMessage)]
     if tool_messages:
         last_tool = tool_messages[-1]
+        is_chart_output = str(state.get("output_kind") or "").strip().lower() == "chart"
+        chart_reset = {
+            "time_range": None,
+            "variables_selected": None,
+            "dataGroup": None,
+            "output_kind": None,
+            "station_data": None,
+        } if is_chart_output else {"station_data": station_data}
+
         return {
-            "station_data": station_data,
-            "messages": [ai, last_tool, AIMessage(content=f"Visualization generated with tool '{last_tool.name}'.")],
+            **chart_reset,
+            "messages": [ai, last_tool, AIMessage(content=f"Visualization generated with tool '{last_tool.text}'.")],
         } # type: ignore
 
     return {

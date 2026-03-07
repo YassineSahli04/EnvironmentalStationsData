@@ -1,6 +1,6 @@
 {
-  "antv": {
-    "url": "http://localhost:1123/sse",
-    "transport": "sse"
+  "acuvity-mcp-server-chart": {
+    "url": "http://host.docker.internal:8000/mcp",
+    "transport": "streamable_http"
   }
 }

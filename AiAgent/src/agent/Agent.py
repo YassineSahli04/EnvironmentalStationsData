@@ -2,6 +2,7 @@ from agent.Graph import build_graph
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 import os
+import asyncio
 
 class Agent():
     def __init__(self, isOpenAi = False):
@@ -11,16 +12,16 @@ class Agent():
         config: RunnableConfig = {"configurable": {"thread_id": 'TestId'}}
         self.config = config
 
-    def initializeChat(self):
+    async def initializeChat(self):
         print(f"Bot:  Hi, Which station do you want to analyse?")
         single_prompt = (os.getenv("AGENT_PROMPT") or "").strip()
         if single_prompt:
-            self._handle_user_message(single_prompt)
+            await self._handle_user_message(single_prompt)
             return
 
         while(True):
             try:
-                userMessage = input("User: ").strip()
+                userMessage = (await asyncio.to_thread(input, "User: ")).strip()
             except EOFError:
                 print("Bot: No interactive stdin detected. Set AGENT_PROMPT to run one request or start the container with stdin attached.")
                 return
@@ -30,13 +31,13 @@ class Agent():
             if userMessage.lower() == "exit":
                 break
 
-            self._handle_user_message(userMessage)
+            await self._handle_user_message(userMessage)
 
-    def _handle_user_message(self, userMessage: str):
+    async def _handle_user_message(self, userMessage: str):
         print(f"User: {userMessage}")
 
         print("\n--- Agent Steps ---")
-        for step in self.graph.stream(
+        async for step in self.graph.astream(
             {"messages": [HumanMessage(content=userMessage)]},
             config=self.config,
             stream_mode="updates",
@@ -89,4 +90,4 @@ class Agent():
 if __name__ == "__main__":
     use_openai = os.getenv("USE_OPENAI", "true").lower() == "true"
     agent = Agent(isOpenAi=use_openai)
-    agent.initializeChat()
+    asyncio.run(agent.initializeChat())
