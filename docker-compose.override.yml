@@ -104,12 +104,30 @@ services:
       - ./AiAgent/output:/app/AiAgent/output
       - ai_agent_venv:/app/AiAgent/.venv
       - ./Secrets/openAi_key:/run/secrets/openAi_key:ro
+      - ./Secrets/langfuse_pk:/run/secrets/angfuse_pk:ro
+      - ./Secrets/langfuse_sk:/run/secrets/angfuse_sk:ro
     environment:
       - OPENAI_KEY_PATH=/run/secrets/openAi_key
       - USE_OPENAI=true
       - BACKEND_URL=http://api:8000
       - EXPORT_DIR=/app/AiAgent/output
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-http://host.docker.internal:3000}
+      - LANGFUSE_PUBLIC_KEY_PATH=/run/secrets/angfuse_pk
+      - LANGFUSE_SECRET_KEY_PATH=/run/secrets/angfuse_sk
+    command: uv run python -m agent.Agent
+
+  ai-agent-debug:
+    extends: ai-agent
+    profiles: ["debug"]
+    ports:
+      - "5678:5678"
     command: uv run python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m agent.Agent
+
+  mcp-server-chart:
+    image: docker.io/acuvity/mcp-server-chart:0.9.7
+    ports:
+      - "8000:8000"
+    read_only: true
 
 volumes:
   vite_node_modules:
