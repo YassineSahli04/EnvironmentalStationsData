@@ -51,7 +51,7 @@ def _extract_available_sensors(stationMetadata : dict) -> list[str]:
 
     return sorted(set(availableSensors))
 
-def _verify_variables_selected(variables_selected: List[str] | None, stationMetadata : dict) -> tuple[VerifState, str | None]:
+def verify_variables_selected(variables_selected: List[str] | None, stationMetadata : dict) -> tuple[VerifState, str | None]:
     if not variables_selected:
         return VerifState.Failed, 'No variables are selected.'
     
@@ -78,7 +78,7 @@ def _verify_variables_selected(variables_selected: List[str] | None, stationMeta
 
     return VerifState.Passed, None
 
-def _verify_timerange_entry(time_range: TimeRange | None) -> tuple[VerifState, str | None]:
+def verify_timerange_entry(time_range: TimeRange | None) -> tuple[VerifState, str | None]:
     if time_range is None:
         return VerifState.Failed, "time range is None"
 
@@ -96,7 +96,7 @@ def _verify_timerange_entry(time_range: TimeRange | None) -> tuple[VerifState, s
 
     return VerifState.Passed, None
 
-def _verify_datagroup_entry(dataGroup: str | None) -> tuple[VerifState, str | None]:
+def verify_datagroup_entry(dataGroup: str | None) -> tuple[VerifState, str | None]:
     if dataGroup is None or not str(dataGroup).strip():
         return (VerifState.Failed, "dataGroup is missing. Allowed: hourly/daily/weekly/monthly (or hour/day/week/month).")
 
@@ -106,13 +106,13 @@ def _verify_datagroup_entry(dataGroup: str | None) -> tuple[VerifState, str | No
     except ValueError as e:
         return (VerifState.RequestModel, str(e))
 
-def _has_request_model_issue(issues: list[dict], field_name: str) -> bool:
+def has_request_model_issue(issues: list[dict], field_name: str) -> bool:
     for issue in issues:
         if isinstance(issue, dict) and issue.get("field") == field_name:
             return True
     return False
 
-def _get_last_user_message_text(state: State) -> Optional[str]:
+def get_last_user_message_text(state: State) -> Optional[str]:
     for msg in reversed(state["messages"]):
         if isinstance(msg, HumanMessage):
             content = getattr(msg, "content", None)
@@ -120,7 +120,7 @@ def _get_last_user_message_text(state: State) -> Optional[str]:
                 return content.strip()
     return None
 
-def _parse_tool_content(content):
+def parse_tool_content(content):
     if isinstance(content, dict):
         return content
     if isinstance(content, str):

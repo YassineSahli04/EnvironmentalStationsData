@@ -37,7 +37,7 @@ def _build_langfuse_handler() -> CallbackHandler | None:
         Langfuse(public_key=langfuse_pk, secret_key=langfuse_sk)
 
     langfuse = get_client()
- 
+
     # Verify connection
     if langfuse.auth_check():
         print("Langfuse client is authenticated and ready!")
@@ -46,7 +46,6 @@ def _build_langfuse_handler() -> CallbackHandler | None:
     
     print(f"[langfuse] enabled (host={host or 'default'})")
     return CallbackHandler(public_key=langfuse_pk)
-
 
 def build_graph() -> Any:
     workflow = StateGraph(State)
