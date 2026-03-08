@@ -19,6 +19,7 @@ dependencies = [
     "langchain-mcp-adapters>=0.2.1",
     "mcp>=1.26.0",
     "asyncio>=4.0.0",
+    "langfuse>=3.14.5",
 ]
 
 

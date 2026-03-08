@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.prebuilt import ToolNode
 
 from agent.McpTools import MCP_TOOLS
@@ -27,7 +28,7 @@ SYSTEM = """
     3) Never invent station IDs or data; only use tool results.
 """
 
-def classify_intent(state: State) -> Dict[str, bool]:
+def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[str, bool]:
     last_msg = _get_last_user_message_text(state)
 
     if not last_msg:
@@ -60,12 +61,13 @@ def classify_intent(state: State) -> Dict[str, bool]:
         [
             SystemMessage(content=prompt),
             HumanMessage(content=last_msg),
-        ]
+        ],
+        config=config,
     )
 
     return {"is_data_request": result.is_data_request} # type: ignore
 
-def call_model(state:State) -> Dict[str, List[BaseMessage]]:
+def call_model(state:State, config: RunnableConfig | None = None) -> Dict[str, List[BaseMessage]]:
     station_id = state.get("station_id")
     station_meta = state.get('station_meta')
     is_data_request = bool(state.get("is_data_request"))
@@ -79,12 +81,13 @@ def call_model(state:State) -> Dict[str, List[BaseMessage]]:
         CURRENT STATION LOCKED: {station_id or "NONE"}"""
 
     response = model_with_tools.invoke(
-        [SystemMessage(content=prompt)] + state["messages"]
+        [SystemMessage(content=prompt)] + state["messages"],
+        config=config,
     )
     return {"messages": [response]}
 
-def execute_tools(state: State) -> State:
-    result = tool_node.invoke(state)
+def execute_tools(state: State, config: RunnableConfig | None = None) -> State:
+    result = tool_node.invoke(state, config=config)
 
     for m in reversed(result["messages"]):
         if isinstance(m, ToolMessage) and m.name == 'set_station':
@@ -102,7 +105,7 @@ def ask_for_station(state: State) -> State:
     )
     return state
 
-def extract_data_request(state: State) -> State:
+def extract_data_request(state: State, config: RunnableConfig | None = None) -> State:
     last_msg = _get_last_user_message_text(state)
     if not last_msg:
         return {} # type: ignore
@@ -177,7 +180,8 @@ def extract_data_request(state: State) -> State:
         [
             SystemMessage(content=prompt),
             HumanMessage(content=last_msg),
-        ]
+        ],
+        config=config,
     )
 
     updates: dict = {}
@@ -278,7 +282,7 @@ def validate_fields(state: State) -> dict:
     })
     return updates
 
-def try_resolve_data_entry_fields(state: State) -> dict:
+def try_resolve_data_entry_fields(state: State, config: RunnableConfig | None = None) -> dict:
     issues = state.get("data_validation_issues") or []
     if not any(_has_request_model_issue(issues, field) for field in ("variables_selected", "dataGroup")):
         return {}
@@ -313,7 +317,8 @@ def try_resolve_data_entry_fields(state: State) -> dict:
         [
             SystemMessage(content=resolver_prompt),
             HumanMessage(content=json.dumps(payload)),
-        ]
+        ],
+        config=config,
     )
     model_data = _parse_tool_content(getattr(response, "content", ""))
 
@@ -334,7 +339,7 @@ def try_resolve_data_entry_fields(state: State) -> dict:
 
     return updates
     
-def try_resolve_time_range(state: State) -> dict:
+def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -> dict:
     issues = state.get("data_validation_issues") or []
     if not _has_request_model_issue(issues, "time_range"):
         return {}
@@ -362,7 +367,8 @@ def try_resolve_time_range(state: State) -> dict:
         [
             SystemMessage(content=resolver_prompt),
             HumanMessage(content=json.dumps(payload)),
-        ]
+        ],
+        config=config,
     )
 
     model_data = _parse_tool_content(getattr(response, "content", ""))
@@ -430,7 +436,7 @@ def ask_for_output_kind(state: State) -> State:
     return state
 
 
-async def execute_excel_export(state: State) -> State:
+async def execute_excel_export(state: State, config: RunnableConfig | None = None) -> State:
     station_id = state.get('station_id')
     sensors = state.get('variables_selected')
     dataGroup = state.get('dataGroup')
@@ -471,7 +477,7 @@ async def execute_excel_export(state: State) -> State:
         } # type: ignore
 
     try:
-        await write_tool.ainvoke(payload) # type: ignore[arg-type]
+        await write_tool.ainvoke(payload, config=config) # type: ignore[arg-type]
     except Exception as exc:
         return {
             "export_status": "failed",
@@ -486,7 +492,7 @@ async def execute_excel_export(state: State) -> State:
         "messages": [AIMessage(content=f"Excel export created at '{output_path}' on sheet '{sheet_name}'.")],
     } # type: ignore
 
-async def execute_chart_tool(state: State) -> State:
+async def execute_chart_tool(state: State, config: RunnableConfig | None = None) -> State:
     station_id = state.get('station_id')
     sensors = state.get('variables_selected')
     dataGroup = state.get('dataGroup')
@@ -539,9 +545,9 @@ async def execute_chart_tool(state: State) -> State:
             "Return a tool call only."
         )),
         HumanMessage(content=json.dumps(payload)),
-    ])
+    ], config=config)
 
-    result = await ToolNode(MCP_TOOLS).ainvoke({"messages": [ai]})
+    result = await ToolNode(MCP_TOOLS).ainvoke({"messages": [ai]}, config=config)
     tool_messages = [m for m in result.get("messages", []) if isinstance(m, ToolMessage)]
     if tool_messages:
         last_tool = tool_messages[-1]

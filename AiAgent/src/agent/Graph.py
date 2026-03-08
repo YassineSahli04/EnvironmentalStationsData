@@ -1,15 +1,51 @@
-from langgraph.graph import END, START, StateGraph
-from langgraph.checkpoint.memory import InMemorySaver
-
+import os
 from typing import Any
 
-
-
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, END, START
+from langfuse import Langfuse, get_client
 
 from agent.Route import route_after_validation, route_after_classify, route_after_model
 from agent.Node import ask_for_data_entry_field_update, ask_for_output_kind, ask_for_station, call_model, classify_intent, execute_chart_tool, execute_excel_export, execute_tools, extract_data_request, try_resolve_data_entry_fields, validate_fields, try_resolve_time_range
 from agent.State import State
+from langfuse.langchain import CallbackHandler
+
+
+def _build_langfuse_handler() -> CallbackHandler | None:
+    langfuse_pk_path = (os.getenv("LANGFUSE_PUBLIC_KEY_PATH") or "").strip()
+    langfuse_sk_path = (os.getenv("LANGFUSE_SECRET_KEY_PATH") or "").strip()
+    host = (os.getenv("LANGFUSE_HOST") or "").strip()
+
+    if not langfuse_pk_path or not langfuse_sk_path:
+        print("[langfuse] disabled: LANGFUSE_PUBLIC_KEY_PATH and LANGFUSE_SECRET_KEY_PATH are required.")
+        return None
+
+    with open(langfuse_pk_path, "r", encoding="utf-8") as f:
+        langfuse_pk = f.read().strip()
+    with open(langfuse_sk_path, "r", encoding="utf-8") as f:
+        langfuse_sk = f.read().strip()
+
+    if not langfuse_pk or not langfuse_sk:
+        print("[langfuse] disabled: Langfuse keys are empty.")
+        return None
+
+    # In langfuse>=3, credentials belong to Langfuse client init.
+    # CallbackHandler only accepts public_key for selecting the active client.
+    if host:
+        Langfuse(public_key=langfuse_pk, secret_key=langfuse_sk, host=host)
+    else:
+        Langfuse(public_key=langfuse_pk, secret_key=langfuse_sk)
+
+    langfuse = get_client()
+ 
+    # Verify connection
+    if langfuse.auth_check():
+        print("Langfuse client is authenticated and ready!")
+    else:
+        print("Authentication failed. Please check your credentials and host.")
+    
+    print(f"[langfuse] enabled (host={host or 'default'})")
+    return CallbackHandler(public_key=langfuse_pk)
 
 
 def build_graph() -> Any:
@@ -72,7 +108,13 @@ def build_graph() -> Any:
     workflow.add_edge("execute_excel_export", END)
 
     checkpointer = InMemorySaver()
-    return workflow.compile(checkpointer=checkpointer)
+    graph = workflow.compile(checkpointer=checkpointer)
+
+    langfuse_handler = _build_langfuse_handler()
+    if langfuse_handler:
+        graph = graph.with_config({"callbacks": [langfuse_handler]})
+
+    return graph
 
 def graph():
     return build_graph()
