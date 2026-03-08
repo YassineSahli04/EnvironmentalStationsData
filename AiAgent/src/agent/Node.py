@@ -13,7 +13,7 @@ from agent.McpTools import MCP_TOOLS
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS, get_station_data
-from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, _get_last_user_message_text, _has_request_model_issue, _parse_tool_content, _verify_datagroup_entry, _verify_timerange_entry, _verify_variables_selected, transform_timeseries_to_excel_payload
+from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_message_text, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload
 
 tool_node = ToolNode(ALL_TOOLS + MCP_TOOLS)
 model = Model.build_default_model()
@@ -29,7 +29,7 @@ SYSTEM = """
 """
 
 def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[str, bool]:
-    last_msg = _get_last_user_message_text(state)
+    last_msg = get_last_user_message_text(state)
 
     if not last_msg:
         return {"is_data_request": False}
@@ -91,7 +91,7 @@ def execute_tools(state: State, config: RunnableConfig | None = None) -> State:
 
     for m in reversed(result["messages"]):
         if isinstance(m, ToolMessage) and m.name == 'set_station':
-            payload = _parse_tool_content(m.content)
+            payload = parse_tool_content(m.content)
             station_id = payload.get("Id")
             
             result["station_id"] = str(station_id) if station_id is not None else None  # type: ignore
@@ -106,7 +106,7 @@ def ask_for_station(state: State) -> State:
     return state
 
 def extract_data_request(state: State, config: RunnableConfig | None = None) -> State:
-    last_msg = _get_last_user_message_text(state)
+    last_msg = get_last_user_message_text(state)
     if not last_msg:
         return {} # type: ignore
 
@@ -225,9 +225,9 @@ def validate_fields(state: State) -> dict:
     effective_dataGroup = state.get("dataGroup") or state.get("extracted_dataGroup")
     metadata = state.get("station_meta") or {}
 
-    vars_verif, vars_mess = _verify_variables_selected(effective_variables_selected, metadata)
-    time_verif, time_mess = _verify_timerange_entry(TimeRange(extracted_start_time, extracted_end_time))
-    datagroup_verif, dataGroup_mess = _verify_datagroup_entry(effective_dataGroup)
+    vars_verif, vars_mess = verify_variables_selected(effective_variables_selected, metadata)
+    time_verif, time_mess = verify_timerange_entry(TimeRange(extracted_start_time, extracted_end_time))
+    datagroup_verif, dataGroup_mess = verify_datagroup_entry(effective_dataGroup)
 
     updates: dict = {}
     updates["time_range"] = TimeRange(extracted_start_time, extracted_end_time)
@@ -284,7 +284,7 @@ def validate_fields(state: State) -> dict:
 
 def try_resolve_data_entry_fields(state: State, config: RunnableConfig | None = None) -> dict:
     issues = state.get("data_validation_issues") or []
-    if not any(_has_request_model_issue(issues, field) for field in ("variables_selected", "dataGroup")):
+    if not any(has_request_model_issue(issues, field) for field in ("variables_selected", "dataGroup")):
         return {}
     
     metadata = state.get("station_meta") or {}
@@ -320,7 +320,7 @@ def try_resolve_data_entry_fields(state: State, config: RunnableConfig | None = 
         ],
         config=config,
     )
-    model_data = _parse_tool_content(getattr(response, "content", ""))
+    model_data = parse_tool_content(getattr(response, "content", ""))
 
     updates: dict = {"data_entry_model_resolve_attempted": True}
 
@@ -341,7 +341,7 @@ def try_resolve_data_entry_fields(state: State, config: RunnableConfig | None = 
     
 def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -> dict:
     issues = state.get("data_validation_issues") or []
-    if not _has_request_model_issue(issues, "time_range"):
+    if not has_request_model_issue(issues, "time_range"):
         return {}
     current_range = state.get("time_range")
 
@@ -371,7 +371,7 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
         config=config,
     )
 
-    model_data = _parse_tool_content(getattr(response, "content", ""))
+    model_data = parse_tool_content(getattr(response, "content", ""))
     updates: dict = {}
 
     candidate_range = model_data.get("time_range") if isinstance(model_data, dict) else None
