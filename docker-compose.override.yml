@@ -53,6 +53,8 @@ services:
       - ./Scripts:/scripts:ro
     entrypoint: ["/bin/bash", "/scripts/restore_db.sh"]
   api:
+    depends_on:
+      - db
     build:
       context: ./BackEnd
       dockerfile: Dockerfile.dev
@@ -72,6 +74,8 @@ services:
       - WATCHFILES_FORCE_POLLING=true
 
   backend-dev:
+    depends_on:
+      - db
     build:
       context: ./BackEnd
       dockerfile: Dockerfile.dev
@@ -92,6 +96,10 @@ services:
       - REDIS_URL=redis://redis:6379/0
 
   ai-agent:
+    depends_on:
+      - mcp-server-chart
+      - api
+    profiles: ["agent"]
     build:
       context: ./AiAgent
       dockerfile: Dockerfile
