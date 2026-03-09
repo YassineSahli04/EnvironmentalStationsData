@@ -1,11 +1,16 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from agent.Graph import build_graph
+from agent.McpTools import init_tool
 
 app = FastAPI()
 graph = build_graph()
+
+
+@app.on_event("startup")
+async def startup_event():
+    await init_tool()
 
 class ChatRequest(BaseModel):
     message: str

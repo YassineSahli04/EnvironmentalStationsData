@@ -15,7 +15,6 @@ from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS, get_station_data
 from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_message_text, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload
 
-tool_node = ToolNode(ALL_TOOLS + MCP_TOOLS)
 model = Model.build_default_model()
 
 SYSTEM = """
@@ -87,6 +86,7 @@ def call_model(state:State, config: RunnableConfig | None = None) -> Dict[str, L
     return {"messages": [response]}
 
 def execute_tools(state: State, config: RunnableConfig | None = None) -> State:
+    tool_node = ToolNode(ALL_TOOLS + MCP_TOOLS)
     result = tool_node.invoke(state, config=config)
 
     for m in reversed(result["messages"]):

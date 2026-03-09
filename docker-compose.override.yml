@@ -101,7 +101,6 @@ services:
     depends_on:
       - mcp-server-chart
       - api
-    profiles: ["agent"]
     build:
       context: ./AiAgent
       dockerfile: Dockerfile
