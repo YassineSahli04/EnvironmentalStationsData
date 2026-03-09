@@ -3,6 +3,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 import os
 import asyncio
+from agent.McpTools import init_tool
 
 class Agent():
     def __init__(self, isOpenAi = False):
@@ -13,6 +14,7 @@ class Agent():
         self.config = config
 
     async def initializeChat(self):
+        await init_tool()
         print(f"Bot:  Hi, Which station do you want to analyse?")
         single_prompt = (os.getenv("AGENT_PROMPT") or "").strip()
         if single_prompt:
