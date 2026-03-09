@@ -72,6 +72,7 @@ services:
       - C2AIINFO_PATH=/run/secrets/C2aiInfo.json
       - REDIS_URL=redis://redis:6379/0
       - WATCHFILES_FORCE_POLLING=true
+      - AGENT_URL=http://ai-agent:8001
 
   backend-dev:
     depends_on:
@@ -94,6 +95,7 @@ services:
       - DBINFO_PATH=/run/secrets/DbInfo.json
       - C2AIINFO_PATH=/run/secrets/C2aiInfo.json
       - REDIS_URL=redis://redis:6379/0
+      - AGENT_URL=http://ai-agent:8001
 
   ai-agent:
     depends_on:
@@ -103,10 +105,8 @@ services:
     build:
       context: ./AiAgent
       dockerfile: Dockerfile
-    stdin_open: true
-    tty: true
     ports:
-      - "5678:5678"
+      - "8001"
     volumes:
       - ./AiAgent:/app/AiAgent
       - ./AiAgent/output:/app/AiAgent/output
@@ -122,8 +122,14 @@ services:
       - LANGFUSE_HOST=${LANGFUSE_HOST:-http://host.docker.internal:3000}
       - LANGFUSE_PUBLIC_KEY_PATH=/run/secrets/angfuse_pk
       - LANGFUSE_SECRET_KEY_PATH=/run/secrets/angfuse_sk
-    command: uv run python -m agent.Agent
+    command: uv run uvicorn agent.Api:app --host 0.0.0.0 --port 8001
 
+  ai-agent-dev:
+    extends: ai-agent
+    profiles: ["dev"]
+    stdin_open: true
+    tty: true
+    command: uv run python -m agent.Agent
   ai-agent-debug:
     extends: ai-agent
     profiles: ["debug"]

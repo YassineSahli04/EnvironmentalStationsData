@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { Box, Fab, Zoom, useTheme } from "@mui/material";
+import React, { useState, useEffect } from "react";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import { Box, Fab, Zoom, useTheme } from "@mui/material";
+import { agentChat } from "../../Api/AgentApi";
 import { tokens } from "../../theme";
 import AgentChatBox from "./AgentChatBox";
 
@@ -8,6 +9,17 @@ const AgentWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const runAgent = async () => {
+      const result = await agentChat();
+      console.log(result);
+    };
+
+    runAgent();
+  }, [isOpen]);
 
   return (
     <Box

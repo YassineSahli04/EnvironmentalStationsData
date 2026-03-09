@@ -3,6 +3,9 @@ from BackEnd.PostgreSQL.StationDbObject import StationDbObject
 import logging
 import traceback
 from BackEnd.app.db import db
+import os
+from fastapi.responses import StreamingResponse
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -56,3 +59,29 @@ def get_station_for_agent(stationId: int):
             tb_last.name,
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
+    
+@router.post("/chat")
+async def chat(message: str, user_id: str, conv_id: str):
+
+    thread_id = f'{user_id}:{conv_id}'
+    agent_base_url = _get_agent_url()
+    agent_chat_url = f'{agent_base_url}/chat'
+
+    async def stream():
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                agent_chat_url,
+                json={"message": message, "thread_id": thread_id},             
+            ) as response:
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+def _get_agent_url() -> str:
+    agent_url = os.getenv("AGENT_URL")
+    if not agent_url:
+        raise ValueError('The Agent URL value is not defined.')
+    return agent_url
