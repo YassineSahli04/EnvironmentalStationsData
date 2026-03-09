@@ -8,19 +8,13 @@ export async function agentChat() {
     body: JSON.stringify({
       message: "What are the available stations",
       user_id: "testUser",
-      conversation_id: "conv1",
+      conv_id: "conv1",
     }),
   });
-  if (response && response.body) {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      console.log(chunk);
-    }
+  if (!response.ok) {
+    throw new Error(`Agent request failed with status ${response.status}`);
   }
+
+  const data = (await response.json()) as { response?: string };
+  return data.response ?? "";
 }

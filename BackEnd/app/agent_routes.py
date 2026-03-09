@@ -4,8 +4,9 @@ import logging
 import traceback
 from BackEnd.app.db import db
 import os
-from fastapi.responses import StreamingResponse
 import httpx
+import json
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,11 @@ router = APIRouter(
     prefix="/api/agent",
     tags=["agent"],
 )
+
+class AgentChatRequest(BaseModel):
+    message: str
+    user_id: str
+    conv_id: str
 
 
 @router.get("/stations")
@@ -61,23 +67,58 @@ def get_station_for_agent(stationId: int):
         raise HTTPException(status_code=500, detail="Internal Server Error")
     
 @router.post("/chat")
-async def chat(message: str, user_id: str, conv_id: str):
-
-    thread_id = f'{user_id}:{conv_id}'
+async def chat(req: AgentChatRequest):
+    thread_id = f"{req.user_id}:{req.conv_id}"
     agent_base_url = _get_agent_url()
-    agent_chat_url = f'{agent_base_url}/chat'
+    agent_chat_url = f"{agent_base_url}/chat"
 
-    async def stream():
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                agent_chat_url,
-                json={"message": message, "thread_id": thread_id},             
-            ) as response:
-                async for chunk in response.aiter_bytes():
-                    yield chunk
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            agent_chat_url,
+            json={"message": req.message, "thread_id": thread_id},
+        )
 
-    return StreamingResponse(stream(), media_type="text/event-stream")
+    response.raise_for_status()
+    try:
+        return response.json()
+    except ValueError:
+        # Backward-compatible fallback if ai-agent still serves SSE.
+        raw = response.text or ""
+        delta_parts: list[str] = []
+        last_assistant: str | None = None
+
+        for line in raw.splitlines():
+            if not line.startswith("data:"):
+                continue
+
+            payload = line[5:].strip()
+            if not payload:
+                continue
+
+            try:
+                event = json.loads(payload)
+            except ValueError:
+                continue
+
+            if not isinstance(event, dict):
+                continue
+
+            evt_type = event.get("type")
+            content = event.get("content")
+            if not isinstance(content, str) or not content.strip():
+                continue
+
+            if evt_type == "assistant":
+                last_assistant = content
+            elif evt_type == "assistant_delta":
+                delta_parts.append(content)
+
+        if delta_parts:
+            return {"response": "".join(delta_parts)}
+        if last_assistant:
+            return {"response": last_assistant}
+
+        raise HTTPException(status_code=502, detail="Agent returned a non-JSON response.")
 
 
 def _get_agent_url() -> str:
