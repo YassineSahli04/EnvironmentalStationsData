@@ -69,16 +69,40 @@ def get_station_for_agent(stationId: int):
 @router.post("/chat")
 async def chat(req: AgentChatRequest):
     thread_id = f"{req.user_id}:{req.conv_id}"
-    agent_base_url = _get_agent_url()
+    try:
+        agent_base_url = _get_agent_url()
+    except ValueError as exc:
+        logger.error("%s", exc)
+        raise HTTPException(status_code=500, detail="Agent service is not configured.") from exc
+
     agent_chat_url = f"{agent_base_url}/chat"
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            agent_chat_url,
-            json={"message": req.message, "thread_id": thread_id},
-        )
+    timeout = httpx.Timeout(connect=5.0, read=120.0, write=15.0, pool=5.0)
 
-    response.raise_for_status()
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                agent_chat_url,
+                json={"message": req.message, "thread_id": thread_id},
+            )
+        response.raise_for_status()
+    except httpx.ReadTimeout as exc:
+        logger.warning("Agent request timed out for thread %s", thread_id)
+        raise HTTPException(status_code=504, detail="Agent request timed out.") from exc
+    except httpx.RequestError as exc:
+        logger.error("Agent service request failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Agent service is unreachable.") from exc
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "Agent service returned HTTP %s for thread %s",
+            exc.response.status_code,
+            thread_id,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Agent service error (status {exc.response.status_code}).",
+        ) from exc
+
     try:
         return response.json()
     except ValueError:

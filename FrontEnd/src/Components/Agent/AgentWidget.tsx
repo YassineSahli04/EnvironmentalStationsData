@@ -1,25 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import { Box, Fab, Zoom, useTheme } from "@mui/material";
-import { agentChat } from "../../Api/AgentApi";
+import { useAppUser } from "../../Context/AppUserContext";
 import { tokens } from "../../theme";
 import AgentChatBox from "./AgentChatBox";
 
 const AgentWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { appUser } = useAppUser();
+  const [convId, setConvId] = useState("GuestConvId");
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const runAgent = async () => {
-      const result = await agentChat();
-      console.log(result);
-    };
-
-    runAgent();
-  }, [isOpen]);
+  const handleOpenChat = () => {
+    setConvId(new Date().toISOString());
+    setIsOpen(true);
+  };
 
   return (
     <Box
@@ -37,7 +33,11 @@ const AgentWidget: React.FC = () => {
       {/* Chat Box Popup */}
       <Zoom in={isOpen}>
         <Box sx={{ display: isOpen ? "block" : "none" }}>
-          <AgentChatBox onClose={() => setIsOpen(false)} />
+          <AgentChatBox
+            onClose={() => setIsOpen(false)}
+            userId={appUser ? appUser.id : "GuestUserId"}
+            convId={convId}
+          />
         </Box>
       </Zoom>
 
@@ -46,7 +46,7 @@ const AgentWidget: React.FC = () => {
         <Fab
           color="primary"
           aria-label="agent"
-          onClick={() => setIsOpen(true)}
+          onClick={handleOpenChat}
           sx={{
             bgcolor: colors.blueAccent[600],
             color: colors.grey[100],

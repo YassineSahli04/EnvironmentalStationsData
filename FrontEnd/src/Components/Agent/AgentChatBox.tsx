@@ -1,16 +1,19 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Box, IconButton, TextField, Typography, useTheme, Paper } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SendIcon from "@mui/icons-material/Send";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import { Box, IconButton, TextField, Typography, useTheme, Paper } from "@mui/material";
 import { tokens } from "../../theme";
 import ChatMessage, { type MessageType } from "./ChatMessage";
+import { agentChat } from "../../Api/AgentApi";
 
 interface AgentChatBoxProps {
   onClose: () => void;
+  userId: string;
+  convId: string;
 }
 
-const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose }) => {
+const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose, userId, convId }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [messages, setMessages] = useState<MessageType[]>([
@@ -32,29 +35,39 @@ const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose }) => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
-    if (inputValue.trim() === "") return;
+  const handleSend = async () => {
+    const messageText = inputValue.trim();
+    if (messageText === "") return;
 
     const newUserMessage: MessageType = {
       id: Date.now().toString(),
       sender: "user",
-      text: inputValue.trim(),
+      text: messageText,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, newUserMessage]);
     setInputValue("");
 
-    // Mock agent response
-    setTimeout(() => {
+    try {
+      const agentResponseText = await agentChat(messageText, userId, convId);
       const newAgentMessage: MessageType = {
         id: (Date.now() + 1).toString(),
         sender: "agent",
-        text: "I am a planned feature. Full capabilities are coming soon!",
+        text: agentResponseText,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, newAgentMessage]);
-    }, 1000);
+    } catch (error) {
+      const fallbackMessage: MessageType = {
+        id: (Date.now() + 1).toString(),
+        sender: "agent",
+        text: "Sorry, I could not reach the assistant right now.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, fallbackMessage]);
+      console.error("Agent chat request failed:", error);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

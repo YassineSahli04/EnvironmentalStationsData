@@ -17,6 +17,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const isUser = message.sender === "user";
+  const parts = message.text.split(/(https?:\/\/[^\s]+)/g);
 
   return (
     <Box
@@ -36,7 +37,33 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
           boxShadow: 1,
         }}
       >
-        <Typography variant="body1">{message.text}</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            overflowWrap: "anywhere",
+            wordBreak: "break-word",
+          }}
+        >
+          {parts.map((part, index) => {
+            const isLink = /^https?:\/\/[^\s]+$/.test(part);
+            if (!isLink) return <React.Fragment key={index}>{part}</React.Fragment>;
+
+            return (
+              <a
+                key={index}
+                href={part}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: colors.blueAccent[200],
+                  textDecoration: "underline",
+                }}
+              >
+                {part}
+              </a>
+            );
+          })}
+        </Typography>
         <Typography
           variant="caption"
           sx={{
