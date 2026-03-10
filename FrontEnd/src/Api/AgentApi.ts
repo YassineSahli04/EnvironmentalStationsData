@@ -30,19 +30,12 @@ export async function agentChat(message: string, userId: string, convId: string)
 
   const data = (await response.json()) as {
     response?: unknown;
-    files?: unknown;
     file?: unknown;
   };
 
   const normalizedFiles: AgentFilePayload[] = [];
 
-  if (Array.isArray(data.files)) {
-    for (const item of data.files) {
-      if (item && typeof item === "object") {
-        normalizedFiles.push(item as AgentFilePayload);
-      }
-    }
-  } else if (data.file && typeof data.file === "object") {
+  if (data.file && typeof data.file === "object") {
     normalizedFiles.push(data.file as AgentFilePayload);
   }
 

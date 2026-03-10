@@ -106,62 +106,11 @@ async def chat(req: AgentChatRequest):
     try:
         return response.json()
     except ValueError:
-        # Backward-compatible fallback if ai-agent still serves SSE.
-        raw = response.text or ""
-        delta_parts: list[str] = []
-        last_assistant: str | None = None
-        files: list[dict] = []
-
-        for line in raw.splitlines():
-            if not line.startswith("data:"):
-                continue
-
-            payload = line[5:].strip()
-            if not payload:
-                continue
-
-            try:
-                event = json.loads(payload)
-            except ValueError:
-                continue
-
-            if not isinstance(event, dict):
-                continue
-
-            evt_type = event.get("type")
-            content = event.get("content")
-
-            event_files = event.get("files")
-            if isinstance(event_files, list):
-                for item in event_files:
-                    if isinstance(item, dict):
-                        files.append(item)
-
-            event_file = event.get("file")
-            if isinstance(event_file, dict):
-                files.append(event_file)
-
-            if not isinstance(content, str) or not content.strip():
-                continue
-
-            if evt_type == "assistant":
-                last_assistant = content
-            elif evt_type == "assistant_delta":
-                delta_parts.append(content)
-
-        if delta_parts:
-            result = {"response": "".join(delta_parts)}
-            if files:
-                result["files"] = files
-            return result
-        if last_assistant:
-            result = {"response": last_assistant}
-            if files:
-                result["files"] = files
-            return result
-        if files:
-            return {"response": "", "files": files}
-
+        logger.error(
+            "Agent returned a non-JSON response. HTTP %s for thread %s",
+            502,
+            thread_id,
+        )
         raise HTTPException(status_code=502, detail="Agent returned a non-JSON response.")
 
 

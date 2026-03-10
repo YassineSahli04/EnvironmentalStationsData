@@ -31,7 +31,7 @@ async def chat(req: ChatRequest):
     ai_response, ai_text =  Agent.last_ai_text(result.get("messages"))
 
     gen_file = _collect_generated_file(ai_response)
-    return {"response": ai_text, "files": gen_file}
+    return {"response": ai_text, "file": gen_file}
 
 def _collect_generated_file(last_response: AIMessage | None):
     if not last_response:
@@ -52,7 +52,6 @@ def _file_payload_from_path(path_value: object) -> dict | None:
 
     content = file_path.read_bytes()
     mime_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-    print(file_path.name, flush=True)
 
     return {
         "filename": file_path.name,
