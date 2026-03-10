@@ -54,7 +54,7 @@ class Agent():
             print()
             return
 
-        print("Bot: ", self.last_ai_text(messages), sep="")
+        print("Bot: ", Agent.last_ai_text(messages), sep="")
         print()
 
     def _print_step(self, step):
@@ -83,11 +83,18 @@ class Agent():
             if getattr(last, "type", None) == "tool":
                 print(f"  [tool_result] {getattr(last, 'name', 'unknown')} -> {last.content}")
 
-    def last_ai_text(self, messages):
+    @staticmethod
+    def last_ai_text(messages) -> tuple[AIMessage | None, str]:
         for m in reversed(messages):
             if isinstance(m, AIMessage) and (m.content or ""):
-                return m.content
-        return "<no assistant text>"
+                if isinstance(m.content, str):
+                    return m, m.content
+            if isinstance(m.content, list):
+                return m, " ".join(
+                    c if isinstance(c, str) else c.get("text", "")
+                    for c in m.content
+                )
+        return None, "<no assistant text>"
 
 if __name__ == "__main__":
     use_openai = os.getenv("USE_OPENAI", "true").lower() == "true"

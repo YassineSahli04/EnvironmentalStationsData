@@ -486,8 +486,6 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
     )
     if write_tool is None:
         return {
-            "export_status": "failed",
-            "exported_file_path": None,
             "messages": [AIMessage(content="Excel export failed because the MCP write tool is not available.")],
         } # type: ignore
 
@@ -495,16 +493,16 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
         await write_tool.ainvoke(payload, config=config) # type: ignore[arg-type]
     except Exception as exc:
         return {
-            "export_status": "failed",
-            "exported_file_path": None,
             "messages": [AIMessage(content=f"Excel export failed: {str(exc)}")],
         } # type: ignore
 
     return {
         "output_kind": None,
-        "export_status": "success",
-        "exported_file_path": output_path,
-        "messages": [AIMessage(content=f"Excel export created, please click to download it.")],
+        "messages": [AIMessage(content=f"Excel export created, please click to download it.",
+                               additional_kwargs={
+                                    "file_path": output_path,
+                                }
+    )],
     } # type: ignore
 
 async def execute_chart_tool(state: State, config: RunnableConfig | None = None) -> State:

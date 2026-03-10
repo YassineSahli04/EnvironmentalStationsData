@@ -121,7 +121,7 @@ services:
       - LANGFUSE_HOST=${LANGFUSE_HOST:-http://host.docker.internal:3000}
       - LANGFUSE_PUBLIC_KEY_PATH=/run/secrets/angfuse_pk
       - LANGFUSE_SECRET_KEY_PATH=/run/secrets/angfuse_sk
-    command: uv run uvicorn agent.Api:app --host 0.0.0.0 --port 8001
+    command: uv run uvicorn agent.Api:app --host 0.0.0.0 --port 8001 --reload
 
   ai-agent-dev:
     extends: ai-agent
