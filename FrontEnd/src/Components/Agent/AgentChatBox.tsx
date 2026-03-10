@@ -4,8 +4,8 @@ import SendIcon from "@mui/icons-material/Send";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import { Box, IconButton, TextField, Typography, useTheme, Paper } from "@mui/material";
 import { tokens } from "../../theme";
-import ChatMessage, { type MessageType } from "./ChatMessage";
-import { agentChat } from "../../Api/AgentApi";
+import ChatMessage, { type MessageFileAttachment, type MessageType } from "./ChatMessage";
+import { agentChat, type AgentFilePayload } from "../../Api/AgentApi";
 
 interface AgentChatBoxProps {
   onClose: () => void;
@@ -16,6 +16,7 @@ interface AgentChatBoxProps {
 const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose, userId, convId }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const objectUrlsRef = useRef<string[]>([]);
   const [messages, setMessages] = useState<MessageType[]>([
     {
       id: "1",
@@ -35,6 +36,43 @@ const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose, userId, convId }) 
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    return () => {
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrlsRef.current = [];
+    };
+  }, []);
+
+  const createAttachmentFromPayload = (payload: AgentFilePayload): MessageFileAttachment | null => {
+    const name = payload.filename?.trim() || "generated-file.txt";
+
+    if (payload.download_url && payload.download_url.trim()) {
+      return { name, href: payload.download_url };
+    }
+
+    if (payload.content_base64 && payload.content_base64.trim()) {
+      const base64 = payload.content_base64.trim();
+      const binary = window.atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: payload.mime_type || "application/octet-stream" });
+      const href = URL.createObjectURL(blob);
+      objectUrlsRef.current.push(href);
+      return { name, href };
+    }
+
+    if (payload.content_text !== undefined) {
+      const blob = new Blob([payload.content_text], { type: payload.mime_type || "text/plain" });
+      const href = URL.createObjectURL(blob);
+      objectUrlsRef.current.push(href);
+      return { name, href };
+    }
+
+    return null;
+  };
+
   const handleSend = async () => {
     const messageText = inputValue.trim();
     if (messageText === "") return;
@@ -50,12 +88,16 @@ const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose, userId, convId }) 
     setInputValue("");
 
     try {
-      const agentResponseText = await agentChat(messageText, userId, convId);
+      const agentResponse = await agentChat(messageText, userId, convId);
+      const attachments = agentResponse.files
+        .map(createAttachmentFromPayload)
+        .filter((file): file is MessageFileAttachment => file !== null);
       const newAgentMessage: MessageType = {
         id: (Date.now() + 1).toString(),
         sender: "agent",
-        text: agentResponseText,
+        text: agentResponse.response || (attachments.length > 0 ? " " : ""),
         timestamp: new Date(),
+        files: attachments.length > 0 ? attachments : undefined,
       };
       setMessages((prev) => [...prev, newAgentMessage]);
     } catch (error) {

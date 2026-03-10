@@ -2,8 +2,10 @@ from datetime import datetime
 import asyncio
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List
+from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -451,7 +453,20 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
     default_export_dir = Path(__file__).resolve().parents[2] / "output"
     export_dir = Path(os.getenv("EXPORT_DIR", str(default_export_dir)))
     export_dir.mkdir(parents=True, exist_ok=True)
-    output_path = str(export_dir / "out.xlsx")
+
+    thread_id = "anonymous"
+    if isinstance(config, dict):
+        configurable = config.get("configurable")
+        if isinstance(configurable, dict):
+            raw_thread_id = configurable.get("thread_id")
+            if isinstance(raw_thread_id, str) and raw_thread_id.strip():
+                thread_id = raw_thread_id.strip()
+
+    safe_thread_id = re.sub(r"[^A-Za-z0-9._-]", "_", thread_id)[:80] or "anonymous"
+    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+    unique_suffix = uuid4().hex[:8]
+    file_name = f"out_{safe_thread_id}_{timestamp}_{unique_suffix}.xlsx"
+    output_path = str(export_dir / file_name)
     sheet_name = "Data"
 
     payload = transform_timeseries_to_excel_payload(
@@ -489,7 +504,7 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
         "output_kind": None,
         "export_status": "success",
         "exported_file_path": output_path,
-        "messages": [AIMessage(content=f"Excel export created at '{output_path}' on sheet '{sheet_name}'.")],
+        "messages": [AIMessage(content=f"Excel export created, please click to download it.")],
     } # type: ignore
 
 async def execute_chart_tool(state: State, config: RunnableConfig | None = None) -> State:

@@ -7,6 +7,12 @@ export type MessageType = {
   sender: "user" | "agent";
   text: string;
   timestamp: Date;
+  files?: MessageFileAttachment[];
+};
+
+export type MessageFileAttachment = {
+  name: string;
+  href: string;
 };
 
 interface ChatMessageProps {
@@ -64,6 +70,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             );
           })}
         </Typography>
+        {message.files && message.files.length > 0 && (
+          <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
+            {message.files.map((file, index) => (
+              <a
+                key={`${file.name}-${index}`}
+                href={file.href}
+                download={file.name}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: colors.blueAccent[200],
+                  textDecoration: "underline",
+                  fontSize: "0.875rem",
+                }}
+              >
+                Download
+              </a>
+            ))}
+          </Box>
+        )}
         <Typography
           variant="caption"
           sx={{

@@ -29,6 +29,8 @@ class State(TypedDict):
     dataGroup: Optional[str]
     output_kind: Optional[str]
     station_data: Optional[list[dict]]
+    export_status: Optional[str]
+    exported_file_path: Optional[str]
 
     is_data_request: bool
     data_validation_status: Optional[str]

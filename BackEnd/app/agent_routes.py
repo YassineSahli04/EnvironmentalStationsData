@@ -110,6 +110,7 @@ async def chat(req: AgentChatRequest):
         raw = response.text or ""
         delta_parts: list[str] = []
         last_assistant: str | None = None
+        files: list[dict] = []
 
         for line in raw.splitlines():
             if not line.startswith("data:"):
@@ -129,6 +130,17 @@ async def chat(req: AgentChatRequest):
 
             evt_type = event.get("type")
             content = event.get("content")
+
+            event_files = event.get("files")
+            if isinstance(event_files, list):
+                for item in event_files:
+                    if isinstance(item, dict):
+                        files.append(item)
+
+            event_file = event.get("file")
+            if isinstance(event_file, dict):
+                files.append(event_file)
+
             if not isinstance(content, str) or not content.strip():
                 continue
 
@@ -138,9 +150,17 @@ async def chat(req: AgentChatRequest):
                 delta_parts.append(content)
 
         if delta_parts:
-            return {"response": "".join(delta_parts)}
+            result = {"response": "".join(delta_parts)}
+            if files:
+                result["files"] = files
+            return result
         if last_assistant:
-            return {"response": last_assistant}
+            result = {"response": last_assistant}
+            if files:
+                result["files"] = files
+            return result
+        if files:
+            return {"response": "", "files": files}
 
         raise HTTPException(status_code=502, detail="Agent returned a non-JSON response.")
 
