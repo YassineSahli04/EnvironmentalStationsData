@@ -8,6 +8,7 @@ import "./App.css";
 import ProtectedRoute from "./Components/Global/ProtectedRoute";
 import Sidebar from "./Components/Global/Sidebar";
 import Topbar from "./Components/Global/Topbar";
+import AgentWidget from "./Components/Agent/AgentWidget";
 import MapBox from "./Components/MapBox";
 import StationOverviewPage from "./Pages/StationOverviewPage";
 import StationsListPage from "./Pages/StationsListPage";
@@ -81,6 +82,7 @@ function App() {
               </Routes>
             </main>
           </div>
+          <AgentWidget />
         </div>
       </ThemeProvider>
     </ColorModeContext.Provider>
