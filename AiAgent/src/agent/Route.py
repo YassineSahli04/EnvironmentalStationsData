@@ -5,11 +5,14 @@ from agent.Helper import VerifState
 from agent.State import State
 
 
-def route_after_model(state: State) -> Literal['end', 'tools', 'ask_for_station']:
+def route_after_model(state: State) -> Literal['end', 'classify_intent', 'tools', 'ask_for_station']:
     last = state["messages"][-1]
+    recheck_intent = state.get('recheck_intent')
 
     tool_calls = getattr(last, "tool_calls", None) or []
     if not tool_calls:
+        if recheck_intent:
+            return 'classify_intent'
         return 'end'      
 
     return "tools"

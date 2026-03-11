@@ -33,7 +33,7 @@ def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[
     last_msg = get_last_user_message_text(state)
 
     if not last_msg:
-        return {"is_data_request": False}
+        return {"is_data_request": False, "recheck_intent": False}
     
     structured_model = model.with_structured_output(IntentResult)
 
@@ -65,8 +65,10 @@ def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[
         ],
         config=config,
     )
+    if result.is_data_request and not state.get("station_id"):  # type: ignore
+        return {"is_data_request": False, "recheck_intent": True} 
 
-    return {"is_data_request": result.is_data_request} # type: ignore
+    return {"is_data_request": result.is_data_request, "recheck_intent": False} # type: ignore
 
 def call_model(state:State, config: RunnableConfig | None = None) -> Dict[str, List[BaseMessage]]:
     station_id = state.get("station_id")

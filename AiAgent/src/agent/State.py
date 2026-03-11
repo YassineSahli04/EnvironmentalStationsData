@@ -17,6 +17,7 @@ class State(TypedDict):
 
     station_id: Optional[str]
     station_meta: Optional[dict]
+    recheck_intent: Optional[bool]
 
     extracted_variables_selected: Optional[List[str]]
     extracted_dataGroup: Optional[str]

@@ -82,6 +82,7 @@ def build_graph() -> Any:
             "end": END,
             "tools": "execute_tools",
             "ask_for_station": "ask_for_station",
+            "classify_intent": "classify_intent"
         }
     )
     workflow.add_conditional_edges(
