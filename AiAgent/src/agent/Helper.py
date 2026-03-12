@@ -112,13 +112,16 @@ def has_request_model_issue(issues: list[dict], field_name: str) -> bool:
             return True
     return False
 
-def get_last_user_message_text(state: State) -> Optional[str]:
+def get_last_user_messages(state: State, number_messages:int = 1) -> List[str]:
+    msgs = []
     for msg in reversed(state["messages"]):
         if isinstance(msg, HumanMessage):
             content = getattr(msg, "content", None)
             if isinstance(content, str) and content.strip():
-                return content.strip()
-    return None
+                msgs.append(content.strip())
+                if len(msgs) == number_messages:
+                    return msgs
+    return msgs
 
 def parse_tool_content(content):
     if isinstance(content, dict):

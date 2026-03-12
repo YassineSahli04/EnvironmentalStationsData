@@ -29,7 +29,6 @@ class State(TypedDict):
     variables_selected: Optional[List[str]]
     dataGroup: Optional[str]
     output_kind: Optional[str]
-    station_data: Optional[list[dict]]
 
     is_data_request: bool
     data_validation_status: Optional[str]

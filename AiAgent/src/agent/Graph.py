@@ -5,6 +5,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, END, START
 from langfuse import Langfuse, get_client
 
+from agent.McpTools import init_tool
 from agent.Route import route_after_validation, route_after_classify, route_after_model
 from agent.Node import ask_for_data_entry_field_update, ask_for_output_kind, ask_for_station, call_model, classify_intent, execute_chart_tool, execute_excel_export, execute_tools, extract_data_request, try_resolve_data_entry_fields, validate_fields, try_resolve_time_range
 from agent.State import State
@@ -116,5 +117,13 @@ def build_graph() -> Any:
 
     return graph
 
-def graph():
+MCP_INITIALIZED = False
+
+async def graph():
+    global MCP_INITIALIZED
+
+    if not MCP_INITIALIZED:
+        await init_tool()
+        MCP_INITIALIZED = True
+
     return build_graph()

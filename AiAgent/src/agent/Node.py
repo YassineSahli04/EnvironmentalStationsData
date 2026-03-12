@@ -4,7 +4,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Dict, List
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage, HumanMessage
@@ -15,7 +15,7 @@ from agent.McpTools import MCP_TOOLS
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS, get_station_data
-from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_message_text, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload
+from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_messages, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload
 
 model = Model.build_default_model()
 
@@ -30,9 +30,9 @@ SYSTEM = """
 """
 
 def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[str, bool]:
-    last_msg = get_last_user_message_text(state)
+    msgs = get_last_user_messages(state, 2)
 
-    if not last_msg:
+    if not msgs:
         return {"is_data_request": False, "recheck_intent": False}
     
     structured_model = model.with_structured_output(IntentResult)
@@ -58,11 +58,15 @@ def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[
             "Do not infer hidden intent. Classify only what the user explicitly asked."
         )
 
+    messages: list[BaseMessage] = [SystemMessage(content=prompt)]
+
+    if len(msgs) > 1:
+        messages.append(HumanMessage(content=msgs[1]))
+
+    if len(msgs) > 0:
+        messages.append(HumanMessage(content=msgs[0]))
     result = structured_model.invoke(
-        [
-            SystemMessage(content=prompt),
-            HumanMessage(content=last_msg),
-        ],
+        messages,
         config=config,
     )
     if result.is_data_request and not state.get("station_id"):  # type: ignore
@@ -110,7 +114,8 @@ def ask_for_station(state: State) -> State:
     return state
 
 def extract_data_request(state: State, config: RunnableConfig | None = None) -> State:
-    last_msg = get_last_user_message_text(state)
+    msg = get_last_user_messages(state)
+    last_msg = msg[0]
     if not last_msg:
         return {} # type: ignore
 
@@ -216,17 +221,22 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
     if end:
         updates["extracted_end"] = end
 
+    updates["is_data_entry_first_pass"] = None
+    updates["data_validation_status"] = None
+    updates["data_validation_issues"] = None
     return updates # type: ignore
 
 def validate_fields(state: State) -> dict:
     is_data_entry_first_pass = False if state.get("is_data_entry_first_pass") else True 
 
     time_range = state.get("time_range")
-    extracted_start_time = time_range.start if time_range and time_range.start else state.get("extracted_start")
-    extracted_end_time = time_range.end if time_range and time_range.end else state.get("extracted_end")
+    if not time_range:
+        time_range = TimeRange(None, None)
+    extracted_start_time = state.get("extracted_start") if state.get("extracted_start") else time_range.start
+    extracted_end_time = state.get("extracted_end") if state.get("extracted_end") else time_range.end
 
-    effective_variables_selected = state.get("variables_selected") or state.get("extracted_variables_selected")
-    effective_dataGroup = state.get("dataGroup") or state.get("extracted_dataGroup")
+    effective_variables_selected = state.get("extracted_variables_selected") or state.get("variables_selected")
+    effective_dataGroup = state.get("extracted_dataGroup") or state.get("dataGroup")
     metadata = state.get("station_meta") or {}
 
     vars_verif, vars_mess = verify_variables_selected(effective_variables_selected, metadata)
@@ -237,6 +247,11 @@ def validate_fields(state: State) -> dict:
     updates["time_range"] = TimeRange(extracted_start_time, extracted_end_time)
     updates["variables_selected"] = effective_variables_selected
     updates["dataGroup"] = effective_dataGroup
+
+    updates["extracted_variables_selected"] = None
+    updates["extracted_dataGroup"] = None
+    updates["extracted_start"] = None
+    updates["extracted_end"] = None
 
     request_model_issues = []
     failed_issues = []
@@ -254,6 +269,15 @@ def validate_fields(state: State) -> dict:
     if datagroup_verif == VerifState.Failed  or (datagroup_verif == VerifState.RequestModel and not is_data_entry_first_pass):
         failed_issues.append({"field":"dataGroup","reason":dataGroup_mess})
 
+        extracted_output_kind = state.get('extracted_output_kind') or ""
+    
+    extracted_output_kind = state.get('extracted_output_kind') or ""
+    if extracted_output_kind.strip().lower() in OUTPUT_TYPE:
+        updates.update({
+            "output_kind": extracted_output_kind.strip().lower(),
+            "extracted_output_kind": None
+        })
+    
     if is_data_entry_first_pass and request_model_issues:
         updates.update({
             "is_data_entry_first_pass": True,
@@ -269,15 +293,6 @@ def validate_fields(state: State) -> dict:
             "data_validation_issues": failed_issues,
         })
         return updates
-    
-    
-    extracted_output_kind = state.get('extracted_output_kind') or ""
-    if extracted_output_kind.strip().lower() in OUTPUT_TYPE:
-        updates.update({
-            "output_kind": extracted_output_kind.strip().lower(),
-            "extracted_output_kind": None
-        })
-        
     
     updates.update({
         "data_entry_resolve_trial" : False,
@@ -416,14 +431,6 @@ def ask_for_data_entry_field_update(state: State) -> State:
             sections.append("Failed checks: " + "; ".join(failed_reasons))
         msg = "Please update your request. " + " | ".join(sections)
     state["messages"].append(AIMessage(content=msg))
-    state["is_data_entry_first_pass"] = False
-    state["data_validation_issues"] = []
-    state["data_validation_status"] = None
-
-    state["extracted_variables_selected"] = None
-    state["extracted_dataGroup"] = None
-    state["extracted_start"] = None
-    state["extracted_end"] = None
 
     return state
 
@@ -438,7 +445,6 @@ def ask_for_output_kind(state: State) -> State:
         AIMessage(content=message)
     )
     return state
-
 
 async def execute_excel_export(state: State, config: RunnableConfig | None = None) -> State:
     station_id = state.get('station_id')
@@ -499,8 +505,7 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
         } # type: ignore
 
     return {
-        "output_kind": None,
-        "messages": [AIMessage(content=f"Excel export created, please click to download it.",
+        "messages": [AIMessage(content=f"Excel export created, please check the file.",
                                additional_kwargs={
                                     "file_path": output_path,
                                 }
@@ -521,7 +526,6 @@ async def execute_chart_tool(state: State, config: RunnableConfig | None = None)
 
     if not MCP_TOOLS:
         return {
-            "station_data": station_data,
             "messages": [AIMessage(content="No MCP tools are available right now.")],
         } # type: ignore
 
@@ -566,21 +570,10 @@ async def execute_chart_tool(state: State, config: RunnableConfig | None = None)
     tool_messages = [m for m in result.get("messages", []) if isinstance(m, ToolMessage)]
     if tool_messages:
         last_tool = tool_messages[-1]
-        is_chart_output = str(state.get("output_kind") or "").strip().lower() == "chart"
-        chart_reset = {
-            "time_range": None,
-            "variables_selected": None,
-            "dataGroup": None,
-            "output_kind": None,
-            "station_data": None,
-        } if is_chart_output else {"station_data": station_data}
-
         return {
-            **chart_reset,
             "messages": [ai, last_tool, AIMessage(content=f"Visualization generated with tool '{last_tool.text}'.")],
         } # type: ignore
 
     return {
-        "station_data": station_data,
         "messages": [ai, AIMessage(content="No MCP tool execution result was returned.")],
     } # type: ignore
