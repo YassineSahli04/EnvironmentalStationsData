@@ -30,7 +30,7 @@ SYSTEM = """
 """
 
 def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[str, bool]:
-    msgs = get_last_user_messages(state, 2)
+    msgs = get_last_user_messages(state, 5)
 
     if not msgs:
         return {"is_data_request": False, "recheck_intent": False}
@@ -60,6 +60,15 @@ def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[
 
     messages: list[BaseMessage] = [SystemMessage(content=prompt)]
 
+    if len(msgs) > 4:
+        messages.append(HumanMessage(content=msgs[4]))
+    
+    if len(msgs) > 3:
+        messages.append(HumanMessage(content=msgs[3]))
+    
+    if len(msgs) > 2:
+        messages.append(HumanMessage(content=msgs[2]))
+    
     if len(msgs) > 1:
         messages.append(HumanMessage(content=msgs[1]))
 
@@ -288,7 +297,6 @@ def validate_fields(state: State) -> dict:
 
     if failed_issues:
         updates.update({
-            "data_entry_resolve_trial": False,
             "data_validation_status": VerifState.Failed.value,
             "data_validation_issues": failed_issues,
         })
@@ -374,7 +382,6 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
     }
 
     resolver_prompt = (
-        "Resolve only the time_range field.\n"
         "Convert relative date phrases like today, yesterday, last week, and last month into concrete ISO 8601 datetimes.\n"
         "Use the current system datetime provided by the caller as the reference.\n"
         "Return ONLY valid JSON with this shape: "
@@ -402,10 +409,7 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
                 st = st_raw.strip()
                 end = end_raw.strip()
                 if st and end:
-                    parsed_start = datetime.fromisoformat(st)
-                    parsed_end = datetime.fromisoformat(end)
-                    if parsed_start < parsed_end:
-                        updates["time_range"] = TimeRange(start=st, end=end)
+                    updates["time_range"] = TimeRange(start=st, end=end)
             except ValueError:
                 pass
 
@@ -421,8 +425,6 @@ def ask_for_data_entry_field_update(state: State) -> State:
         for issue in issues:
             if isinstance(issue, dict):
                 field = issue.get("field")
-                if field:
-                    state[field] = None
                 reason = issue.get("reason")
                 if field and reason:
                     failed_reasons.append(f"{field}: {reason}")

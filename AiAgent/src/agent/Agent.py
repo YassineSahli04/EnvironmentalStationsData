@@ -54,7 +54,8 @@ class Agent():
             print()
             return
 
-        print("Bot: ", Agent.last_ai_text(messages), sep="")
+        _, ai_message = Agent.last_ai_text(messages)
+        print("Bot: ", ai_message, sep="")
         print()
 
     def _print_step(self, step):
