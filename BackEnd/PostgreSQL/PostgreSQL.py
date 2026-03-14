@@ -11,6 +11,8 @@ from BackEnd.ClimateFieldStations.API.CfTableCreator import CfTableCreator
 from concurrent.futures import ThreadPoolExecutor
 from BackEnd.Utils.EmailNotifier import EmailNotifier
 from BackEnd.PostgreSQL.User import User
+from BackEnd.NasaStations.NasaTableCreator import NasaTableCreator
+
 
 class PostgreSQL:
     engine: _engine.Engine;
@@ -77,26 +79,29 @@ class PostgreSQL:
         userEmailsToAlert = [user.Email for user in users if user.IsSubscribedToStationAlerts]
         for station in stations:
             for hardwareStation in station.HardwareStationIds: # type: ignore
-                match station.Manufacturer:
-                    case "DeltaOHM":
-                        if station.DataSourceId is None:
-                            raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
-                        table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
-                        alreadyExists = table_creator.create_postgre_table()
-                        
-                    case "Pessl":
-                        table_creator = CfTableCreator(self.engine, hardwareStation)
-                        alreadyExists = table_creator.IsDataTableCreated()
+                    match station.Manufacturer:
+                        case "DeltaOHM":
+                            if station.DataSourceId is None:
+                                raise ValueError(f"Station {station.Id} does not have a DataSourceId.")
+                            table_creator = C2aiTableCreator(self.engine, station.DataSourceId)
+                            alreadyExists = table_creator.create_postgre_table()
+                            
+                        case "Pessl":
+                            table_creator = CfTableCreator(self.engine, hardwareStation)
+                            alreadyExists = table_creator.IsDataTableCreated()
+                        case "NASA":
+                            table_creator = NasaTableCreator(self.engine, hardwareStation)
+                            alreadyExists = table_creator.create_postgre_table()
 
-                if not alreadyExists:
-                    dataDf = table_creator.getFullDataDf()
-                    self.insert_create_data_df(dataDf, table_creator.newTableName)
-                else:
-                    self.update_db_table(
-                        station.Manufacturer,
-                        hardwareStation,
-                        station.DataSourceId
-                    )
+                    if not alreadyExists:
+                        dataDf = table_creator.getFullDataDf()
+                        self.insert_create_data_df(dataDf, table_creator.newTableName)
+                    else:
+                        self.update_db_table(
+                            station.Manufacturer,
+                            hardwareStation,
+                            station.DataSourceId
+                        )
 
             station.addVpdColOrUpdate()
             
@@ -159,8 +164,10 @@ class PostgreSQL:
                 table_creator = C2aiTableCreator(self.engine, datasource_id)
             case "Pessl":
                 table_creator = CfTableCreator(self.engine, str(hardwareId))
+            case "NASA":
+                table_creator = NasaTableCreator(self.engine, str(hardwareId))
             case _:
-                raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
+                raise Exception("Data Tables are only available for DeltaOHM Stations, Pessl Stations, and NASA Stations")
 
         dataDf = table_creator.getFullDataDf(isUpdate=True)  # type: ignore
         self.insert_create_data_df(dataDf, table_creator.newTableName)

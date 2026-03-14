@@ -6,12 +6,20 @@ from BackEnd.NasaStations.NasaStationsApiCalls import NasaPowerApiCalls
 from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
 
 class NasaTableCreator:
-    def __init__(self, engine: _engine.Engine, stationId: str, lat: float, lon: float):
+    def __init__(self, engine: _engine.Engine, hardwareId: str):
         self.engine = engine
-        self.stationId = stationId
-        self.newTableName = stationId 
-        self.lat = lat
-        self.lon = lon
+        self.hardwareId = hardwareId
+        self.newTableName = hardwareId
+
+        # Look up station metadata from the database (same pattern as C2ai/Cf)
+        query = text('SELECT "StationId", "Latitude", "Longitude" FROM "Stations" WHERE "HardwareId" = :hwid')
+        with self.engine.connect() as conn:
+            row = conn.execute(query, {"hwid": hardwareId}).mappings().first()
+        if row is None:
+            raise ValueError(f"No station found with HardwareId: {hardwareId}")
+        self.stationId = int(row["StationId"])
+        self.lat = float(row["Latitude"])
+        self.lon = float(row["Longitude"])
 
     @staticmethod
     def get_nasa_station_id(lat: float, lon: float) -> str:
@@ -62,16 +70,16 @@ class NasaTableCreator:
     def addStationColumnsToTable(self):
         query = text(""" 
             INSERT INTO "StationColumn"
-            ("station_id","column_name","data_type","unit","aggregation","param","confidence","source")
+            ("table_name", "column_name","data_type","unit","aggregation","param","confidence","source", "station_id")
             VALUES
-                (:station_id, 'T2M', 'NUMERIC(10,3)', '°C', ARRAY['avg','min','max']::TEXT[], 'air_temperature', NULL, 'nasa_power'),
-                (:station_id, 'T2MDEW', 'NUMERIC(10,3)', '°C', ARRAY['avg','min','max']::TEXT[], 'dew_point_temperature', NULL, 'nasa_power'),
-                (:station_id, 'WS2M', 'NUMERIC(10,3)', 'm/s', ARRAY['avg','min','max']::TEXT[], 'wind_speed', NULL, 'nasa_power'),
-                (:station_id, 'RH2M', 'NUMERIC(10,3)', '%', ARRAY['avg','min','max']::TEXT[], 'relative_humidity', NULL, 'nasa_power'),
-                (:station_id, 'PRECTOTCORR', 'NUMERIC(10,3)', 'mm', ARRAY['sum']::TEXT[], 'precipitation', NULL, 'nasa_power'),
-                (:station_id, 'ALLSKY_SFC_SW_DWN', 'NUMERIC(10,3)', 'W/m²', ARRAY['avg']::TEXT[], 'solar_radiation', NULL, 'nasa_power')
+                (:table_name, 'T2M', 'NUMERIC(10,3)', '°C', ARRAY['avg','min','max']::TEXT[], 'air_temperature', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'T2MDEW', 'NUMERIC(10,3)', '°C', ARRAY['avg','min','max']::TEXT[], 'dew_point_temperature', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'WS2M', 'NUMERIC(10,3)', 'm/s', ARRAY['avg','min','max']::TEXT[], 'wind_speed', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'RH2M', 'NUMERIC(10,3)', '%', ARRAY['avg','min','max']::TEXT[], 'relative_humidity', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'PRECTOTCORR', 'NUMERIC(10,3)', 'mm', ARRAY['sum']::TEXT[], 'precipitation', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'ALLSKY_SFC_SW_DWN', 'NUMERIC(10,3)', 'W/m²', ARRAY['avg']::TEXT[], 'solar_radiation', NULL, 'manufacturer_template', :station_id)
 
-            ON CONFLICT ("station_id","column_name")
+            ON CONFLICT ("table_name", "column_name")
             DO UPDATE SET
                 "data_type"    = EXCLUDED."data_type",
                 "unit"         = EXCLUDED."unit",
@@ -79,16 +87,20 @@ class NasaTableCreator:
                 "param"        = EXCLUDED."param",
                 "confidence"   = EXCLUDED."confidence",
                 "source"       = EXCLUDED."source",
+                "station_id"   = EXCLUDED."station_id",
                 "updated_at"   = NOW()
             WHERE
                 "StationColumn"."data_type"    IS DISTINCT FROM EXCLUDED."data_type"
                 OR "StationColumn"."unit"      IS DISTINCT FROM EXCLUDED."unit"
                 OR "StationColumn"."aggregation" IS DISTINCT FROM EXCLUDED."aggregation"
-                OR "StationColumn"."param"     IS DISTINCT FROM EXCLUDED."param";
+                OR "StationColumn"."param"     IS DISTINCT FROM EXCLUDED."param"
+                OR "StationColumn"."confidence" IS DISTINCT FROM EXCLUDED."confidence"
+                OR "StationColumn"."source"    IS DISTINCT FROM EXCLUDED."source"
+                OR "StationColumn"."station_id" IS DISTINCT FROM EXCLUDED."station_id";
         """)
 
         with self.engine.begin() as connection:
-            connection.execute(query, {"station_id": self.newTableName})
+            connection.execute(query, {"table_name": self.newTableName, "station_id": self.stationId})
 
     def get_last_data_point(self) -> datetime:
         query = text(f'SELECT MAX("date_time") FROM "{self.newTableName}";')
@@ -103,17 +115,20 @@ class NasaTableCreator:
         # Default start date if table is empty (e.g. Jan 1st 2024 for MVP)
         return datetime(2024, 1, 1, tzinfo=timezone.utc)
 
-    def update_db_table(self):
+    def getFullDataDf(self, isUpdate: bool = False):
         # 1. Determine Start Date
-        start_dt = self.get_last_data_point()
+        if isUpdate:
+            start_dt = self.get_last_data_point()
+        else:
+            start_dt = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
         end_dt = datetime.now(timezone.utc)
         
         # If we are up to date (less than 2 hours behind), skip
         if (end_dt - start_dt).total_seconds() < 7200:
-            return
+            return None
 
         # 2. Call API
-        # Format dates as YYYYMMDD for NASA API (Hourly endpoint uses YYYYMMDD)
         start_str = start_dt.strftime("%Y%m%d")
         end_str = end_dt.strftime("%Y%m%d")
 
@@ -122,14 +137,12 @@ class NasaTableCreator:
             data_json = api.get_response()
         except Exception as e:
             print(f"Failed to fetch NASA data: {e}")
-            return
+            return None
 
         # 3. Parse Response into DataFrame
         try:
             params = data_json['properties']['parameter']
             
-            # Extract independent series
-            # NASA returns dicts: {"2024010100": 12.3, "2024010101": 15.6...}
             t2m = pd.Series(params.get('T2M', {}), name='T2M')
             t2m_dew = pd.Series(params.get('T2MDEW', {}), name='T2MDEW')
             ws2m = pd.Series(params.get('WS2M', {}), name='WS2M')
@@ -137,7 +150,6 @@ class NasaTableCreator:
             prec = pd.Series(params.get('PRECTOTCORR', {}), name='PRECTOTCORR')
             rad = pd.Series(params.get('ALLSKY_SFC_SW_DWN', {}), name='ALLSKY_SFC_SW_DWN')
             
-            # Combine
             df = pd.concat([t2m, t2m_dew, ws2m, rh2m, prec, rad], axis=1)
             
             # Index is currently strings "YYYYMMDDHH". Convert to TIMESTAMPTZ
@@ -148,19 +160,10 @@ class NasaTableCreator:
             df = df[df.index > start_dt]
             
             if df.empty:
-                return
+                return None
 
-            # 4. Insert into DB
-            with self.engine.begin() as connection:
-                connection.execute(text("SET TIME ZONE 'UTC';"))
-                df.to_sql(
-                    name=self.newTableName,
-                    con=connection,
-                    if_exists="append",
-                    index=True, # We want the date_time index
-                    method="multi",
-                    chunksize=1000
-                )
+            return df
                 
         except KeyError as e:
             print(f"Error parsing NASA response: {e}")
+            return None
