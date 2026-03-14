@@ -1,3 +1,4 @@
+import calendar
 from datetime import datetime
 import asyncio
 import json
@@ -15,7 +16,7 @@ from agent.McpTools import MCP_TOOLS
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS, get_station_data
-from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_messages, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload
+from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_messages, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload, sanitize_iso_datetime
 
 model = Model.build_default_model()
 
@@ -164,19 +165,23 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
         "Example: 'daily temperature data' means dataGroup='daily'.\n"
         "If no data group is explicitly stated, return null.\n"
         "\n"
-        "3. extracted_start and extracted_end:\n"
-        "Write the values into the fields named extracted_start and extracted_end.\n"
-        "Use these for any explicit time constraint stated by the user.\n"
-        "Copy the user's wording as-is into the correct side of the range.\n"
-        "The values do NOT need to be in date format.\n"
-        "They can be exact dates, datetimes, or natural-language expressions.\n"
-        "Examples: from 2026-02-01 to 2026-02-07 -> start='2026-02-01', end='2026-02-07'.\n"
-        "Examples: from last week to today -> start='last week', end='today'.\n"
-        "Examples: between yesterday and this morning -> start='yesterday', end='this morning'.\n"
-        "If the user gives only one explicit time expression, put it in start and leave end null.\n"
-        "Examples: for last week -> start='last week', end=null.\n"
-        "Examples: on 2026-02-01 -> start='2026-02-01', end=null.\n"
-        "Do not convert relative phrases into dates in this step.\n"
+        "3. extracted_time_phrase, extracted_start, and extracted_end:\n"
+        "Write time values into the correct fields: extracted_time_phrase, extracted_start, extracted_end.\n"
+        "Use extracted_start and extracted_end only for explicit range boundaries.\n"
+        "Use extracted_time_phrase for a single standalone time phrase without explicit boundaries.\n"
+        "Copy the user's wording as-is. Do not convert to date format in this step.\n"
+        "Time values can be exact dates, datetimes, or natural-language expressions.\n"
+        "Range examples:\n"
+        "- from 2026-02-01 to 2026-02-07 -> extracted_start='2026-02-01', extracted_end='2026-02-07', extracted_time_phrase=null.\n"
+        "- from last week to today -> extracted_start='last week', extracted_end='today', extracted_time_phrase=null.\n"
+        "- between yesterday and this morning -> extracted_start='yesterday', extracted_end='this morning', extracted_time_phrase=null.\n"
+        "Standalone phrase examples (no explicit start/end words):\n"
+        "- this month -> extracted_time_phrase='this month', extracted_start=null, extracted_end=null.\n"
+        "- for last week -> extracted_time_phrase='last week', extracted_start=null, extracted_end=null.\n"
+        "- today -> extracted_time_phrase='today', extracted_start=null, extracted_end=null.\n"
+        "Single explicit date/datetime without a range boundary goes to extracted_start.\n"
+        "Example: on 2026-02-01 -> extracted_start='2026-02-01', extracted_end=null, extracted_time_phrase=null.\n"
+        "If both a standalone phrase and explicit range boundaries appear, prioritize boundaries for extracted_start/extracted_end and set extracted_time_phrase=null.\n"
         "\n"
         "4. extracted_output_kind:\n"
         "Write the result into the field named extracted_output_kind.\n"
@@ -185,11 +190,11 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
         "If the user asks only to check or view data without naming a format, return null.\n"
         "\n"
         "Important examples:\n"
-        "- 'I want to check the temp data' -> extracted_variables_selected=['temperature']; extracted_dataGroup=null; extracted_start=null; extracted_end=null; extracted_output_kind=null.\n"
-        "- 'Show me a humidity chart for last week' -> extracted_variables_selected=['humidity']; extracted_dataGroup=null; extracted_start='last week'; extracted_end=null; extracted_output_kind='chart'.\n"
-        "- 'Export the result to excel' -> extracted_variables_selected=null; extracted_dataGroup=null; extracted_start=null; extracted_end=null; extracted_output_kind='excel'.\n"
-        "- 'Show daily temperature data from last week to today' -> extracted_variables_selected=['temperature']; extracted_dataGroup='daily'; extracted_start='last week'; extracted_end='today'; extracted_output_kind=null.\n"
-        "- 'Give me weekly rainfall data from 2026-02-01 to 2026-02-07' -> extracted_variables_selected=['rainfall']; extracted_dataGroup='weekly'; extracted_start='2026-02-01'; extracted_end='2026-02-07'; extracted_output_kind=null.\n"
+        "- 'I want to check the temp data' -> extracted_variables_selected=['temperature']; extracted_dataGroup=null; extracted_time_phrase=null; extracted_start=null; extracted_end=null; extracted_output_kind=null.\n"
+        "- 'Show me a humidity chart for this month' -> extracted_variables_selected=['humidity']; extracted_dataGroup=null; extracted_time_phrase='this month'; extracted_start=null; extracted_end=null; extracted_output_kind='chart'.\n"
+        "- 'Export the result to excel' -> extracted_variables_selected=null; extracted_dataGroup=null; extracted_time_phrase=null; extracted_start=null; extracted_end=null; extracted_output_kind='excel'.\n"
+        "- 'Show daily temperature data from last week to today' -> extracted_variables_selected=['temperature']; extracted_dataGroup='daily'; extracted_time_phrase=null; extracted_start='last week'; extracted_end='today'; extracted_output_kind=null.\n"
+        "- 'Give me weekly rainfall data from 2026-02-01 to 2026-02-07' -> extracted_variables_selected=['rainfall']; extracted_dataGroup='weekly'; extracted_time_phrase=null; extracted_start='2026-02-01'; extracted_end='2026-02-07'; extracted_output_kind=null.\n"
         "\n"
         "Return structured output only."
     )
@@ -221,6 +226,10 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
         normalized_output_kind = output_kind.strip().lower()
         updates["extracted_output_kind"] = normalized_output_kind
 
+    time_phrase = extracted_dict.get("extracted_time_phrase") # type: ignore
+    time_phrase = time_phrase.strip() if isinstance(time_phrase, str) else None
+    updates["extracted_time_phrase"] = time_phrase
+
     start = extracted_dict.get("extracted_start") # type: ignore
     end = extracted_dict.get("extracted_end") # type: ignore
     start = start.strip() if isinstance(start, str) else None
@@ -238,22 +247,33 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
 def validate_fields(state: State) -> dict:
     is_data_entry_first_pass = False if state.get("is_data_entry_first_pass") else True 
 
+    extracted_time_phrase = state.get("extracted_time_phrase")
     time_range = state.get("time_range")
     if not time_range:
         time_range = TimeRange(None, None)
-    extracted_start_time = state.get("extracted_start") if state.get("extracted_start") else time_range.start
-    extracted_end_time = state.get("extracted_end") if state.get("extracted_end") else time_range.end
+    extracted_start = state.get("extracted_start")
+    extracted_end = state.get("extracted_end")
+
+    updates: dict = {}
+    
+    if extracted_time_phrase and not extracted_start and not extracted_end:
+        extracted_start_time = None
+        extracted_end_time = None
+        time_verif, time_mess = VerifState.RequestModel, "Time format should be: From start To end."
+    else:
+        extracted_start_time = extracted_start if extracted_start else time_range.start
+        extracted_end_time = extracted_end if extracted_end else time_range.end
+        time_verif, time_mess = verify_timerange_entry(TimeRange(extracted_start_time, extracted_end_time))        
+        updates["time_range"] = TimeRange(extracted_start_time, extracted_end_time)
 
     effective_variables_selected = state.get("extracted_variables_selected") or state.get("variables_selected")
     effective_dataGroup = state.get("extracted_dataGroup") or state.get("dataGroup")
     metadata = state.get("station_meta") or {}
 
-    vars_verif, vars_mess = verify_variables_selected(effective_variables_selected, metadata)
-    time_verif, time_mess = verify_timerange_entry(TimeRange(extracted_start_time, extracted_end_time))
+    vars_verif, vars_mess = verify_variables_selected(effective_variables_selected, metadata) 
     datagroup_verif, dataGroup_mess = verify_datagroup_entry(effective_dataGroup)
 
-    updates: dict = {}
-    updates["time_range"] = TimeRange(extracted_start_time, extracted_end_time)
+    
     updates["variables_selected"] = effective_variables_selected
     updates["dataGroup"] = effective_dataGroup
 
@@ -371,6 +391,7 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
     if not has_request_model_issue(issues, "time_range"):
         return {}
     current_range = state.get("time_range")
+    current_time_phrase = state.get("extracted_time_phrase")
 
     payload = {
         "issues": [issue for issue in (issues) if isinstance(issue, dict) and issue.get("field") == "time_range"],
@@ -378,15 +399,29 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
             "start": current_range.start if current_range else None,  # type: ignore
             "end": current_range.end if current_range else None,  # type: ignore
         },
+        "current_time_phrase": current_time_phrase,
         "current_datetime": datetime.now().isoformat(),
     }
 
     resolver_prompt = (
-        "Convert relative date phrases like today, yesterday, last week, and last month into concrete ISO 8601 datetimes.\n"
-        "Use the current system datetime provided by the caller as the reference.\n"
-        "Return ONLY valid JSON with this shape: "
-        "{\"time_range\": {\"start\": str|null, \"end\": str|null}|null}. "
-        "If you cannot safely resolve it, return {\"time_range\": null}."
+        "Convert relative date phrases (today, yesterday, last week, last month, etc.) "
+        "into concrete ISO-8601 datetimes.\n"
+        "Use the provided current_datetime as the reference.\n\n"
+
+        "STRICT VALIDATION RULES:\n"
+        "- Returned datetimes MUST be valid calendar dates.\n"
+        "- February has 28 days except on leap years (29 days).\n"
+        "- Leap year rule: divisible by 4, but centuries must also be divisible by 400.\n"
+        "- Months must respect their correct day count (30 or 31).\n"
+        "- If a computed date would be invalid, adjust it to the "
+        "closest valid date.\n\n"
+
+        "OUTPUT RULES:\n"
+        "- Always return valid ISO-8601 timestamps: YYYY-MM-DDTHH:MM:SS.\n"
+        "- Return ONLY valid JSON.\n"
+        "- JSON shape must be exactly:\n"
+        "{\"time_range\": {\"start\": str|null, \"end\": str|null}|null}\n"
+        "- If the phrase cannot be safely resolved, return {\"time_range\": null}."
     )
 
     response = model.invoke(
@@ -405,13 +440,17 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
         st_raw = candidate_range.get("start")
         end_raw = candidate_range.get("end")
         if isinstance(st_raw, str) and isinstance(end_raw, str):
-            try:
-                st = st_raw.strip()
-                end = end_raw.strip()
-                if st and end:
-                    updates["time_range"] = TimeRange(start=st, end=end)
-            except ValueError:
-                pass
+            st = sanitize_iso_datetime(st_raw)
+            end = sanitize_iso_datetime(end_raw)
+            if st and end:
+                try:
+                    start_dt = datetime.fromisoformat(st.replace("Z", "+00:00"))
+                    end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
+                    if start_dt <= end_dt:
+                        updates["time_range"] = TimeRange(start=st, end=end)
+                        updates["extracted_time_phrase"] = None
+                except ValueError:
+                    pass
 
     return updates
 

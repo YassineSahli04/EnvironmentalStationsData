@@ -1,3 +1,6 @@
+import calendar
+import re
+
 from langchain_core.messages import HumanMessage
 
 from agent.State import State, TimeRange
@@ -181,3 +184,50 @@ def transform_timeseries_to_excel_payload(
         "headers": headers,
         "data": formatted_rows,
     }
+
+def sanitize_iso_datetime(value: str) -> str | None:
+    raw = value.strip()
+    if not raw:
+        return None
+
+    has_z = raw.endswith("Z")
+    candidate = raw[:-1] if has_z else raw
+
+    try:
+        parsed = datetime.fromisoformat(candidate)
+        normalized = parsed.isoformat(timespec="seconds")
+        return f"{normalized}Z" if has_z else normalized
+    except ValueError:
+        pass
+
+    match = re.match(
+        r"^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})"
+        r"[T\s](?P<hour>\d{2}):(?P<minute>\d{2})(?::(?P<second>\d{2}))?$",
+        candidate,
+    )
+    if not match:
+        return None
+
+    year = int(match.group("year"))
+    month = int(match.group("month"))
+    day = int(match.group("day"))
+    hour = int(match.group("hour"))
+    minute = int(match.group("minute"))
+    second = int(match.group("second") or "00")
+
+    if month < 1 or month > 12:
+        return None
+    if hour > 23 or minute > 59 or second > 59:
+        return None
+
+    max_day = calendar.monthrange(year, month)[1]
+    safe_day = min(max(day, 1), max_day)
+
+    try:
+        repaired = datetime(year, month, safe_day, hour, minute, second)
+    except ValueError:
+        return None
+
+    normalized = repaired.isoformat(timespec="seconds")
+    return f"{normalized}Z" if has_z else normalized
+

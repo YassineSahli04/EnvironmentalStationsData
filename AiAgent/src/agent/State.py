@@ -21,6 +21,7 @@ class State(TypedDict):
 
     extracted_variables_selected: Optional[List[str]]
     extracted_dataGroup: Optional[str]
+    extracted_time_phrase: Optional[str]
     extracted_start: Optional[str]
     extracted_end: Optional[str]
     extracted_output_kind: Optional[str]
@@ -44,6 +45,7 @@ class IntentResult(BaseModel):
 class ExtractedRequestResult(BaseModel):
     extracted_variables_selected: Optional[list[str]] = None
     extracted_dataGroup: Optional[str] = None
+    extracted_time_phrase: Optional[str] = None
     extracted_start: Optional[str] = None
     extracted_end: Optional[str] = None
     extracted_output_kind: Optional[str] = None
