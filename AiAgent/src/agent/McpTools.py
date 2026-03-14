@@ -2,6 +2,9 @@ import json
 import asyncio
 from pathlib import Path
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from agent.Logging import get_logger
+
+logger = get_logger(__name__)
 
 _MCP_CLIENT = None
 _INIT_LOCK = asyncio.Lock()
@@ -14,6 +17,7 @@ async def load_mcp_tools(config_path: str | Path):
 
     _MCP_CLIENT = MultiServerMCPClient(cfg)
     tools = await _MCP_CLIENT.get_tools()
+    logger.info("mcp tools loaded successfully | servers=%s tools=%s", len(cfg), len(tools))
     return tools
 
 
@@ -30,8 +34,13 @@ async def init_tool(config_path: str | Path = "mcp.servers.json", force: bool = 
         if _IS_INITIALIZED and not force:
             return MCP_TOOLS
 
-        tools = await load_mcp_tools(config_path)
+        try:
+            tools = await load_mcp_tools(config_path)
+        except Exception:
+            logger.exception("mcp initialization failed | config_path=%s", config_path)
+            raise
         MCP_TOOLS.clear()
         MCP_TOOLS.extend(tools)
         _IS_INITIALIZED = True
+        logger.info("mcp initialization complete | tools=%s", len(MCP_TOOLS))
         return MCP_TOOLS

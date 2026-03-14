@@ -17,9 +17,11 @@ class State(TypedDict):
 
     station_id: Optional[str]
     station_meta: Optional[dict]
+    recheck_intent: Optional[bool]
 
     extracted_variables_selected: Optional[List[str]]
     extracted_dataGroup: Optional[str]
+    extracted_time_phrase: Optional[str]
     extracted_start: Optional[str]
     extracted_end: Optional[str]
     extracted_output_kind: Optional[str]
@@ -28,7 +30,6 @@ class State(TypedDict):
     variables_selected: Optional[List[str]]
     dataGroup: Optional[str]
     output_kind: Optional[str]
-    station_data: Optional[list[dict]]
 
     is_data_request: bool
     data_validation_status: Optional[str]
@@ -44,6 +45,7 @@ class IntentResult(BaseModel):
 class ExtractedRequestResult(BaseModel):
     extracted_variables_selected: Optional[list[str]] = None
     extracted_dataGroup: Optional[str] = None
+    extracted_time_phrase: Optional[str] = None
     extracted_start: Optional[str] = None
     extracted_end: Optional[str] = None
     extracted_output_kind: Optional[str] = None

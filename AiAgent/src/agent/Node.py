@@ -1,10 +1,11 @@
+import calendar
 from datetime import datetime
 import asyncio
 import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Dict, List
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage, HumanMessage
@@ -12,12 +13,14 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.prebuilt import ToolNode
 
 from agent.McpTools import MCP_TOOLS
+from agent.Logging import get_logger
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS, get_station_data
-from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_message_text, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload
+from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_messages, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload, sanitize_iso_datetime
 
 model = Model.build_default_model()
+logger = get_logger(__name__)
 
 SYSTEM = """
     You are a Meteorological Assistant.
@@ -30,10 +33,10 @@ SYSTEM = """
 """
 
 def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[str, bool]:
-    last_msg = get_last_user_message_text(state)
+    msgs = get_last_user_messages(state, 5)
 
-    if not last_msg:
-        return {"is_data_request": False}
+    if not msgs:
+        return {"is_data_request": False, "recheck_intent": False}
     
     structured_model = model.with_structured_output(IntentResult)
 
@@ -58,15 +61,34 @@ def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[
             "Do not infer hidden intent. Classify only what the user explicitly asked."
         )
 
-    result = structured_model.invoke(
-        [
-            SystemMessage(content=prompt),
-            HumanMessage(content=last_msg),
-        ],
-        config=config,
-    )
+    messages: list[BaseMessage] = [SystemMessage(content=prompt)]
 
-    return {"is_data_request": result.is_data_request} # type: ignore
+    if len(msgs) > 4:
+        messages.append(HumanMessage(content=msgs[4]))
+    
+    if len(msgs) > 3:
+        messages.append(HumanMessage(content=msgs[3]))
+    
+    if len(msgs) > 2:
+        messages.append(HumanMessage(content=msgs[2]))
+    
+    if len(msgs) > 1:
+        messages.append(HumanMessage(content=msgs[1]))
+
+    if len(msgs) > 0:
+        messages.append(HumanMessage(content=msgs[0]))
+    try:
+        result = structured_model.invoke(
+            messages,
+            config=config,
+        )
+    except Exception:
+        logger.exception("classify_intent failed")
+        return {"is_data_request": False, "recheck_intent": False}
+    if result.is_data_request and not state.get("station_id"):  # type: ignore
+        return {"is_data_request": False, "recheck_intent": True} 
+
+    return {"is_data_request": result.is_data_request, "recheck_intent": False} # type: ignore
 
 def call_model(state:State, config: RunnableConfig | None = None) -> Dict[str, List[BaseMessage]]:
     station_id = state.get("station_id")
@@ -81,15 +103,31 @@ def call_model(state:State, config: RunnableConfig | None = None) -> Dict[str, L
     prompt = f"""{SYSTEM}
         CURRENT STATION LOCKED: {station_id or "NONE"}"""
 
-    response = model_with_tools.invoke(
-        [SystemMessage(content=prompt)] + state["messages"],
-        config=config,
-    )
+    try:
+        response = model_with_tools.invoke(
+            [SystemMessage(content=prompt)] + state["messages"],
+            config=config,
+        )
+    except Exception:
+        logger.exception("call_model failed")
+        return {
+            "messages": [
+                AIMessage(content="I hit an internal error while generating a response. Please try again.")
+            ]
+        }
     return {"messages": [response]}
 
 def execute_tools(state: State, config: RunnableConfig | None = None) -> State:
     tool_node = ToolNode(ALL_TOOLS + MCP_TOOLS)
-    result = tool_node.invoke(state, config=config)
+    try:
+        result = tool_node.invoke(state, config=config)
+    except Exception:
+        logger.exception("execute_tools failed")
+        return {
+            "messages": [
+                AIMessage(content="A tool execution failed. Please try again or adjust your request.")
+            ]
+        } # type: ignore
 
     for m in reversed(result["messages"]):
         if isinstance(m, ToolMessage) and m.name == 'set_station':
@@ -108,7 +146,8 @@ def ask_for_station(state: State) -> State:
     return state
 
 def extract_data_request(state: State, config: RunnableConfig | None = None) -> State:
-    last_msg = get_last_user_message_text(state)
+    msg = get_last_user_messages(state)
+    last_msg = msg[0]
     if not last_msg:
         return {} # type: ignore
 
@@ -148,19 +187,23 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
         "Example: 'daily temperature data' means dataGroup='daily'.\n"
         "If no data group is explicitly stated, return null.\n"
         "\n"
-        "3. extracted_start and extracted_end:\n"
-        "Write the values into the fields named extracted_start and extracted_end.\n"
-        "Use these for any explicit time constraint stated by the user.\n"
-        "Copy the user's wording as-is into the correct side of the range.\n"
-        "The values do NOT need to be in date format.\n"
-        "They can be exact dates, datetimes, or natural-language expressions.\n"
-        "Examples: from 2026-02-01 to 2026-02-07 -> start='2026-02-01', end='2026-02-07'.\n"
-        "Examples: from last week to today -> start='last week', end='today'.\n"
-        "Examples: between yesterday and this morning -> start='yesterday', end='this morning'.\n"
-        "If the user gives only one explicit time expression, put it in start and leave end null.\n"
-        "Examples: for last week -> start='last week', end=null.\n"
-        "Examples: on 2026-02-01 -> start='2026-02-01', end=null.\n"
-        "Do not convert relative phrases into dates in this step.\n"
+        "3. extracted_time_phrase, extracted_start, and extracted_end:\n"
+        "Write time values into the correct fields: extracted_time_phrase, extracted_start, extracted_end.\n"
+        "Use extracted_start and extracted_end only for explicit range boundaries.\n"
+        "Use extracted_time_phrase for a single standalone time phrase without explicit boundaries.\n"
+        "Copy the user's wording as-is. Do not convert to date format in this step.\n"
+        "Time values can be exact dates, datetimes, or natural-language expressions.\n"
+        "Range examples:\n"
+        "- from 2026-02-01 to 2026-02-07 -> extracted_start='2026-02-01', extracted_end='2026-02-07', extracted_time_phrase=null.\n"
+        "- from last week to today -> extracted_start='last week', extracted_end='today', extracted_time_phrase=null.\n"
+        "- between yesterday and this morning -> extracted_start='yesterday', extracted_end='this morning', extracted_time_phrase=null.\n"
+        "Standalone phrase examples (no explicit start/end words):\n"
+        "- this month -> extracted_time_phrase='this month', extracted_start=null, extracted_end=null.\n"
+        "- for last week -> extracted_time_phrase='last week', extracted_start=null, extracted_end=null.\n"
+        "- today -> extracted_time_phrase='today', extracted_start=null, extracted_end=null.\n"
+        "Single explicit date/datetime without a range boundary goes to extracted_start.\n"
+        "Example: on 2026-02-01 -> extracted_start='2026-02-01', extracted_end=null, extracted_time_phrase=null.\n"
+        "If both a standalone phrase and explicit range boundaries appear, prioritize boundaries for extracted_start/extracted_end and set extracted_time_phrase=null.\n"
         "\n"
         "4. extracted_output_kind:\n"
         "Write the result into the field named extracted_output_kind.\n"
@@ -169,22 +212,26 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
         "If the user asks only to check or view data without naming a format, return null.\n"
         "\n"
         "Important examples:\n"
-        "- 'I want to check the temp data' -> extracted_variables_selected=['temperature']; extracted_dataGroup=null; extracted_start=null; extracted_end=null; extracted_output_kind=null.\n"
-        "- 'Show me a humidity chart for last week' -> extracted_variables_selected=['humidity']; extracted_dataGroup=null; extracted_start='last week'; extracted_end=null; extracted_output_kind='chart'.\n"
-        "- 'Export the result to excel' -> extracted_variables_selected=null; extracted_dataGroup=null; extracted_start=null; extracted_end=null; extracted_output_kind='excel'.\n"
-        "- 'Show daily temperature data from last week to today' -> extracted_variables_selected=['temperature']; extracted_dataGroup='daily'; extracted_start='last week'; extracted_end='today'; extracted_output_kind=null.\n"
-        "- 'Give me weekly rainfall data from 2026-02-01 to 2026-02-07' -> extracted_variables_selected=['rainfall']; extracted_dataGroup='weekly'; extracted_start='2026-02-01'; extracted_end='2026-02-07'; extracted_output_kind=null.\n"
+        "- 'I want to check the temp data' -> extracted_variables_selected=['temperature']; extracted_dataGroup=null; extracted_time_phrase=null; extracted_start=null; extracted_end=null; extracted_output_kind=null.\n"
+        "- 'Show me a humidity chart for this month' -> extracted_variables_selected=['humidity']; extracted_dataGroup=null; extracted_time_phrase='this month'; extracted_start=null; extracted_end=null; extracted_output_kind='chart'.\n"
+        "- 'Export the result to excel' -> extracted_variables_selected=null; extracted_dataGroup=null; extracted_time_phrase=null; extracted_start=null; extracted_end=null; extracted_output_kind='excel'.\n"
+        "- 'Show daily temperature data from last week to today' -> extracted_variables_selected=['temperature']; extracted_dataGroup='daily'; extracted_time_phrase=null; extracted_start='last week'; extracted_end='today'; extracted_output_kind=null.\n"
+        "- 'Give me weekly rainfall data from 2026-02-01 to 2026-02-07' -> extracted_variables_selected=['rainfall']; extracted_dataGroup='weekly'; extracted_time_phrase=null; extracted_start='2026-02-01'; extracted_end='2026-02-07'; extracted_output_kind=null.\n"
         "\n"
         "Return structured output only."
     )
 
-    extracted = structured_model.invoke(
-        [
-            SystemMessage(content=prompt),
-            HumanMessage(content=last_msg),
-        ],
-        config=config,
-    )
+    try:
+        extracted = structured_model.invoke(
+            [
+                SystemMessage(content=prompt),
+                HumanMessage(content=last_msg),
+            ],
+            config=config,
+        )
+    except Exception:
+        logger.exception("extract_data_request failed")
+        return {} # type: ignore
 
     updates: dict = {}
 
@@ -205,6 +252,10 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
         normalized_output_kind = output_kind.strip().lower()
         updates["extracted_output_kind"] = normalized_output_kind
 
+    time_phrase = extracted_dict.get("extracted_time_phrase") # type: ignore
+    time_phrase = time_phrase.strip() if isinstance(time_phrase, str) else None
+    updates["extracted_time_phrase"] = time_phrase
+
     start = extracted_dict.get("extracted_start") # type: ignore
     end = extracted_dict.get("extracted_end") # type: ignore
     start = start.strip() if isinstance(start, str) else None
@@ -214,27 +265,48 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
     if end:
         updates["extracted_end"] = end
 
+    updates["is_data_entry_first_pass"] = None
+    updates["data_validation_status"] = None
+    updates["data_validation_issues"] = None
     return updates # type: ignore
 
 def validate_fields(state: State) -> dict:
     is_data_entry_first_pass = False if state.get("is_data_entry_first_pass") else True 
 
+    extracted_time_phrase = state.get("extracted_time_phrase")
     time_range = state.get("time_range")
-    extracted_start_time = time_range.start if time_range and time_range.start else state.get("extracted_start")
-    extracted_end_time = time_range.end if time_range and time_range.end else state.get("extracted_end")
-
-    effective_variables_selected = state.get("variables_selected") or state.get("extracted_variables_selected")
-    effective_dataGroup = state.get("dataGroup") or state.get("extracted_dataGroup")
-    metadata = state.get("station_meta") or {}
-
-    vars_verif, vars_mess = verify_variables_selected(effective_variables_selected, metadata)
-    time_verif, time_mess = verify_timerange_entry(TimeRange(extracted_start_time, extracted_end_time))
-    datagroup_verif, dataGroup_mess = verify_datagroup_entry(effective_dataGroup)
+    if not time_range:
+        time_range = TimeRange(None, None)
+    extracted_start = state.get("extracted_start")
+    extracted_end = state.get("extracted_end")
 
     updates: dict = {}
-    updates["time_range"] = TimeRange(extracted_start_time, extracted_end_time)
+    
+    if extracted_time_phrase and not extracted_start and not extracted_end:
+        extracted_start_time = None
+        extracted_end_time = None
+        time_verif, time_mess = VerifState.RequestModel, "Time format should be: From start To end."
+    else:
+        extracted_start_time = extracted_start if extracted_start else time_range.start
+        extracted_end_time = extracted_end if extracted_end else time_range.end
+        time_verif, time_mess = verify_timerange_entry(TimeRange(extracted_start_time, extracted_end_time))        
+        updates["time_range"] = TimeRange(extracted_start_time, extracted_end_time)
+
+    effective_variables_selected = state.get("extracted_variables_selected") or state.get("variables_selected")
+    effective_dataGroup = state.get("extracted_dataGroup") or state.get("dataGroup")
+    metadata = state.get("station_meta") or {}
+
+    vars_verif, vars_mess = verify_variables_selected(effective_variables_selected, metadata) 
+    datagroup_verif, dataGroup_mess = verify_datagroup_entry(effective_dataGroup)
+
+    
     updates["variables_selected"] = effective_variables_selected
     updates["dataGroup"] = effective_dataGroup
+
+    updates["extracted_variables_selected"] = None
+    updates["extracted_dataGroup"] = None
+    updates["extracted_start"] = None
+    updates["extracted_end"] = None
 
     request_model_issues = []
     failed_issues = []
@@ -252,6 +324,15 @@ def validate_fields(state: State) -> dict:
     if datagroup_verif == VerifState.Failed  or (datagroup_verif == VerifState.RequestModel and not is_data_entry_first_pass):
         failed_issues.append({"field":"dataGroup","reason":dataGroup_mess})
 
+        extracted_output_kind = state.get('extracted_output_kind') or ""
+    
+    extracted_output_kind = state.get('extracted_output_kind') or ""
+    if extracted_output_kind.strip().lower() in OUTPUT_TYPE:
+        updates.update({
+            "output_kind": extracted_output_kind.strip().lower(),
+            "extracted_output_kind": None
+        })
+    
     if is_data_entry_first_pass and request_model_issues:
         updates.update({
             "is_data_entry_first_pass": True,
@@ -262,20 +343,10 @@ def validate_fields(state: State) -> dict:
 
     if failed_issues:
         updates.update({
-            "data_entry_resolve_trial": False,
             "data_validation_status": VerifState.Failed.value,
             "data_validation_issues": failed_issues,
         })
         return updates
-    
-    
-    extracted_output_kind = state.get('extracted_output_kind') or ""
-    if extracted_output_kind.strip().lower() in OUTPUT_TYPE:
-        updates.update({
-            "output_kind": extracted_output_kind.strip().lower(),
-            "extracted_output_kind": None
-        })
-        
     
     updates.update({
         "data_entry_resolve_trial" : False,
@@ -315,13 +386,17 @@ def try_resolve_data_entry_fields(state: State, config: RunnableConfig | None = 
         "Use null for fields you cannot safely resolve."
     )
 
-    response = model.invoke(
-        [
-            SystemMessage(content=resolver_prompt),
-            HumanMessage(content=json.dumps(payload)),
-        ],
-        config=config,
-    )
+    try:
+        response = model.invoke(
+            [
+                SystemMessage(content=resolver_prompt),
+                HumanMessage(content=json.dumps(payload)),
+            ],
+            config=config,
+        )
+    except Exception:
+        logger.exception("try_resolve_data_entry_fields failed")
+        return {"data_entry_model_resolve_attempted": True}
     model_data = parse_tool_content(getattr(response, "content", ""))
 
     updates: dict = {"data_entry_model_resolve_attempted": True}
@@ -346,6 +421,7 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
     if not has_request_model_issue(issues, "time_range"):
         return {}
     current_range = state.get("time_range")
+    current_time_phrase = state.get("extracted_time_phrase")
 
     payload = {
         "issues": [issue for issue in (issues) if isinstance(issue, dict) and issue.get("field") == "time_range"],
@@ -353,25 +429,42 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
             "start": current_range.start if current_range else None,  # type: ignore
             "end": current_range.end if current_range else None,  # type: ignore
         },
+        "current_time_phrase": current_time_phrase,
         "current_datetime": datetime.now().isoformat(),
     }
 
     resolver_prompt = (
-        "Resolve only the time_range field.\n"
-        "Convert relative date phrases like today, yesterday, last week, and last month into concrete ISO 8601 datetimes.\n"
-        "Use the current system datetime provided by the caller as the reference.\n"
-        "Return ONLY valid JSON with this shape: "
-        "{\"time_range\": {\"start\": str|null, \"end\": str|null}|null}. "
-        "If you cannot safely resolve it, return {\"time_range\": null}."
+        "Convert relative date phrases (today, yesterday, last week, last month, etc.) "
+        "into concrete ISO-8601 datetimes.\n"
+        "Use the provided current_datetime as the reference.\n\n"
+
+        "STRICT VALIDATION RULES:\n"
+        "- Returned datetimes MUST be valid calendar dates.\n"
+        "- February has 28 days except on leap years (29 days).\n"
+        "- Leap year rule: divisible by 4, but centuries must also be divisible by 400.\n"
+        "- Months must respect their correct day count (30 or 31).\n"
+        "- If a computed date would be invalid, adjust it to the "
+        "closest valid date.\n\n"
+
+        "OUTPUT RULES:\n"
+        "- Always return valid ISO-8601 timestamps: YYYY-MM-DDTHH:MM:SS.\n"
+        "- Return ONLY valid JSON.\n"
+        "- JSON shape must be exactly:\n"
+        "{\"time_range\": {\"start\": str|null, \"end\": str|null}|null}\n"
+        "- If the phrase cannot be safely resolved, return {\"time_range\": null}."
     )
 
-    response = model.invoke(
-        [
-            SystemMessage(content=resolver_prompt),
-            HumanMessage(content=json.dumps(payload)),
-        ],
-        config=config,
-    )
+    try:
+        response = model.invoke(
+            [
+                SystemMessage(content=resolver_prompt),
+                HumanMessage(content=json.dumps(payload)),
+            ],
+            config=config,
+        )
+    except Exception:
+        logger.exception("try_resolve_time_range failed")
+        return {}
 
     model_data = parse_tool_content(getattr(response, "content", ""))
     updates: dict = {}
@@ -381,16 +474,17 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
         st_raw = candidate_range.get("start")
         end_raw = candidate_range.get("end")
         if isinstance(st_raw, str) and isinstance(end_raw, str):
-            try:
-                st = st_raw.strip()
-                end = end_raw.strip()
-                if st and end:
-                    parsed_start = datetime.fromisoformat(st)
-                    parsed_end = datetime.fromisoformat(end)
-                    if parsed_start < parsed_end:
+            st = sanitize_iso_datetime(st_raw)
+            end = sanitize_iso_datetime(end_raw)
+            if st and end:
+                try:
+                    start_dt = datetime.fromisoformat(st.replace("Z", "+00:00"))
+                    end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
+                    if start_dt <= end_dt:
                         updates["time_range"] = TimeRange(start=st, end=end)
-            except ValueError:
-                pass
+                        updates["extracted_time_phrase"] = None
+                except ValueError:
+                    pass
 
     return updates
 
@@ -404,8 +498,6 @@ def ask_for_data_entry_field_update(state: State) -> State:
         for issue in issues:
             if isinstance(issue, dict):
                 field = issue.get("field")
-                if field:
-                    state[field] = None
                 reason = issue.get("reason")
                 if field and reason:
                     failed_reasons.append(f"{field}: {reason}")
@@ -414,14 +506,6 @@ def ask_for_data_entry_field_update(state: State) -> State:
             sections.append("Failed checks: " + "; ".join(failed_reasons))
         msg = "Please update your request. " + " | ".join(sections)
     state["messages"].append(AIMessage(content=msg))
-    state["is_data_entry_first_pass"] = False
-    state["data_validation_issues"] = []
-    state["data_validation_status"] = None
-
-    state["extracted_variables_selected"] = None
-    state["extracted_dataGroup"] = None
-    state["extracted_start"] = None
-    state["extracted_end"] = None
 
     return state
 
@@ -437,7 +521,6 @@ def ask_for_output_kind(state: State) -> State:
     )
     return state
 
-
 async def execute_excel_export(state: State, config: RunnableConfig | None = None) -> State:
     station_id = state.get('station_id')
     sensors = state.get('variables_selected')
@@ -445,10 +528,16 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
     time_range = state.get('time_range')
 
     station_data = []
-    if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
-        station_data = await asyncio.to_thread(
-            get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
-        )
+    try:
+        if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
+            station_data = await asyncio.to_thread(
+                get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
+            )
+    except Exception:
+        logger.exception("execute_excel_export data fetch failed")
+        return {
+            "messages": [AIMessage(content="Excel export failed while fetching station data.")],
+        } # type: ignore
 
     default_export_dir = Path(__file__).resolve().parents[2] / "output"
     export_dir = Path(os.getenv("EXPORT_DIR", str(default_export_dir)))
@@ -492,13 +581,13 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
     try:
         await write_tool.ainvoke(payload, config=config) # type: ignore[arg-type]
     except Exception as exc:
+        logger.exception("execute_excel_export write_file failed")
         return {
             "messages": [AIMessage(content=f"Excel export failed: {str(exc)}")],
         } # type: ignore
 
     return {
-        "output_kind": None,
-        "messages": [AIMessage(content=f"Excel export created, please click to download it.",
+        "messages": [AIMessage(content=f"Excel export created, please check the file.",
                                additional_kwargs={
                                     "file_path": output_path,
                                 }
@@ -512,14 +601,19 @@ async def execute_chart_tool(state: State, config: RunnableConfig | None = None)
     time_range = state.get('time_range')
 
     station_data = []
-    if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
-        station_data = await asyncio.to_thread(
-            get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
-        )
+    try:
+        if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
+            station_data = await asyncio.to_thread(
+                get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
+            )
+    except Exception:
+        logger.exception("execute_chart_tool data fetch failed")
+        return {
+            "messages": [AIMessage(content="Visualization failed while fetching station data.")],
+        } # type: ignore
 
     if not MCP_TOOLS:
         return {
-            "station_data": station_data,
             "messages": [AIMessage(content="No MCP tools are available right now.")],
         } # type: ignore
 
@@ -533,52 +627,47 @@ async def execute_chart_tool(state: State, config: RunnableConfig | None = None)
         "rows": station_data,
     }
 
-    model_with_mcp = model.bind_tools(MCP_TOOLS)
-    ai = await model_with_mcp.ainvoke([
-        SystemMessage(content=(
-            "You are a data-visualization planner for meteorological data. "
-            "Call exactly one MCP visualization tool and use only fields from the provided payload. "
-            "Do not invent fields or values.\n"
-            "\n"
-            "Chart quality requirements:\n"
-            "- Prefer a clean, minimal chart with high readability.\n"
-            "- Keep titles concise and informative.\n"
-            "- Format numeric values to 1-2 decimals max.\n"
-            "- Avoid dense value labels on every point; show labels only when necessary.\n"
-            "- Use a subtle grid and strong contrast for the main series.\n"
-            "- Keep axis labels short and human-friendly.\n"
-            "- Avoid overlapping text and clutter.\n"
-            "- If dates are dense, reduce x-axis tick density for readability.\n"
-            "- Use a neutral background and a professional palette.\n"
-            "\n"
-            "Output target:\n"
-            "- If output_kind is chart, generate a clean line chart optimized for readability.\n"
-            "- If output_kind is table or data, choose the matching visualization/tool behavior.\n"
-            "\n"
-            "Return a tool call only."
-        )),
-        HumanMessage(content=json.dumps(payload)),
-    ], config=config)
+    try:
+        model_with_mcp = model.bind_tools(MCP_TOOLS)
+        ai = await model_with_mcp.ainvoke([
+            SystemMessage(content=(
+                "You are a data-visualization planner for meteorological data. "
+                "Call exactly one MCP visualization tool and use only fields from the provided payload. "
+                "Do not invent fields or values.\n"
+                "\n"
+                "Chart quality requirements:\n"
+                "- Prefer a clean, minimal chart with high readability.\n"
+                "- Keep titles concise and informative.\n"
+                "- Format numeric values to 1-2 decimals max.\n"
+                "- Avoid dense value labels on every point; show labels only when necessary.\n"
+                "- Use a subtle grid and strong contrast for the main series.\n"
+                "- Keep axis labels short and human-friendly.\n"
+                "- Avoid overlapping text and clutter.\n"
+                "- If dates are dense, reduce x-axis tick density for readability.\n"
+                "- Use a neutral background and a professional palette.\n"
+                "\n"
+                "Output target:\n"
+                "- If output_kind is chart, generate a clean line chart optimized for readability.\n"
+                "- If output_kind is table or data, choose the matching visualization/tool behavior.\n"
+                "\n"
+                "Return a tool call only."
+            )),
+            HumanMessage(content=json.dumps(payload)),
+        ], config=config)
 
-    result = await ToolNode(MCP_TOOLS).ainvoke({"messages": [ai]}, config=config)
+        result = await ToolNode(MCP_TOOLS).ainvoke({"messages": [ai]}, config=config)
+    except Exception:
+        logger.exception("execute_chart_tool failed")
+        return {
+            "messages": [AIMessage(content="Visualization generation failed. Please try again.")],
+        } # type: ignore
     tool_messages = [m for m in result.get("messages", []) if isinstance(m, ToolMessage)]
     if tool_messages:
         last_tool = tool_messages[-1]
-        is_chart_output = str(state.get("output_kind") or "").strip().lower() == "chart"
-        chart_reset = {
-            "time_range": None,
-            "variables_selected": None,
-            "dataGroup": None,
-            "output_kind": None,
-            "station_data": None,
-        } if is_chart_output else {"station_data": station_data}
-
         return {
-            **chart_reset,
             "messages": [ai, last_tool, AIMessage(content=f"Visualization generated with tool '{last_tool.text}'.")],
         } # type: ignore
 
     return {
-        "station_data": station_data,
         "messages": [ai, AIMessage(content="No MCP tool execution result was returned.")],
     } # type: ignore

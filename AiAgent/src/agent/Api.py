@@ -1,20 +1,28 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from pathlib import Path
 import base64
 import mimetypes
+from uuid import uuid4
 from agent.Agent import Agent
 from agent.Graph import build_graph
 from agent.McpTools import init_tool
+from agent.Logging import get_logger
 
 app = FastAPI()
 graph = build_graph()
+logger = get_logger(__name__)
 
 
 @app.on_event("startup")
 async def startup_event():
-    await init_tool()
+    try:
+        await init_tool()
+        logger.info("startup mcp initialization succeeded")
+    except Exception:
+            raise ValueError("cli mcp initialization failed.")
 
 class ChatRequest(BaseModel):
     message: str
@@ -23,14 +31,39 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat(req: ChatRequest):
     config = {"configurable": {"thread_id": req.thread_id}}
-    result = await graph.ainvoke(
-        {"messages": [HumanMessage(content=req.message)]},
-        config=config,
-    )
+    request_id = uuid4().hex[:8]
+
+    try:
+        result = await graph.ainvoke(
+            {"messages": [HumanMessage(content=req.message)]},
+            config=config,
+        )
+    except Exception:
+        logger.exception(
+            "chat request failed | request_id=%s thread_id=%s",
+            request_id,
+            req.thread_id,
+        )
+        return JSONResponse(
+            status_code=200,
+            content={
+                "response": (
+                    "I hit an internal error while processing your request. "
+                    f"Please retry. (error_id={request_id})"
+                ),
+                "file": None,
+            },
+        )
 
     ai_response, ai_text =  Agent.last_ai_text(result.get("messages"))
 
     gen_file = _collect_generated_file(ai_response)
+    logger.info(
+        "chat request succeeded | request_id=%s thread_id=%s file=%s",
+        request_id,
+        req.thread_id,
+        bool(gen_file),
+    )
     return {"response": ai_text, "file": gen_file}
 
 def _collect_generated_file(last_response: AIMessage | None):
