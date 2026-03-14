@@ -13,12 +13,14 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.prebuilt import ToolNode
 
 from agent.McpTools import MCP_TOOLS
+from agent.Logging import get_logger
 from agent.Model import Model
 from agent.State import ExtractedRequestResult, IntentResult, State, TimeRange
 from agent.Tools import ALL_TOOLS, OUTPUT_TYPE, STATION_TOOLS, get_station_data
 from agent.Helper import StationDataGroup, VerifState, _extract_available_sensors, get_last_user_messages, has_request_model_issue, parse_tool_content, verify_datagroup_entry, verify_timerange_entry, verify_variables_selected, transform_timeseries_to_excel_payload, sanitize_iso_datetime
 
 model = Model.build_default_model()
+logger = get_logger(__name__)
 
 SYSTEM = """
     You are a Meteorological Assistant.
@@ -75,10 +77,14 @@ def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[
 
     if len(msgs) > 0:
         messages.append(HumanMessage(content=msgs[0]))
-    result = structured_model.invoke(
-        messages,
-        config=config,
-    )
+    try:
+        result = structured_model.invoke(
+            messages,
+            config=config,
+        )
+    except Exception:
+        logger.exception("classify_intent failed")
+        return {"is_data_request": False, "recheck_intent": False}
     if result.is_data_request and not state.get("station_id"):  # type: ignore
         return {"is_data_request": False, "recheck_intent": True} 
 
@@ -97,15 +103,31 @@ def call_model(state:State, config: RunnableConfig | None = None) -> Dict[str, L
     prompt = f"""{SYSTEM}
         CURRENT STATION LOCKED: {station_id or "NONE"}"""
 
-    response = model_with_tools.invoke(
-        [SystemMessage(content=prompt)] + state["messages"],
-        config=config,
-    )
+    try:
+        response = model_with_tools.invoke(
+            [SystemMessage(content=prompt)] + state["messages"],
+            config=config,
+        )
+    except Exception:
+        logger.exception("call_model failed")
+        return {
+            "messages": [
+                AIMessage(content="I hit an internal error while generating a response. Please try again.")
+            ]
+        }
     return {"messages": [response]}
 
 def execute_tools(state: State, config: RunnableConfig | None = None) -> State:
     tool_node = ToolNode(ALL_TOOLS + MCP_TOOLS)
-    result = tool_node.invoke(state, config=config)
+    try:
+        result = tool_node.invoke(state, config=config)
+    except Exception:
+        logger.exception("execute_tools failed")
+        return {
+            "messages": [
+                AIMessage(content="A tool execution failed. Please try again or adjust your request.")
+            ]
+        } # type: ignore
 
     for m in reversed(result["messages"]):
         if isinstance(m, ToolMessage) and m.name == 'set_station':
@@ -199,13 +221,17 @@ def extract_data_request(state: State, config: RunnableConfig | None = None) -> 
         "Return structured output only."
     )
 
-    extracted = structured_model.invoke(
-        [
-            SystemMessage(content=prompt),
-            HumanMessage(content=last_msg),
-        ],
-        config=config,
-    )
+    try:
+        extracted = structured_model.invoke(
+            [
+                SystemMessage(content=prompt),
+                HumanMessage(content=last_msg),
+            ],
+            config=config,
+        )
+    except Exception:
+        logger.exception("extract_data_request failed")
+        return {} # type: ignore
 
     updates: dict = {}
 
@@ -360,13 +386,17 @@ def try_resolve_data_entry_fields(state: State, config: RunnableConfig | None = 
         "Use null for fields you cannot safely resolve."
     )
 
-    response = model.invoke(
-        [
-            SystemMessage(content=resolver_prompt),
-            HumanMessage(content=json.dumps(payload)),
-        ],
-        config=config,
-    )
+    try:
+        response = model.invoke(
+            [
+                SystemMessage(content=resolver_prompt),
+                HumanMessage(content=json.dumps(payload)),
+            ],
+            config=config,
+        )
+    except Exception:
+        logger.exception("try_resolve_data_entry_fields failed")
+        return {"data_entry_model_resolve_attempted": True}
     model_data = parse_tool_content(getattr(response, "content", ""))
 
     updates: dict = {"data_entry_model_resolve_attempted": True}
@@ -424,13 +454,17 @@ def try_resolve_time_range(state: State, config: RunnableConfig | None = None) -
         "- If the phrase cannot be safely resolved, return {\"time_range\": null}."
     )
 
-    response = model.invoke(
-        [
-            SystemMessage(content=resolver_prompt),
-            HumanMessage(content=json.dumps(payload)),
-        ],
-        config=config,
-    )
+    try:
+        response = model.invoke(
+            [
+                SystemMessage(content=resolver_prompt),
+                HumanMessage(content=json.dumps(payload)),
+            ],
+            config=config,
+        )
+    except Exception:
+        logger.exception("try_resolve_time_range failed")
+        return {}
 
     model_data = parse_tool_content(getattr(response, "content", ""))
     updates: dict = {}
@@ -494,10 +528,16 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
     time_range = state.get('time_range')
 
     station_data = []
-    if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
-        station_data = await asyncio.to_thread(
-            get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
-        )
+    try:
+        if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
+            station_data = await asyncio.to_thread(
+                get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
+            )
+    except Exception:
+        logger.exception("execute_excel_export data fetch failed")
+        return {
+            "messages": [AIMessage(content="Excel export failed while fetching station data.")],
+        } # type: ignore
 
     default_export_dir = Path(__file__).resolve().parents[2] / "output"
     export_dir = Path(os.getenv("EXPORT_DIR", str(default_export_dir)))
@@ -541,6 +581,7 @@ async def execute_excel_export(state: State, config: RunnableConfig | None = Non
     try:
         await write_tool.ainvoke(payload, config=config) # type: ignore[arg-type]
     except Exception as exc:
+        logger.exception("execute_excel_export write_file failed")
         return {
             "messages": [AIMessage(content=f"Excel export failed: {str(exc)}")],
         } # type: ignore
@@ -560,10 +601,16 @@ async def execute_chart_tool(state: State, config: RunnableConfig | None = None)
     time_range = state.get('time_range')
 
     station_data = []
-    if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
-        station_data = await asyncio.to_thread(
-            get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
-        )
+    try:
+        if station_id and sensors and dataGroup and time_range and time_range.start and time_range.end:
+            station_data = await asyncio.to_thread(
+                get_station_data, station_id, sensors, dataGroup, time_range.start, time_range.end
+            )
+    except Exception:
+        logger.exception("execute_chart_tool data fetch failed")
+        return {
+            "messages": [AIMessage(content="Visualization failed while fetching station data.")],
+        } # type: ignore
 
     if not MCP_TOOLS:
         return {
@@ -580,34 +627,40 @@ async def execute_chart_tool(state: State, config: RunnableConfig | None = None)
         "rows": station_data,
     }
 
-    model_with_mcp = model.bind_tools(MCP_TOOLS)
-    ai = await model_with_mcp.ainvoke([
-        SystemMessage(content=(
-            "You are a data-visualization planner for meteorological data. "
-            "Call exactly one MCP visualization tool and use only fields from the provided payload. "
-            "Do not invent fields or values.\n"
-            "\n"
-            "Chart quality requirements:\n"
-            "- Prefer a clean, minimal chart with high readability.\n"
-            "- Keep titles concise and informative.\n"
-            "- Format numeric values to 1-2 decimals max.\n"
-            "- Avoid dense value labels on every point; show labels only when necessary.\n"
-            "- Use a subtle grid and strong contrast for the main series.\n"
-            "- Keep axis labels short and human-friendly.\n"
-            "- Avoid overlapping text and clutter.\n"
-            "- If dates are dense, reduce x-axis tick density for readability.\n"
-            "- Use a neutral background and a professional palette.\n"
-            "\n"
-            "Output target:\n"
-            "- If output_kind is chart, generate a clean line chart optimized for readability.\n"
-            "- If output_kind is table or data, choose the matching visualization/tool behavior.\n"
-            "\n"
-            "Return a tool call only."
-        )),
-        HumanMessage(content=json.dumps(payload)),
-    ], config=config)
+    try:
+        model_with_mcp = model.bind_tools(MCP_TOOLS)
+        ai = await model_with_mcp.ainvoke([
+            SystemMessage(content=(
+                "You are a data-visualization planner for meteorological data. "
+                "Call exactly one MCP visualization tool and use only fields from the provided payload. "
+                "Do not invent fields or values.\n"
+                "\n"
+                "Chart quality requirements:\n"
+                "- Prefer a clean, minimal chart with high readability.\n"
+                "- Keep titles concise and informative.\n"
+                "- Format numeric values to 1-2 decimals max.\n"
+                "- Avoid dense value labels on every point; show labels only when necessary.\n"
+                "- Use a subtle grid and strong contrast for the main series.\n"
+                "- Keep axis labels short and human-friendly.\n"
+                "- Avoid overlapping text and clutter.\n"
+                "- If dates are dense, reduce x-axis tick density for readability.\n"
+                "- Use a neutral background and a professional palette.\n"
+                "\n"
+                "Output target:\n"
+                "- If output_kind is chart, generate a clean line chart optimized for readability.\n"
+                "- If output_kind is table or data, choose the matching visualization/tool behavior.\n"
+                "\n"
+                "Return a tool call only."
+            )),
+            HumanMessage(content=json.dumps(payload)),
+        ], config=config)
 
-    result = await ToolNode(MCP_TOOLS).ainvoke({"messages": [ai]}, config=config)
+        result = await ToolNode(MCP_TOOLS).ainvoke({"messages": [ai]}, config=config)
+    except Exception:
+        logger.exception("execute_chart_tool failed")
+        return {
+            "messages": [AIMessage(content="Visualization generation failed. Please try again.")],
+        } # type: ignore
     tool_messages = [m for m in result.get("messages", []) if isinstance(m, ToolMessage)]
     if tool_messages:
         last_tool = tool_messages[-1]
