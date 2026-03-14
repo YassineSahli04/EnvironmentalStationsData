@@ -5,7 +5,7 @@ import pandas as pd
 # List of params: T2M T2MDEW WS2M RH2M ALLSKY_SFC_SW_DWN PRECTOTCORR
 class NasaPowerApiCalls:
     # NASA Base Endpoint
-    BASE_URL = "https://power.larc.nasa.gov/api/temporal/Hourly/point"
+    BASE_URL = "https://power.larc.nasa.gov/api/temporal/hourly/point"
     def __init__(self, lat, lon, start_date, end_date):
         self.lat = lat
         self.lon = lon
@@ -21,7 +21,7 @@ class NasaPowerApiCalls:
         """
         return {
             "parameters": "T2M,T2MDEW,WS2M,RH2M,ALLSKY_SFC_SW_DWN,PRECTOTCORR", 
-            "community": "RE", 
+            "community": "AG", 
             "longitude": self.lon,
             "latitude": self.lat,
             "start": self.start,

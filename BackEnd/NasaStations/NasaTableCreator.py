@@ -50,13 +50,13 @@ class NasaTableCreator:
         # Create the Data Table
         create_query = text(f"""
             CREATE TABLE IF NOT EXISTS "{self.newTableName}" (
-                date_time TIMESTAMPTZ PRIMARY KEY,
-                T2M NUMERIC(10,3),
-                T2MDEW NUMERIC(10,3),
-                WS2M NUMERIC(10,3),
-                RH2M NUMERIC(10,3),
-                PRECTOTCORR NUMERIC(10,3),
-                ALLSKY_SFC_SW_DWN NUMERIC(10,3)
+                "date_time" TIMESTAMPTZ PRIMARY KEY,
+                "T2M" NUMERIC(10,3),
+                "T2MDEW" NUMERIC(10,3),
+                "WS2M" NUMERIC(10,3),
+                "RH2M" NUMERIC(10,3),
+                "PRECTOTCORR" NUMERIC(10,3),
+                "ALLSKY_SFC_SW_DWN" NUMERIC(10,3)
             );
         """)
 
@@ -161,6 +161,10 @@ class NasaTableCreator:
             
             if df.empty:
                 return None
+
+            # Move date_time from index to regular column
+            # (insert_create_data_df uses index=False)
+            df = df.reset_index()
 
             return df
                 

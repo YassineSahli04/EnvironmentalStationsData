@@ -5,6 +5,7 @@
 .DS_Store
 BackEnd/.DS_Store
 FrontEnd/.DS_Store
+explanations/*
 
 remote.dump
 .vscode/
