@@ -2,20 +2,41 @@ import React, { useState, useRef, useEffect } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import SendIcon from "@mui/icons-material/Send";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
-import { Box, IconButton, TextField, Typography, useTheme, Paper } from "@mui/material";
-import { tokens } from "../../theme";
+import { Box, IconButton, TextField, Typography, Drawer, Avatar, Badge, styled } from "@mui/material";
 import ChatMessage, { type MessageFileAttachment, type MessageType } from "./ChatMessage";
 import { agentChat, type AgentFilePayload } from "../../Api/AgentApi";
 
 interface AgentChatBoxProps {
+  isOpen: boolean;
   onClose: () => void;
   userId: string;
   convId: string;
 }
 
-const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose, userId, convId }) => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
+const StyledBadge = styled(Badge)(() => ({
+  "& .MuiBadge-badge": {
+    backgroundColor: "#4ade80",
+    color: "#4ade80",
+    boxShadow: `0 0 0 2px #0f1419`,
+    "&::after": {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      borderRadius: "50%",
+      animation: "ripple 1.2s infinite ease-in-out",
+      border: "1px solid currentColor",
+      content: '""',
+    },
+  },
+  "@keyframes ripple": {
+    "0%": { transform: "scale(.8)", opacity: 1 },
+    "100%": { transform: "scale(2.4)", opacity: 0 },
+  },
+}));
+
+const AgentChatBox: React.FC<AgentChatBoxProps> = ({ isOpen, onClose, userId, convId }) => {
   const objectUrlsRef = useRef<string[]>([]);
   const [messages, setMessages] = useState<MessageType[]>([
     {
@@ -119,38 +140,75 @@ const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose, userId, convId }) 
   };
 
   return (
-    <Paper
-      elevation={4}
-      sx={{
-        width: 350,
-        height: 500,
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: "12px",
-        overflow: "hidden",
-        bgcolor: colors.primary[500],
-        border: `1px solid ${colors.primary[400]}`,
+    <Drawer
+      anchor="right"
+      open={isOpen}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: { xs: "100%", sm: 480 },
+          background: "linear-gradient(to bottom, #0f1419, #1a1f2e)",
+          borderLeft: "1px solid rgba(59, 130, 246, 0.2)",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: 24,
+        },
       }}
     >
       {/* Header */}
       <Box
         sx={{
-          p: 2,
+          position: "relative",
+          px: 3,
+          py: 2.5,
+          borderBottom: "1px solid rgba(59, 130, 246, 0.2)",
+          background: "linear-gradient(to right, rgba(37, 99, 235, 0.1), rgba(59, 130, 246, 0.05))",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          bgcolor: colors.blueAccent[700],
-          color: colors.grey[100],
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <SmartToyOutlinedIcon />
-          <Typography variant="h5" fontWeight="bold">
-            Data Assistant
-          </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <StyledBadge
+            overlap="circular"
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            variant="dot"
+          >
+            <Avatar
+              sx={{
+                bgcolor: "transparent",
+                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                boxShadow: "0 4px 14px 0 rgba(59, 130, 246, 0.39)",
+                width: 44,
+                height: 44,
+                borderRadius: "12px",
+              }}
+            >
+              <SmartToyOutlinedIcon sx={{ color: "#fff" }} />
+            </Avatar>
+          </StyledBadge>
+          <Box>
+            <Typography variant="h6" fontWeight="600" color="#fff">
+              Data Assistant
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ color: "rgba(147, 197, 253, 0.7)", display: "flex", alignItems: "center", gap: 0.5 }}
+            >
+              <Box component="span" sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#4ade80" }} />
+              Online
+            </Typography>
+          </Box>
         </Box>
-        <IconButton size="small" onClick={onClose} sx={{ color: colors.grey[100] }}>
-          <CloseIcon fontSize="small" />
+        <IconButton
+          onClick={onClose}
+          sx={{
+            color: "#9ca3af",
+            transition: "all 0.2s",
+            "&:hover": { color: "#fff", bgcolor: "rgba(255,255,255,0.1)" },
+          }}
+        >
+          <CloseIcon />
         </IconButton>
       </Box>
 
@@ -158,11 +216,11 @@ const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose, userId, convId }) 
       <Box
         sx={{
           flex: 1,
-          p: 2,
+          px: 3,
+          py: 3,
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
-          bgcolor: theme.palette.mode === "dark" ? colors.primary[600] : "#fcfcfc",
         }}
       >
         {messages.map((msg) => (
@@ -174,43 +232,65 @@ const AgentChatBox: React.FC<AgentChatBoxProps> = ({ onClose, userId, convId }) 
       {/* Input Area */}
       <Box
         sx={{
-          p: 2,
-          bgcolor: colors.primary[500],
-          borderTop: `1px solid ${colors.primary[400]}`,
+          p: 3,
+          borderTop: "1px solid rgba(59, 130, 246, 0.2)",
+          background: "linear-gradient(to top, #0f1419, transparent)",
           display: "flex",
-          gap: 1,
+          gap: 1.5,
         }}
       >
         <TextField
           fullWidth
           variant="outlined"
-          placeholder="Type a message..."
-          size="small"
+          placeholder="Type your message..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
           sx={{
             "& .MuiOutlinedInput-root": {
-              borderRadius: "20px",
-              bgcolor: colors.primary[400],
+              borderRadius: "16px",
+              bgcolor: "#1e2633",
+              color: "#fff",
+              border: "1px solid rgba(59, 130, 246, 0.1)",
+              "& fieldset": { border: "none" },
+              "&:hover fieldset": { border: "none" },
+              "&.Mui-focused fieldset": {
+                border: "2px solid rgba(59, 130, 246, 0.5)",
+              },
+            },
+            "& .MuiOutlinedInput-input::placeholder": {
+              color: "#6b7280",
+              opacity: 1,
             },
           }}
         />
         <IconButton
-          color="primary"
           onClick={handleSend}
+          disabled={!inputValue.trim()}
           sx={{
-            bgcolor: colors.blueAccent[700],
-            color: colors.grey[100],
+            width: 56,
+            height: 56,
+            mx: "0 !important",
+            borderRadius: "16px",
+            background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+            color: "#fff",
+            boxShadow: "0 4px 14px 0 rgba(59, 130, 246, 0.2)",
+            transition: "all 0.2s",
             "&:hover": {
-              bgcolor: colors.blueAccent[600],
+              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+              boxShadow: "0 6px 20px 0 rgba(59, 130, 246, 0.3)",
+            },
+            "&.Mui-disabled": {
+              background: "linear-gradient(135deg, #374151, #1f2937)",
+              color: "#9ca3af",
+              boxShadow: "none",
             },
           }}
         >
-          <SendIcon fontSize="small" />
+          <SendIcon />
         </IconButton>
       </Box>
-    </Paper>
+    </Drawer>
   );
 };
 
