@@ -96,7 +96,7 @@ class NasaTableCreator:
             connection.execute(query, {"table_name": self.newTableName, "station_id": self.stationId})
 
     def get_last_data_point(self) -> datetime:
-        query = text(f'SELECT MAX("date_time") FROM "{self.newTableName}";')
+        query = text(f'SELECT MAX("date_time") FROM "{self.newTableName}" WHERE "ALLSKY_SFC_SW_DWN" IS NOT NULL;')
         with self.engine.connect() as conn:
             last_time = conn.execute(query).scalar()
         
@@ -111,15 +111,13 @@ class NasaTableCreator:
     def getFullDataDf(self, isUpdate: bool = False):
         # 1. Determine Start Date
         if isUpdate:
+            #Change this to nuill of  All sky sfc sw dwn is not null
             start_dt = self.get_last_data_point()
         else:
             start_dt = datetime(2024, 1, 1, tzinfo=timezone.utc)
-
         end_dt = datetime.now(timezone.utc)
         
-        # If we are up to date (less than 2 hours behind), skip
-        if (end_dt - start_dt).total_seconds() < 7200:
-            return None
+
 
         # 2. Call API
         start_str = start_dt.strftime("%Y%m%d")
@@ -144,13 +142,12 @@ class NasaTableCreator:
             rad = pd.Series(params.get('ALLSKY_SFC_SW_DWN', {}), name='ALLSKY_SFC_SW_DWN')
             
             df = pd.concat([t2m, t2m_dew, ws2m, rh2m, prec, rad], axis=1)
+            df = df.replace(-999, pd.NA)
             
             # Index is currently strings "YYYYMMDDHH". Convert to TIMESTAMPTZ
             df.index = pd.to_datetime(df.index, format='%Y%m%d%H', utc=True)
             df.index.name = 'date_time'
             
-            # Filter to only new data (API might return overlap)
-            df = df[df.index > start_dt]
             
             if df.empty:
                 return None

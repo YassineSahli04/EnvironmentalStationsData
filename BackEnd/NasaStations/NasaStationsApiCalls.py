@@ -12,9 +12,6 @@ class NasaPowerApiCalls:
         self.start = start_date # Format: YYYYMMDDHH
         self.end = end_date     # Format: YYYYMMDDHH
         
-        # We don't need a list[QueryObject] because NASA doesn't support 
-        # complex batching of different stations in one call.
-        # One Object = One Station Request.
     def get_params(self):
         """
         Instead of getBody(), we have get_params() to build the query string.
