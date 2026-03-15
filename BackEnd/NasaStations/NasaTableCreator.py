@@ -6,20 +6,13 @@ from BackEnd.NasaStations.NasaStationsApiCalls import NasaPowerApiCalls
 from BackEnd.PostgreSQL.StationColumnConverter import StationColumnConverter
 
 class NasaTableCreator:
-    def __init__(self, engine: _engine.Engine, hardwareId: str):
+    def __init__(self, engine: _engine.Engine, hardwareId: str, stationId: int, lat: float, lon: float):
         self.engine = engine
         self.hardwareId = hardwareId
         self.newTableName = hardwareId
-
-        # Look up station metadata from the database (same pattern as C2ai/Cf)
-        query = text('SELECT "StationId", "Latitude", "Longitude" FROM "Stations" WHERE "HardwareId" = :hwid')
-        with self.engine.connect() as conn:
-            row = conn.execute(query, {"hwid": hardwareId}).mappings().first()
-        if row is None:
-            raise ValueError(f"No station found with HardwareId: {hardwareId}")
-        self.stationId = int(row["StationId"])
-        self.lat = float(row["Latitude"])
-        self.lon = float(row["Longitude"])
+        self.stationId = stationId
+        self.lat = lat
+        self.lon = lon
 
     @staticmethod
     def get_nasa_station_id(lat: float, lon: float) -> str:

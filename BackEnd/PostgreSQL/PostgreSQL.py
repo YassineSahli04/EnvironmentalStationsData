@@ -90,7 +90,7 @@ class PostgreSQL:
                             table_creator = CfTableCreator(self.engine, hardwareStation)
                             alreadyExists = table_creator.IsDataTableCreated()
                         case "NASA":
-                            table_creator = NasaTableCreator(self.engine, hardwareStation)
+                            table_creator = NasaTableCreator(self.engine, hardwareStation, station.Id, station.Latitude, station.Longitude)
                             alreadyExists = table_creator.create_postgre_table()
 
                     if not alreadyExists:
@@ -165,7 +165,8 @@ class PostgreSQL:
             case "Pessl":
                 table_creator = CfTableCreator(self.engine, str(hardwareId))
             case "NASA":
-                table_creator = NasaTableCreator(self.engine, str(hardwareId))
+                st = StationDbObject(self.engine, hardwareId, isHardwareId=True)
+                table_creator = NasaTableCreator(self.engine, str(hardwareId), st.Id, st.Latitude, st.Longitude)
             case _:
                 raise Exception("Data Tables are only available for DeltaOHM Stations, Pessl Stations, and NASA Stations")
 
