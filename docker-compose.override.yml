@@ -103,7 +103,7 @@ services:
       - api
     build:
       context: ./AiAgent
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "8001"
     volumes:
