@@ -1,13 +1,7 @@
-import { useContext } from "react";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
-import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
-import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
-import { Box, IconButton, useTheme, Typography, Button } from "@mui/material";
-import { ColorModeContext } from "../../theme";
+import { Box, Typography, Button } from "@mui/material";
 
 const Topbar = () => {
-  const theme = useTheme();
-  const colorMode = useContext(ColorModeContext);
 
   return (
     <Box
