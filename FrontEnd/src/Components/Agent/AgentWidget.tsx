@@ -30,16 +30,13 @@ const AgentWidget: React.FC = () => {
         gap: 2,
       }}
     >
-      {/* Chat Box Popup */}
-      <Zoom in={isOpen}>
-        <Box sx={{ display: isOpen ? "block" : "none" }}>
-          <AgentChatBox
-            onClose={() => setIsOpen(false)}
-            userId={appUser ? appUser.id : "GuestUserId"}
-            convId={convId}
-          />
-        </Box>
-      </Zoom>
+      {/* Drawer-based Chat Box */}
+      <AgentChatBox
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        userId={appUser ? appUser.id : "GuestUserId"}
+        convId={convId}
+      />
 
       {/* Floating Action Button */}
       <Zoom in={!isOpen}>
