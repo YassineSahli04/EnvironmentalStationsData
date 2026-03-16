@@ -14,7 +14,7 @@ router = APIRouter(
     tags=["stations"],
 )
 
-@router.get("/all", dependencies=[Depends(require_type_filter())])
+@router.get("/all")
 def get_stations(typeFilter: list[str] = Query(default=[], alias="type[]")):
     try:      
         stations = db.get_all_station_objects(typeFilter)

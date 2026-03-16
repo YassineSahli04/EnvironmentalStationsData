@@ -65,12 +65,12 @@ class NasaTableCreator:
             INSERT INTO "StationColumn"
             ("table_name", "column_name","data_type","unit","aggregation","param","confidence","source", "station_id")
             VALUES
-                (:table_name, 'T2M', 'NUMERIC(10,3)', '°C', ARRAY['avg','min','max']::TEXT[], 'air_temperature', NULL, 'manufacturer_template', :station_id),
-                (:table_name, 'T2MDEW', 'NUMERIC(10,3)', '°C', ARRAY['avg','min','max']::TEXT[], 'dew_point_temperature', NULL, 'manufacturer_template', :station_id),
-                (:table_name, 'WS2M', 'NUMERIC(10,3)', 'm/s', ARRAY['avg','min','max']::TEXT[], 'wind_speed', NULL, 'manufacturer_template', :station_id),
-                (:table_name, 'RH2M', 'NUMERIC(10,3)', '%', ARRAY['avg','min','max']::TEXT[], 'relative_humidity', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'T2M', 'NUMERIC(10,3)', '°C', ARRAY['avg','min','max']::TEXT[], 'temperature', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'T2MDEW', 'NUMERIC(10,3)', '°C', ARRAY['avg','min','max']::TEXT[], 'dew point', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'WS2M', 'NUMERIC(10,3)', 'm/s', ARRAY['avg','min','max']::TEXT[], 'wind speed', NULL, 'manufacturer_template', :station_id),
+                (:table_name, 'RH2M', 'NUMERIC(10,3)', '%', ARRAY['avg','min','max']::TEXT[], 'relative humidity', NULL, 'manufacturer_template', :station_id),
                 (:table_name, 'PRECTOTCORR', 'NUMERIC(10,3)', 'mm', ARRAY['sum']::TEXT[], 'precipitation', NULL, 'manufacturer_template', :station_id),
-                (:table_name, 'ALLSKY_SFC_SW_DWN', 'NUMERIC(10,3)', 'W/m²', ARRAY['avg']::TEXT[], 'solar_radiation', NULL, 'manufacturer_template', :station_id)
+                (:table_name, 'ALLSKY_SFC_SW_DWN', 'NUMERIC(10,3)', 'W/m²', ARRAY['avg']::TEXT[], 'solar radiation', NULL, 'manufacturer_template', :station_id)
 
             ON CONFLICT ("table_name", "column_name")
             DO UPDATE SET

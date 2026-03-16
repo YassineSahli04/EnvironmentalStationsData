@@ -18,6 +18,7 @@ export const MapStationsTypeFilter = [
   "Pluviometer",
   "Meteorological",
   "Meteorological/Pluviometer",
+  "Virtual",
 ] as const;
 
 const API_URL = import.meta.env.VITE_API_URL;
