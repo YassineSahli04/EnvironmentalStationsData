@@ -32,7 +32,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./BackEnd
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'}}
           tags: |
             ghcr.io/${{ env.REPO_LC }}-backend:latest
             ghcr.io/${{ env.REPO_LC }}-backend:${{ github.sha }}
@@ -41,7 +41,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./SemanticSearchWorker
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'}}
           tags: |
             ghcr.io/${{ env.REPO_LC }}-worker:latest
             ghcr.io/${{ env.REPO_LC }}-worker:${{ github.sha }}
@@ -50,15 +50,24 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./Scheduler
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'}}
           tags: |
             ghcr.io/${{ env.REPO_LC }}-scheduler:latest
             ghcr.io/${{ env.REPO_LC }}-scheduler:${{ github.sha }}
 
+      - name: Build & Push ai agent
+        uses: docker/build-push-action@v6
+        with:
+          context: ./AiAgent
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'}}
+          tags: |
+            ghcr.io/${{ env.REPO_LC }}-agent:latest
+            ghcr.io/${{ env.REPO_LC }}-agent:${{ github.sha }}
+
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Connect runner to Tailscale
         uses: tailscale/github-action@v2
@@ -86,7 +95,6 @@ jobs:
             powershell -NoProfile -ExecutionPolicy Bypass -Command "
               $ErrorActionPreference='Stop';
 
-              # Write VM key into a temp file
               $dir = Join-Path $env:TEMP 'vmkey';
               New-Item -ItemType Directory -Force -Path $dir | Out-Null;
               $keyFile = Join-Path $dir 'id_ed25519';
@@ -94,7 +102,6 @@ jobs:
               ${{ secrets.DEPLOY_SSH_KEY_VM }}
               '@ -Encoding ascii -NoNewline;
 
-              # Run deploy inside the VM
               ssh -i $keyFile -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL yassine@192.168.14.248 `
                 ""set -euo pipefail
                   cd ~/AGRODATA/Deploy
