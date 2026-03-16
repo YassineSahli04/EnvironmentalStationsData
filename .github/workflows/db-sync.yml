@@ -2,7 +2,7 @@ name: Database Sync
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "dev"]
 
   workflow_dispatch:
 

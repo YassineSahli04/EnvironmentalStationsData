@@ -108,6 +108,11 @@ class StationDbObject:
         self.HardwareStationIds = []
         
         for row in rows:
+            # When looked up by HardwareId, remap self.Id to the real integer StationId
+            if self.IsHardwareId:
+                real_id = row.get("StationId")
+                if real_id is not None:
+                    self.Id = int(real_id)
             self.HardwareStationIds.append(row.get("HardwareId")) # type: ignore
             
             self.Name          = row.get("Name")
@@ -170,10 +175,9 @@ class StationDbObject:
     def set_last_data_point_time(self):
         if self.Manufacturer is None or not self.HasDataTable: self.LastDataPointTime = None; return;
     
-        allowed = {"DeltaOHM", "Pessl"}
+        allowed = {"DeltaOHM", "Pessl", "NASA"}
         if self.Manufacturer not in allowed:
-            raise Exception("Data Tables are only available for DeltaOHM Stations and Pessl")
-        
+            raise Exception("Data Tables are only available for DeltaOHM, Pessl, and NASA Stations") 
         self.LastDataPointTime = None
         for hrdId in self.HardwareStationIds: # type: ignore
             utcTime = StationDbObject.getStationHardwareLastDataPoint(self.engine, hrdId)

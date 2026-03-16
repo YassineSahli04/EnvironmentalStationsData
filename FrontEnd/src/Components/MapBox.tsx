@@ -786,7 +786,7 @@ export default function MapBox({ isSideBarCollapsed, locationFocus }: MapBoxProp
         sx={{
           position: "absolute",
           bottom: 25,
-          right: "-3%",
+          left: 70,
           transform: "translateX(-50%)",
           zIndex: 2,
           display: "flex",

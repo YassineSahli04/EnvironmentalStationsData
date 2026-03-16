@@ -18,7 +18,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       - ./Secrets/DbInfo.json:/run/secrets/DbInfo.json:ro
       - ./Secrets/C2aiInfo.json:/run/secrets/C2aiInfo.json:ro
@@ -28,6 +28,34 @@ services:
       - DBINFO_PATH=/run/secrets/DbInfo.json
       - C2AIINFO_PATH=/run/secrets/C2aiInfo.json
       - REDIS_URL=redis://redis:6379/0
+      - WATCHFILES_FORCE_POLLING=true
+      - AGENT_URL=http://ai-agent:8001
+
+  mcp-server-chart:
+    image: docker.io/acuvity/mcp-server-chart:0.9.7
+    ports:
+      - "8000:8000"
+    read_only: true
+
+  ai-agent:
+    depends_on:
+      - mcp-server-chart
+      - backend
+    build:
+      context: ./AiAgent
+      dockerfile: Dockerfile
+    ports:
+      - "8001"
+    volumes:
+      - ./AiAgent/output:/app/AiAgent/output
+      - ./Secrets/openAi_key:/run/secrets/openAi_key:ro
+      - ./Secrets/langfuse_pk:/run/secrets/angfuse_pk:ro
+      - ./Secrets/langfuse_sk:/run/secrets/angfuse_sk:ro
+    environment:
+      - OPENAI_KEY_PATH=/run/secrets/openAi_key
+      - USE_OPENAI=true
+      - BACKEND_URL=http://backend:8000
+      - EXPORT_DIR=/app/AiAgent/output
 
 volumes:
   vite_node_modules:

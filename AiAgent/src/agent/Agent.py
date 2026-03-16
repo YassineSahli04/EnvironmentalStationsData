@@ -3,6 +3,10 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 import os
 import asyncio
+from agent.McpTools import init_tool
+from agent.Logging import get_logger
+
+logger = get_logger(__name__)
 
 class Agent():
     def __init__(self, isOpenAi = False):
@@ -13,6 +17,11 @@ class Agent():
         self.config = config
 
     async def initializeChat(self):
+        try:
+            await init_tool()
+            logger.info("cli mcp initialization succeeded")
+        except Exception as e:
+            raise ValueError("cli mcp initialization failed.")
         print(f"Bot:  Hi, Which station do you want to analyse?")
         single_prompt = (os.getenv("AGENT_PROMPT") or "").strip()
         if single_prompt:
@@ -37,22 +46,36 @@ class Agent():
         print(f"User: {userMessage}")
 
         print("\n--- Agent Steps ---")
-        async for step in self.graph.astream(
-            {"messages": [HumanMessage(content=userMessage)]},
-            config=self.config,
-            stream_mode="updates",
-        ):
-            self._print_step(step)
+        try:
+            async for step in self.graph.astream(
+                {"messages": [HumanMessage(content=userMessage)]},
+                config=self.config,
+                stream_mode="updates",
+            ):
+                self._print_step(step)
+        except Exception:
+            logger.exception("cli graph stream failed")
+            print("Bot: I hit an internal error while processing your request. Please try again.")
+            print("--- End Steps ---\n")
+            return
         print("--- End Steps ---\n")
 
-        snapshot = self.graph.get_state(self.config)
+        try:
+            snapshot = self.graph.get_state(self.config)
+        except Exception:
+            logger.exception("cli graph state retrieval failed")
+            print("Bot: I hit an internal error while finalizing your response. Please try again.")
+            print()
+            return
+
         messages = snapshot.values.get("messages", []) if snapshot and snapshot.values else []
         if not messages:
             print("Bot: <no response>")
             print()
             return
 
-        print("Bot: ", self.last_ai_text(messages), sep="")
+        _, ai_message = Agent.last_ai_text(messages)
+        print("Bot: ", ai_message, sep="")
         print()
 
     def _print_step(self, step):
@@ -81,11 +104,18 @@ class Agent():
             if getattr(last, "type", None) == "tool":
                 print(f"  [tool_result] {getattr(last, 'name', 'unknown')} -> {last.content}")
 
-    def last_ai_text(self, messages):
+    @staticmethod
+    def last_ai_text(messages) -> tuple[AIMessage | None, str]:
         for m in reversed(messages):
             if isinstance(m, AIMessage) and (m.content or ""):
-                return m.content
-        return "<no assistant text>"
+                if isinstance(m.content, str):
+                    return m, m.content
+            if isinstance(m.content, list):
+                return m, " ".join(
+                    c if isinstance(c, str) else c.get("text", "")
+                    for c in m.content
+                )
+        return None, "<no assistant text>"
 
 if __name__ == "__main__":
     use_openai = os.getenv("USE_OPENAI", "true").lower() == "true"

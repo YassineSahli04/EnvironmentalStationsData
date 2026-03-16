@@ -1,3 +1,6 @@
+import calendar
+import re
+
 from langchain_core.messages import HumanMessage
 
 from agent.State import State, TimeRange
@@ -51,7 +54,7 @@ def _extract_available_sensors(stationMetadata : dict) -> list[str]:
 
     return sorted(set(availableSensors))
 
-def _verify_variables_selected(variables_selected: List[str] | None, stationMetadata : dict) -> tuple[VerifState, str | None]:
+def verify_variables_selected(variables_selected: List[str] | None, stationMetadata : dict) -> tuple[VerifState, str | None]:
     if not variables_selected:
         return VerifState.Failed, 'No variables are selected.'
     
@@ -78,7 +81,7 @@ def _verify_variables_selected(variables_selected: List[str] | None, stationMeta
 
     return VerifState.Passed, None
 
-def _verify_timerange_entry(time_range: TimeRange | None) -> tuple[VerifState, str | None]:
+def verify_timerange_entry(time_range: TimeRange | None) -> tuple[VerifState, str | None]:
     if time_range is None:
         return VerifState.Failed, "time range is None"
 
@@ -96,7 +99,7 @@ def _verify_timerange_entry(time_range: TimeRange | None) -> tuple[VerifState, s
 
     return VerifState.Passed, None
 
-def _verify_datagroup_entry(dataGroup: str | None) -> tuple[VerifState, str | None]:
+def verify_datagroup_entry(dataGroup: str | None) -> tuple[VerifState, str | None]:
     if dataGroup is None or not str(dataGroup).strip():
         return (VerifState.Failed, "dataGroup is missing. Allowed: hourly/daily/weekly/monthly (or hour/day/week/month).")
 
@@ -106,21 +109,24 @@ def _verify_datagroup_entry(dataGroup: str | None) -> tuple[VerifState, str | No
     except ValueError as e:
         return (VerifState.RequestModel, str(e))
 
-def _has_request_model_issue(issues: list[dict], field_name: str) -> bool:
+def has_request_model_issue(issues: list[dict], field_name: str) -> bool:
     for issue in issues:
         if isinstance(issue, dict) and issue.get("field") == field_name:
             return True
     return False
 
-def _get_last_user_message_text(state: State) -> Optional[str]:
+def get_last_user_messages(state: State, number_messages:int = 1) -> List[str]:
+    msgs = []
     for msg in reversed(state["messages"]):
         if isinstance(msg, HumanMessage):
             content = getattr(msg, "content", None)
             if isinstance(content, str) and content.strip():
-                return content.strip()
-    return None
+                msgs.append(content.strip())
+                if len(msgs) == number_messages:
+                    return msgs
+    return msgs
 
-def _parse_tool_content(content):
+def parse_tool_content(content):
     if isinstance(content, dict):
         return content
     if isinstance(content, str):
@@ -178,3 +184,50 @@ def transform_timeseries_to_excel_payload(
         "headers": headers,
         "data": formatted_rows,
     }
+
+def sanitize_iso_datetime(value: str) -> str | None:
+    raw = value.strip()
+    if not raw:
+        return None
+
+    has_z = raw.endswith("Z")
+    candidate = raw[:-1] if has_z else raw
+
+    try:
+        parsed = datetime.fromisoformat(candidate)
+        normalized = parsed.isoformat(timespec="seconds")
+        return f"{normalized}Z" if has_z else normalized
+    except ValueError:
+        pass
+
+    match = re.match(
+        r"^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})"
+        r"[T\s](?P<hour>\d{2}):(?P<minute>\d{2})(?::(?P<second>\d{2}))?$",
+        candidate,
+    )
+    if not match:
+        return None
+
+    year = int(match.group("year"))
+    month = int(match.group("month"))
+    day = int(match.group("day"))
+    hour = int(match.group("hour"))
+    minute = int(match.group("minute"))
+    second = int(match.group("second") or "00")
+
+    if month < 1 or month > 12:
+        return None
+    if hour > 23 or minute > 59 or second > 59:
+        return None
+
+    max_day = calendar.monthrange(year, month)[1]
+    safe_day = min(max(day, 1), max_day)
+
+    try:
+        repaired = datetime(year, month, safe_day, hour, minute, second)
+    except ValueError:
+        return None
+
+    normalized = repaired.isoformat(timespec="seconds")
+    return f"{normalized}Z" if has_z else normalized
+
