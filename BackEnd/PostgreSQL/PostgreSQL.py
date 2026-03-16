@@ -1,7 +1,7 @@
 from datetime import datetime
 import json
 import sqlalchemy.engine as _engine
-from sqlalchemy import create_engine, text, bindparam
+from sqlalchemy import create_engine, text, bindparam, MetaData, Table
 import os
 from BackEnd.GeoJson.GeoJsonStationInfoFeature import GeoJsonStationInfoFeature
 from BackEnd.PostgreSQL.StationDbObject import StationDbObject
@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from BackEnd.Utils.EmailNotifier import EmailNotifier
 from BackEnd.PostgreSQL.User import User
 from BackEnd.NasaStations.NasaTableCreator import NasaTableCreator
+from sqlalchemy.dialects.postgresql import insert
 
 
 class PostgreSQL:
@@ -112,15 +113,28 @@ class PostgreSQL:
     def insert_create_data_df(self, df, tableName):
         with self.engine.begin() as connection:
             connection.execute(text("SET TIME ZONE 'UTC';"))
-            if(df is not None):
-                df.to_sql(
-                    name=tableName,
-                    con=connection,
-                    if_exists="append",
-                    index=False, 
-                    method="multi",
-                    chunksize=self.CHUNK_SIZE,
-                )
+            if df is not None and not df.empty:
+                records = df.where(df.notna(), None).to_dict(orient="records")
+                metadata = MetaData()
+                target_table = Table(tableName, metadata, autoload_with=connection)
+
+                stmt = insert(target_table).values(records)
+                pk_cols = [col.name for col in target_table.primary_key.columns]
+                non_pk_update_cols = {
+                    col.name: stmt.excluded[col.name]
+                    for col in target_table.columns
+                    if col.name not in pk_cols
+                }
+
+                if pk_cols and non_pk_update_cols:
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=pk_cols,
+                        set_=non_pk_update_cols,
+                    )
+                elif pk_cols:
+                    stmt = stmt.on_conflict_do_nothing(index_elements=pk_cols)
+
+                connection.execute(stmt)
             
             query = text(f"""
                 DO $$
