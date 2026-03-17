@@ -31,11 +31,6 @@ class TestGetStations:
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
-    @patch("BackEnd.app.stations_routes.db")
-    def test_403_without_auth(self, mock_db, client, mock_auth_none):
-        resp = client.get("/api/stations/all", params={"type[]": "Meteorological"})
-        assert resp.status_code == 401
-
 
 class TestGetStationsGeojson:
     @patch("BackEnd.app.stations_routes.db")

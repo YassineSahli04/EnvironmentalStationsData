@@ -37,56 +37,56 @@ def classify_intent(state: State, config: RunnableConfig | None = None) -> Dict[
 
     if not msgs:
         return {"is_data_request": False, "recheck_intent": False}
-    
+
     structured_model = model.with_structured_output(IntentResult)
 
+    target_msg = msgs[0]
+    context_msgs = msgs[1:]
+
+    context_block = "\n".join(
+        f"- {m}" for m in reversed(context_msgs)
+    ) if context_msgs else "None"
+
     prompt = (
-            "Classify whether the user's message is an explicit data request.\n"
-            "\n"
-            "Set is_data_request=true only when the user explicitly asks to get, see, inspect, analyze, plot, graph, chart, or tabulate data values.\n"
-            "A request is also an explicit data request if the user clearly names one or more variables to analyze, such as temperature, humidity, wind speed, or rainfall, optionally with a time constraint.\n"
-            "The request for data must be explicit.\n"
-            "Do not mark it as true just because the user mentions a station, says 'analyze the station', or speaks generally about weather.\n"
-            "\n"
-            "Set is_data_request=false for station lookup, station listing, station search, station selection, general chat, vague requests, or requests that do not explicitly ask for data values.\n"
-            "\n"
-            "Examples:\n"
-            "- 'show temperature data' -> true\n"
-            "- 'plot humidity for last week' -> true\n"
-            "- 'I want to analyze temperature' -> true\n"
-            "- 'list stations' -> false\n"
-            "- 'find a station in Toronto' -> false\n"
-            "- 'analyze this station' -> false\n"
-            "\n"
-            "Do not infer hidden intent. Classify only what the user explicitly asked."
-        )
+        "You are classifying ONLY the LAST user message.\n"
+        "\n"
+        "IMPORTANT:\n"
+        "- The last message is the ONLY message to classify.\n"
+        "- Previous messages are CONTEXT ONLY and must NOT override the last message.\n"
+        "- If the last message is vague, use context only to clarify meaning, not to replace intent.\n"
+        "\n"
+        "CONTEXT (older messages):\n"
+        f"{context_block}\n"
+        "\n"
+        "LAST MESSAGE TO CLASSIFY:\n"
+        f"{target_msg}\n"
+        "\n"
+        "TASK:\n"
+        "Classify whether the LAST message is an explicit data request.\n"
+        "\n"
+        "Rules:\n"
+        "- true ONLY if user explicitly asks for data (show, plot, analyze values, etc.)\n"
+        "- mentioning a station alone is NOT enough\n"
+        "- do NOT infer hidden intent\n"
+        "\n"
+        "Examples:\n"
+        "- 'show temperature data' -> true\n"
+        "- 'plot humidity for last week' -> true\n"
+        "- 'list stations' -> false\n"
+        "- 'analyze this station' -> false\n"
+    )
 
-    messages: list[BaseMessage] = [SystemMessage(content=prompt)]
-
-    if len(msgs) > 4:
-        messages.append(HumanMessage(content=msgs[4]))
-    
-    if len(msgs) > 3:
-        messages.append(HumanMessage(content=msgs[3]))
-    
-    if len(msgs) > 2:
-        messages.append(HumanMessage(content=msgs[2]))
-    
-    if len(msgs) > 1:
-        messages.append(HumanMessage(content=msgs[1]))
-
-    if len(msgs) > 0:
-        messages.append(HumanMessage(content=msgs[0]))
     try:
         result = structured_model.invoke(
-            messages,
+            [SystemMessage(content=prompt)],
             config=config,
         )
     except Exception:
         logger.exception("classify_intent failed")
         return {"is_data_request": False, "recheck_intent": False}
-    if result.is_data_request and not state.get("station_id"):  # type: ignore
-        return {"is_data_request": False, "recheck_intent": True} 
+
+    if result.is_data_request and not state.get("station_id"): # type: ignore
+        return {"is_data_request": False, "recheck_intent": True}
 
     return {"is_data_request": result.is_data_request, "recheck_intent": False} # type: ignore
 
