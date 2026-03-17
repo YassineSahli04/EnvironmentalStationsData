@@ -5,7 +5,7 @@
   },
   "excel-csv": {
     "transport": "stdio",
-    "command": "excel-csv-mcp-server",
-    "args": []
+    "command": "npx",
+    "args": ["-y", "excel-csv-mcp-server"]
   }
 }

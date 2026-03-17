@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y curl ca-certificates gnupg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
     > /etc/apt/sources.list.d/nodesource.list \
     && apt-get update && apt-get install -y nodejs \
+    && npm install -g excel-csv-mcp-server \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock* README.md ./
