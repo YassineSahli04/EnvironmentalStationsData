@@ -6,6 +6,14 @@ The project focuses on solving real-world challenges related to **data heterogen
 
 ---
 
+## 🌐 Live Demo
+
+👉 https://environmentalstationsdata.pages.dev/
+
+> ⚠️ **Note:** The website may occasionally be unstable or partially broken as new features and updates are actively being deployed.
+
+---
+
 ## Overview
 
 Environmental monitoring stations often expose data through **heterogeneous schemas, vendor-specific APIs, and inconsistent naming conventions**, making cross-station analysis and querying difficult and error-prone.
